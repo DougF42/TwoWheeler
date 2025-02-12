@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "numeric": "cpp"
+    },
+    "idf.port": "/dev/ttyACM0"
+}
