@@ -10,6 +10,7 @@
             "includePath": [
                 "/home/doug/shared/PlatformIO/Projects/TwoWheeler/include",
                 "/home/doug/shared/PlatformIO/Projects/TwoWheeler/src",
+                "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                 "/home/doug/shared/PlatformIO/Projects/TwoWheeler/.pio/libdeps/esp32doit-devkit-v1/ESP32_PWM/src",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
@@ -236,7 +237,6 @@
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/USB/src",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/Update/src",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src",
-                "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFiProv/src",
                 "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -247,6 +247,7 @@
                 "path": [
                     "/home/doug/shared/PlatformIO/Projects/TwoWheeler/include",
                     "/home/doug/shared/PlatformIO/Projects/TwoWheeler/src",
+                    "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                     "/home/doug/shared/PlatformIO/Projects/TwoWheeler/.pio/libdeps/esp32doit-devkit-v1/ESP32_PWM/src",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
@@ -473,7 +474,6 @@
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/USB/src",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/Update/src",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src",
-                    "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/WiFiProv/src",
                     "/home/doug/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -481,7 +481,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=60116",
+                "PLATFORMIO=60118",
                 "ARDUINO_ESP32_DEV",
                 "HAVE_CONFIG_H",
                 "MBEDTLS_CONFIG_FILE=\"mbedtls/esp_config.h\"",

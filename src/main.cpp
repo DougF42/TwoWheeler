@@ -20,7 +20,7 @@ void setup() {
 }
 
 
-#define BLINK_RATE_MSECS 10000
+#define BLINK_RATE_MSECS 1000
 unsigned long lastBlinkTime=0;
 bool last_led_state=false; // true is 
 
