@@ -55,7 +55,8 @@ LN298::LN298()
     motorEnPin= -1;  // this is what we will pulse
     motorDirAPin= -1;   // one of the bridge pins ln the LN298
     motorDirBPin= -1;   // one of the bridge pins ln the LN298
-    int channelNo= -1;  
+    channelNo= -1;  
+    timerIsRunning = false;
 }
 
 // default destructor
@@ -100,6 +101,26 @@ bool LN298::begin(int ENA_pin, int pinA, int pinB)
 
 }
 
+
+/**
+ * @brief Main control - set power level for each wheel
+ *   Power is 0...+/- 100 percent?
+ * 
+ * This automatically adjusts the direction controls for forward/reverse
+ *   as needed.
+ * @param left  - power setting for left
+ * @param right  - power setting for right
+ */
+
+void LN298A:power(int left, int right)
+{
+    // TODO:
+    bool pinEn=digitalRead(motorEnPin);
+    bool pinA = digitalRead()
+}
+
+
+
 /**
  * @brief Set the LN298 bridge  'forward'
  *
@@ -123,16 +144,23 @@ void LN298::reverse()
 }
 
 /**
- * @brief Disables the drviver, robot will drift
+ * @brief Set the bridge to 'drift' (A and B off)
  * 
+ * @param coldFlag - if true, then disable the driver
  */
-void LN298::drift()
+void LN298::drift(bool coldFlag)
 {
     digitalWrite(motorDirAPin, LOW);
     digitalWrite(motorDirBPin, LOW);
-    pwm.disable(channelNo);
-    // TODO: STOP THE TIMER ON THIS MOTOR ? ? ?
+    if (coldFlag)  
+    {
+        pwm.disable(channelNo);
+        timerIsRunning=false;
+        digitalWrite(motorEnPin, LOW);
+    }
+ 
 }
+
 
 /**
  * @brief Bring the motor to a 'stop'.
@@ -142,9 +170,19 @@ void LN298::drift()
  */
 void LN298::stop()
 {
-    digitalWrite(motorDirAPin, LOW);
-    digitalWrite(motorDirBPin, LOW);    
-    // TODO: SET PULSE RATE HIGH TO STOP MOTOR???
+    digitalWrite(motorDirAPin, HIGH);
+    digitalWrite(motorDirBPin, HIGH);
 }
 
 
+LN298::motorState_t LN298::getMotorDir(int motor)
+{
+    if (! pwm.isEnabled(channelNo)) return(M_COLD);
+    bool ena = digitalRead(motorEnPin);
+    bool pinA= digitalRead(motorDirAPin);
+    bool pinB= digitalRead(motorDirBPin);
+    if ((pinA==true) && (pinB==false)) return(M_FORWWARD);
+    if ((pinA==false)&& (pinB==true))  return(M_REVERSE);
+    if ((pinA==true) && (pinB==true))  return(M_STOP);
+    return(M_DRIFT);
+}
