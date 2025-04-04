@@ -13,12 +13,13 @@
  *      static (and therefore local), but not part of the LN298 class.
  */
 
-#include "Config.h"
+#include "config.h"
 #include "LN298.h"
 
 #if !defined( ESP32 )
   #error This code is designed to run on ESP32 platform, not Arduino nor ESP8266! Please check your Tools->Board setting.
 #endif
+
 // These define's must be placed at the beginning before #include "ESP32_PWM.h"
 // _PWM_LOGLEVEL_ from 0 to 4
 // Don't define _PWM_LOGLEVEL_ > 0. Only for special ISR debugging only. Can hang the system.
@@ -48,6 +49,22 @@ bool IRAM_ATTR TimerHandler(void * timerNo)
     return(true);
 }
 
+// Default constructor
+LN298::LN298()
+{
+    motorEnPin= -1;  // this is what we will pulse
+    motorDirAPin= -1;   // one of the bridge pins ln the LN298
+    motorDirBPin= -1;   // one of the bridge pins ln the LN298
+    int channelNo= -1;  
+}
+
+// default destructor
+LN298::~LN298()
+{
+    // TODO:
+}
+
+
 /** - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * @brief The timer interrupt - we need to do something!
  *
@@ -55,7 +72,7 @@ bool IRAM_ATTR TimerHandler(void * timerNo)
  * @return true   - normal return
  * @return false  - failed.
  */
-bool LN298::setup(int ENA_pin, int pinA, int pinB)
+bool LN298::begin(int ENA_pin, int pinA, int pinB)
 {
     motorEnPin = ENA_pin; // this is what we will pulse
     motorDirAPin = pinA;  // one of the bridge pins ln the LN298

@@ -11,6 +11,16 @@
 #ifndef C_O_N_F_I_G__H
 #define C_O_N_F_I_G__H
 #include "Arduino.h"
+#include "CommandList.h"
+
+// Network Definitions
+#define UDP_SSID "defnet"
+#define UDP_PASS "iknowits42"
+#define UDP_PORT 23
+
+// Some command processing definitions
+extern void showHelp(Print *outdev, const Command_t *cmd);
+extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 
 // built-in LED
 //#define BUILT_IN_LED_PIN ( (gpio_num_t)2 )

@@ -27,7 +27,7 @@ class LN298
     public:
         LN298();
         ~LN298();
-        bool setup(int ENA_pin, int PINA, int PNIB);
+        bool begin(int ENA_pin, int PINA, int PNIB);
         void setPWM(int pwmRate); // note: UNITS TBD!
         void forward();
         void reverse();

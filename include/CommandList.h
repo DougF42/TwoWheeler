@@ -8,10 +8,11 @@
  * @copyright Copyright (c) 2024
  * 
  */
+#include "config.h"
 #include "Commands.h"
-#ifndef C_O_M_M_A_N_D__L_I_S_T__H
-#define C_O_M_M_A_N_D__L_I_S_T__H
 
+#ifndef C_O_M_M_A_N_D__L_I_S_T__H1
+#define C_O_M_M_A_N_D__L_I_S_T__H1
 
 // This structure defines the format of the list
 // (the list is terminated when a minArgCount of -1 is detected))
@@ -25,17 +26,5 @@ typedef struct
     void (*function)(Print *outdev, int tokCnt, char *toklist[]);  // The function. 'outdev' is where to output results.    
 } Command_t;
 
-
-/**
- * @brief The list of available commands
- * 
- */
-static Command_t cmdList[]=
-{
-    {"help", "Help command",            0, 3,      nullptr, Commands::cmdHelp },
-    {"?"   , "Help command",            0, 3,      nullptr, Commands::cmdHelp },
-    {"END", "END", -1, -1, nullptr, nullptr} 
-};
-
-
+extern const Command_t cmdList[];
 #endif

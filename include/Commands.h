@@ -23,13 +23,15 @@
 #define C_O_M_M_A_N_D_S__H
 #include "Arduino.h"
 #define MAX_ARGUMENTS 4
+#define MAX_LINE_LENGTH 128
+#include "CommandList.h"
 
 class Commands : public Print{
     private:
-        char *buffer;         // Where to store the incoming message
-        int bufLen;           // allocated length of the buffer
+        char buffer[MAX_LINE_LENGTH+1];  // Where to store the incoming message
         char *nxtCharInBuf;   // Points to where next char goes in buffer
         char *bufMaxPtr;      // Points to last char position in buffer
+
         char *tokens[MAX_ARGUMENTS];
         int nxtToken;        
         void parseCommand();  // Break the command into words
@@ -37,20 +39,19 @@ class Commands : public Print{
 
     public:
         Commands();
-        Commands(size_t buflen);
         ~Commands();
     
         void flush();
-        bool setBufLen(size_t newBufLen);
         bool addChar(char ch);
         bool addBlock(char *blk, size_t len);
         static bool getIntFromToken(char *token, int &newVal, int baseNo=0);
-        static void cmdHelp(Print *outdev, int tokcnt, char *tokList[]);
         static void notImplemented(Print *outdev, int tokcnt, char *tokList[]);
 
         virtual bool isEndOfChar(char ch);
+        // NOTE: User implementation will decide if a line is complete based on "\r\n" sequence
+        //       from the print class (when println(..) is used)
         virtual size_t write(uint8_t) = 0;                        // user specified
-        virtual size_t write(const uint8_t *buffer, size_t size); // user specified
+        virtual size_t write(const uint8_t *buffer, size_t size)=0; // user specified
         virtual int availableForWrite() { return 0; }   // default - does nothing
 
 

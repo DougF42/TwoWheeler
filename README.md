@@ -1,26 +1,27 @@
 
 Drive a two-wheel robot. 
+    * Platform: ESP32 variant
     * Uses dual L298N H-bridge to drive two DC motors.
 
     Sensor Fusion used to determine motion (and position?)
-        Uses GY-521 Accel/gryo
-        Uses Quadrature wheel position encoder
+        Uses GY-521 Accel/gryo for direction control
         Opt: Use LIDAR for position
 
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
-LN298N is a motor driver for 2 DC motors, using a L298N chip. 
-It has two inputs for each motor. 
-= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
-Quadrature encoder is two channel for each wheel, 360 slots per rotation.
-Two inputs per motor.
-= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
-GY-521 - uses I2C for communication. Provides Gro, Accel AND tempeture
-    There is a Motion Processor on board.
-= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
-LIDAR - located on top of robot, should provide distance and direction
-    input. This will require some processing...
+LN298N motor driver for 2 DC motors, using a L298N chip. 
+It has two inputs for each motor.
 
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+GY-521 - uses I2C for communication. Provides Gyroscope and  Accelerometer
+    AND tempeture      There is a Motion Processor on board
+
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+Future: LIDAR - located on top of robot, should provide distance and direction
+    input via serial port (input only).   This will require some processing...
+
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+Serial port AND UDP...
+
 COMMANDS:
 We assume that commands come from a channel (e.g.: UDP Port, Serial port, TCP port etc),
 which is implemented by a 'channel' class.   This class will have "Commands" as a base class. 
