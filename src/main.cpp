@@ -1,11 +1,13 @@
 #include <Arduino.h>
 #include "UdpCmd.h"
 #include "LN298.h"
+#include "QuadEncoder.h"
 
 UdpCmd Udp;
 LN298 ln298Left;
 LN298 ln298Right;
-
+QuadEncoder m1quad;
+QuadEncoder m2quad;
 
 void setup() {
   Serial.begin(115200);
@@ -17,6 +19,8 @@ void setup() {
   Udp.begin(UDP_SSID, UDP_PASS);
   ln298Left.begin(MOTOR_1_EN, MOTOR_1_DRIVE_A, MOTOR_1_DRIVE_B); 
   ln298Right.begin(MOTOR_2_EN, MOTOR_2_DRIVE_A, MOTOR_2_DRIVE_B); 
+  m1quad.begin(MOTOR_1_QUAD_A, MOTOR_1_QUAD_A);
+  m2quad.begin(MOTOR_2_QUAD_A, MOTOR_2_QUAD_B);
 }
 
 

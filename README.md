@@ -10,7 +10,9 @@ Drive a two-wheel robot.
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 LN298N motor driver for 2 DC motors, using a L298N chip. 
 It has two inputs for each motor.
-
+= = = = = = = = = = = = = = = = = =
+Quadrature encoding used on the two motors. Link sensor to shaft
+via 1:1 pulley (need to design in onshape!) (?Use T2 belt?)
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 GY-521 - uses I2C for communication. Provides Gyroscope and  Accelerometer
     AND tempeture      There is a Motion Processor on board

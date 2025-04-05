@@ -12,6 +12,7 @@
 #define C_O_N_F_I_G__H
 #include "Arduino.h"
 #include "CommandList.h"
+#include "driver/gpio.h"
 
 // Network Definitions
 #define UDP_SSID "defnet"
@@ -33,21 +34,20 @@ extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 
 
 // Pins for DC motor 1
-#define MOTOR_1_EN      20
-#define MOTOR_1_DRIVE_A 21
-#define MOTOR_1_DRIVE_B 22
-
+#define MOTOR_1_EN      GPIO_NUM_20
+#define MOTOR_1_DRIVE_A GPIO_NUM_21
+#define MOTOR_1_DRIVE_B GPIO_NUM_22
 
 // Pins for DC motor 2
-#define MOTOR_2_EN      25
-#define MOTOR_2_DRIVE_A 26
-#define MOTOR_2_DRIVE_B 27
+#define MOTOR_2_EN      GPIO_NUM_25
+#define MOTOR_2_DRIVE_A GPIO_NUM_26
+#define MOTOR_2_DRIVE_B GPIO_NUM_27
 
 // Speed Sensors 
-#define MOTOR_1_QUAD_A  23
-#define MOTOR_1_QUAD_B  24
-#define MOTOR_2_QUAD_A  28
-#define MOTOR_2_QUAD_B  29
+#define MOTOR_1_QUAD_A  GPIO_NUM_23
+#define MOTOR_1_QUAD_B  GPIO_NUM_24
+#define MOTOR_2_QUAD_A  GPIO_NUM_28
+#define MOTOR_2_QUAD_B  GPIO_NUM_29
 
 
 // * * * * * * * 

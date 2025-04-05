@@ -98,7 +98,7 @@ bool LN298::begin(int ENA_pin, int pinA, int pinB)
     }
     #define PWM_SERVO_FREQ 1000L
     channelNo=pwm.setPWM(motorEnPin, PWM_SERVO_FREQ, 50); // 50 % duty cycle
-
+    return(true);
 }
 
 
@@ -112,11 +112,12 @@ bool LN298::begin(int ENA_pin, int pinA, int pinB)
  * @param right  - power setting for right
  */
 
-void LN298A:power(int left, int right)
+void LN298::power(int left, int right)
 {
     // TODO:
-    bool pinEn=digitalRead(motorEnPin);
-    bool pinA = digitalRead()
+    //bool pinEn=digitalRead(motorEnPin);
+    //bool pinA = digitalRead();
+    return;
 }
 
 
