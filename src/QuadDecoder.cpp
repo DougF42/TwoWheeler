@@ -9,23 +9,30 @@
  * 
  */
 #include "QuadDecoder.h"
+#include "esp_timer.h"
 
 QuadDecoder::QuadDecoder(int motor_index)
 {
     pmdefs = & (MotorDefs::MotorTable[motor_index]);
     last_state = AoffBoff;
+    pulseCount=0;
     position = 0;
+    lastLoopTime= esp_timer_get_time();
+
     // TODO: CONFIGURE QUAD PINS FOR INPUT WITH INTERRUPT
     gpio_config_t pGpioConfig=
-    {   .pin_bit_mask = (1ull << pmdefs->quad_pin_a) | (1ull<<pmdefs->quad_pin_b),
+    {
+        .pin_bit_mask = (1ull << pmdefs->quad_pin_a) | (1ull<<pmdefs->quad_pin_b),
         .mode=GPIO_MODE_INPUT,               /*!< GPIO mode: set input/output mode  */
         .pull_up_en=GPIO_PULLUP_ENABLE,       /*!< GPIO pull-up                    */
         .pull_down_en=GPIO_PULLDOWN_DISABLE,   /*!< GPIO pull-down                 */
-        .intr_type=GPIO_INTR_ANYEDGE;      /*!< GPIO interrupt type                */
+        .intr_type=GPIO_INTR_ANYEDGE,      /*!< GPIO interrupt type                */
     #if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
         .hys_ctrl_mode=GPIO_HYS_SOFT_DISABLE;       /*!< GPIO hysteresis: hysteresis filter on slope input    */
     #endif
-    ESP_ERROR_CHECK(gpio_config( &pGpioConfig) );
+    };
+
+    gpio_config( &pGpioConfig);
     ESP_ERROR_CHECK (gpio_install_isr_service(ESP_INTR_FLAG_LEVEL4) );
     gpio_isr_handler_add(pmdefs->quad_pin_a, ISR_handlePhaseA, this);
     gpio_isr_handler_add(pmdefs->quad_pin_b, ISR_handlePhaseB, this);
@@ -49,6 +56,7 @@ QuadDecoder::~QuadDecoder()
 void QuadDecoder::ISR_handlePhaseA(void *arg)
 {
     QuadDecoder *me = (QuadDecoder *)arg;
+    me->pulseCount++;
     switch(me->last_state)
     {
         case(AoffBoff):
@@ -73,6 +81,7 @@ void QuadDecoder::ISR_handlePhaseA(void *arg)
     }
 }
 
+
 /**
  * @brief Phase B changed
  * 
@@ -81,6 +90,7 @@ void QuadDecoder::ISR_handlePhaseA(void *arg)
 void QuadDecoder::ISR_handlePhaseB(void *arg)
 {
     QuadDecoder *me = (QuadDecoder *)arg;
+    me->pulseCount++;
     switch(me->last_state)
     {
         case(AoffBoff):
@@ -104,4 +114,37 @@ void QuadDecoder::ISR_handlePhaseB(void *arg)
         break;
     }
 
+}
+
+
+/**
+ * @brief This is where we determine our speed
+ * Call this frequently!
+ *    Speed is determined once every 1000usecs, which
+ *    is once every 100 msecs (.001 secs).
+ *    This value may need to be tweeked...
+ */
+#define CHECK_INTERVAL_uSec 1000
+void QuadDecoder::loop()
+{
+    uint32_t timeNow = esp_timer_get_time();
+    uint32_t elapsedTime = lastLoopTime - timeNow;
+    if (elapsedTime > CHECK_INTERVAL_uSec)
+    {
+        lastSpeed = pulseCount / elapsedTime; // TODO: Convert units to something practical
+        pulseCount = 0;
+        lastLoopTime = timeNow;
+    }
+    return;
+}
+
+
+/**
+ * @brief Get the latest Speed
+ * 
+ * @return int32_t 
+ */
+int32_t QuadDecoder::getSpeed()
+{
+    return(lastSpeed);
 }
