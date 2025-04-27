@@ -23,7 +23,6 @@
 extern void showHelp(Print *outdev, const Command_t *cmd);
 extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 
-// built-in LED
 //#define BUILT_IN_LED_PIN ( (gpio_num_t)2 )
 #define BUILT_IN_LED_PIN  LED_PIN
 

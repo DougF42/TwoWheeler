@@ -10,9 +10,15 @@ Drive a two-wheel robot.
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 LN298N motor driver for 2 DC motors, using a L298N chip. 
 It has two inputs for each motor.
+Arduino PWM library (lib name in platformio is khoih-prog/ESP32_PWM@^1.3.3)
+
 = = = = = = = = = = = = = = = = = =
 Quadrature encoding used on the two motors. Link sensor to shaft
 via 1:1 pulley (need to design in onshape!) (?Use T2 belt?)
+
+The arduino PID library by Brett Beauregard is used. (library name in platformio.ini is br3ttb/PID@^1.2.1)
+Documentation at https://playground.arduino.cc/Code/PIDLibrary/
+
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 GY-521 - uses I2C for communication. Provides Gyroscope and  Accelerometer
     AND tempeture      There is a Motion Processor on board

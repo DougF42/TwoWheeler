@@ -1,7 +1,7 @@
 /**
  * @file Commands.h
- * @author Doug F (doug@fajaardo.hm)
- * @brief 
+ * @author Doug Fajardo
+ * @brief command processor for a given channel
  * @version 0.1
  * @date 2024-12-18
  * 
