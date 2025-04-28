@@ -22,16 +22,16 @@
 class LN298
 {
     private:
-        std::atomic<uint8_t> timerIsInited;
         ledc_channel_t led_channel; // the LEDC channel number
-        int motorIdx;
         // TIMER is one per motor
         ledc_timer_config_t timerCfg;
-
+        gpio_num_t ena_pin;
+        gpio_num_t dir_pin_a;
+        gpio_num_t dir_pin_b;
 
     public:
         LN298();
-        void setup(int mtr);
+        void setupLN298(ledc_channel_t chnlNo, gpio_num_t ena_pin, gpio_num_t dir_pin_a, gpio_num_t dir_pin_b);
         ~LN298();
         void setPulseWidth(int pcnt); // Set the pulse width (0..100)
         void drift();    // allow motor to drift to a stop (no brakes)

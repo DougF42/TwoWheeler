@@ -10,16 +10,20 @@
  */
 #include "config.h"
 #include "QuadDecoder.h"
-#include "MotorDefs.h"
 #include "esp_timer.h"
-
-#ifndef MTR 
-#define MTR MotorTable[motorIdx]
-#endif
 
 QuadDecoder::QuadDecoder()
 {
-    motorIdx=-1; 
+
+}
+
+
+QuadDecoder::~QuadDecoder()
+{
+    gpio_uninstall_isr_service();
+    gpio_reset_pin(quad_pin_a);
+    gpio_reset_pin(quad_pin_b);
+
 }
 
 
@@ -28,9 +32,12 @@ QuadDecoder::QuadDecoder()
  * 
  * @param motor_index 
  */
-void QuadDecoder::setup(int motor_index)
+void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
 {
-    motorIdx = motor_index;
+
+    quad_pin_a = _quad_pin_a;
+    quad_pin_b = _quad_pin_b;
+
     last_state = AoffBoff;
     pulseCount=0;
     position = 0;
@@ -41,7 +48,7 @@ void QuadDecoder::setup(int motor_index)
     // TODO: CONFIGURE QUAD PINS FOR INPUT WITH INTERRUPT
     gpio_config_t pGpioConfig=
     {
-        .pin_bit_mask = (1ull << MTR.quad_pin_a) | (1ull<<MTR.quad_pin_b),
+        .pin_bit_mask = (1ull << quad_pin_a) | (1ull<<quad_pin_b),
         .mode=GPIO_MODE_INPUT,               /*!< GPIO mode: set input/output mode  */
         .pull_up_en=GPIO_PULLUP_ENABLE,       /*!< GPIO pull-up                    */
         .pull_down_en=GPIO_PULLDOWN_DISABLE,   /*!< GPIO pull-down                 */
@@ -53,19 +60,11 @@ void QuadDecoder::setup(int motor_index)
 
     gpio_config( &pGpioConfig);
     ESP_ERROR_CHECK (gpio_install_isr_service(ESP_INTR_FLAG_LEVEL4) );
-    gpio_isr_handler_add(MTR.quad_pin_a, ISR_handlePhaseA, this);
-    gpio_isr_handler_add(MTR.quad_pin_b, ISR_handlePhaseB, this);
+    gpio_isr_handler_add(quad_pin_a, ISR_handlePhaseA, this);
+    gpio_isr_handler_add(quad_pin_b, ISR_handlePhaseB, this);
 
 }
 
-
-QuadDecoder::~QuadDecoder()
-{
-    gpio_uninstall_isr_service();
-    gpio_reset_pin(MTR.quad_pin_a);
-    gpio_reset_pin(MTR.quad_pin_b);
-
-}
 
 /**
  * @brief Phase A changed.
@@ -144,7 +143,7 @@ void QuadDecoder::ISR_handlePhaseB(void *arg)
  *
  */
 #define CHECK_INTERVAL_uSec 1000
-void QuadDecoder::loop()
+void QuadDecoder::quadLoop()
 {
     uint32_t timeNow = esp_timer_get_time();
     uint32_t elapsedTime = lastLoopTime - timeNow;

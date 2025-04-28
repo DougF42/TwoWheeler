@@ -10,13 +10,15 @@
  */
 // #include <Arduino.h>
 #include "config.h"
-#include "MotorDefs.h"
-#include "UdpCmd.h"
-#include "driver/gpio.h"
 
+#include "UdpCmd.h"
+#include "MotorControl.h"
+#include "driver/ledc.h"
+
+MotorControl motorLeft;
+MotorControl motorRight;
 
 UdpCmd Udp;
-MotorDefs motors;
 
 void setup() {
   Serial.begin(115200);
@@ -24,15 +26,36 @@ void setup() {
   // LED pin is output
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // Define the motors
-  motors.defineMotor(0, MOTOR_1_EN, MOTOR_1_DRIVE_A, MOTOR_1_DRIVE_B, MOTOR_1_QUAD_A, MOTOR_1_QUAD_B);
-  motors.defineMotor(1, MOTOR_2_EN, MOTOR_2_DRIVE_A, MOTOR_2_DRIVE_B, MOTOR_2_QUAD_A, MOTOR_2_QUAD_B);
-
-
   // Set up Wifi/UDP
   Udp.begin(UDP_SSID, UDP_PASS);
+  // Motor Driver config
+  MotorControl_config_t mtr_config1=
+  {
+    .chnlNo = LEDC_CHANNEL_1,
+    .ena_pin = MOTOR_1_EN,
+    .dir_pin_a = MOTOR_1_DRIVE_A,
+    .dir_pin_b = MOTOR_1_DRIVE_B,
+    .quad_pin_a = MOTOR_1_QUAD_A,
+    .quad_pin_b = MOTOR_1_QUAD_B,
+    .kp        =0,
+    .ki        =0, 
+    .kd        =0,
+  };
+  motorLeft.setup(mtr_config1);
 
-  // TODO: Define left and right motors
+  MotorControl_config_t mtr_config2=
+  {
+    .chnlNo    = LEDC_CHANNEL_1,
+    .ena_pin   = MOTOR_2_EN,
+    .dir_pin_a = MOTOR_2_DRIVE_A,
+    .dir_pin_b = MOTOR_2_DRIVE_B,
+    .quad_pin_a = MOTOR_2_QUAD_A,
+    .quad_pin_b = MOTOR_2_QUAD_B,
+    .kp         = 0,
+    .ki         = 0, 
+    .kd         = 0,
+  };
+  motorRight.setup(mtr_config2);
 }
 
 

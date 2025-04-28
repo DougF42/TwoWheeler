@@ -32,15 +32,15 @@ class QuadDecoder
         typedef enum {UNITS_MM, UNITS_IN}QuadUnits_t;
 
     private:
+        gpio_num_t quad_pin_a;
+        gpio_num_t quad_pin_b;
+
         // Encoder definitions
         QuadUnits_t units;     // What unit of measure? this is for documentation purposes
         double convertTickToDist;     // this is calculated!
         double convertPositionToDist;
         typedef enum { AoffBoff, AonBoff, AoffBon, AonBon } QUAD_STATE_t;
         QUAD_STATE_t last_state;
-
-        //MotorDefs *pmdefs; // Points to my motor definitions
-        int motorIdx;
 
         uint32_t lastLoopTime;
         std::atomic<unsigned long> pulseCount; // number of pulses since last speed check
@@ -53,10 +53,10 @@ class QuadDecoder
     public:
         QuadDecoder();
         ~QuadDecoder();
-        void setup(int mtrNumber);
+        void quadLoop();
+        void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b);
         uint32_t getCurPos();
         void resetPos(uint32_t newPos=0);
-        void loop();
         int32_t getSpeed();
         double getPosition(); 
         void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_uSec);
