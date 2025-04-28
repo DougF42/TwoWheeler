@@ -16,8 +16,6 @@
  */
 #pragma once
 #include <atomic>
-#include "MotorDefs.h"
-#include "driver/gpio.h"
 #include "driver/ledc.h"
 
 
@@ -25,15 +23,15 @@ class LN298
 {
     private:
         std::atomic<uint8_t> timerIsInited;
-        MotorDefs *pmdefs; // Points to my motor definitions
-       ledc_channel_t led_channel; // the LEDC channel number
-
+        ledc_channel_t led_channel; // the LEDC channel number
+        int motorIdx;
         // TIMER is one per motor
         ledc_timer_config_t timerCfg;
 
 
     public:
-        LN298(int idx);
+        LN298();
+        void setup(int mtr);
         ~LN298();
         void setPulseWidth(int pcnt); // Set the pulse width (0..100)
         void drift();    // allow motor to drift to a stop (no brakes)

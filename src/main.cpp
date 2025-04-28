@@ -8,14 +8,15 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#include <Arduino.h>
-#include "LN298.h"
+// #include <Arduino.h>
+#include "config.h"
+#include "MotorDefs.h"
 #include "UdpCmd.h"
+#include "driver/gpio.h"
 
 
 UdpCmd Udp;
-LN298 ln298Left;
-LN298 ln298Right;
+MotorDefs motors;
 
 void setup() {
   Serial.begin(115200);
@@ -23,8 +24,15 @@ void setup() {
   // LED pin is output
   pinMode(LED_BUILTIN, OUTPUT);
 
+  // Define the motors
+  motors.defineMotor(0, MOTOR_1_EN, MOTOR_1_DRIVE_A, MOTOR_1_DRIVE_B, MOTOR_1_QUAD_A, MOTOR_1_QUAD_B);
+  motors.defineMotor(1, MOTOR_2_EN, MOTOR_2_DRIVE_A, MOTOR_2_DRIVE_B, MOTOR_2_QUAD_A, MOTOR_2_QUAD_B);
+
+
   // Set up Wifi/UDP
   Udp.begin(UDP_SSID, UDP_PASS);
+
+  // TODO: Define left and right motors
 }
 
 

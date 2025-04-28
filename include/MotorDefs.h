@@ -15,33 +15,36 @@
  * you are *sure* you know what you are doing!
  */
 #pragma once
-#define MAXNOOFMOTORS 4
+
 #include "atomic"
+#include "ln298.h"
+#include "QuadDecoder.h"
 #include <driver/gpio.h>
 
-#define MAX_MOTORS 4
+#define MAXNOOFMOTORS 2
+
 // - - - - - - - - - - - - - - - - -
 class MotorDefs
 {
+
 private:
-    MotorDefs();
-    ~MotorDefs();
     static std::atomic<uint8_t> HaveBeenInited;
 
 public:
-    gpio_num_t ena_Pin;
+    gpio_num_t ena_pin;
     gpio_num_t dir_pin_a;
     gpio_num_t dir_pin_b;
     gpio_num_t quad_pin_a;
     gpio_num_t quad_pin_b;
-    // ln298_drvr // pt to ln 298 instance
-    // Quad_drvr  // pt to Encoder instance
+    LN298 *ln298;        // pt to motor drive
+    QuadDecoder *quad;   // pt to Encoder instance
     // Pid_drvr   // pt to PID Motor driver instance
-
-    bool defineMotor(int mtr, gpio_num_t _enaPin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b,
+    
+    MotorDefs();
+    ~MotorDefs();
+    static bool defineMotor(int mtr, gpio_num_t _enaPin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b,
         gpio_num_t _quad_pin_a, gpio_num_t quadB_pin);
 
-    static MotorDefs MotorTable[MAXNOOFMOTORS];
 };
 
-
+extern MotorDefs MotorTable[MAXNOOFMOTORS];

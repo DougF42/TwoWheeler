@@ -12,38 +12,48 @@
 #include "MotorDefs.h"
 
 // static definitions
-std::atomic<uint8_t> MotorDefs::HaveBeenInited = 0;
-
 MotorDefs MotorTable[MAXNOOFMOTORS];
 
-/**
- * @brief Construct a MotorDefs object
- * 
- */
+std::atomic<uint8_t> MotorDefs::HaveBeenInited = 0;
+
 MotorDefs::MotorDefs()
 {
-    HaveBeenInited++;
-    if (HaveBeenInited > 1)
-    {
-        HaveBeenInited--;
-        return;
-    }
-
-    ena_Pin = GPIO_NUM_NC;
+    ena_pin = GPIO_NUM_NC;
     dir_pin_a = GPIO_NUM_NC;
     dir_pin_b = GPIO_NUM_NC;
     quad_pin_a = GPIO_NUM_NC;
     quad_pin_b = GPIO_NUM_NC;
-    // ln298_drvr =
-    // Quad_drvr =
+    ln298      = nullptr;
+    quad       = nullptr;
     // pid_drvr  =
 }
+
 
 MotorDefs::~MotorDefs()
 {
 }
 
+/// @brief 
+/// @param mtr 
+/// @param _enaPin 
+/// @param _dir_pin_a 
+/// @param _dir_pin_b 
+/// @param _quad_pin_a 
+/// @param _quad_pin_b 
+/// @return 
 bool MotorDefs::defineMotor(int mtr, gpio_num_t _enaPin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b,
-                            gpio_num_t _quad_pin_a, gpio_num_t quadB_pin)
+                            gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
 {
+    // TODO:
+
+    MotorTable[mtr].ena_pin    = _enaPin;
+    MotorTable[mtr].dir_pin_a = _dir_pin_a;
+    MotorTable[mtr].dir_pin_b = _dir_pin_b;
+    MotorTable[mtr].quad_pin_a= _quad_pin_a;
+    MotorTable[mtr].quad_pin_b= _quad_pin_b;
+    MotorTable[mtr].ln298=new LN298();
+    MotorTable[mtr].ln298->setup(mtr);
+    MotorTable[mtr].quad=new QuadDecoder();
+    MotorTable[mtr].quad->setup(mtr);
+    return(false);
 }

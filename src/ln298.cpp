@@ -10,6 +10,8 @@
  */
 #include "ln298.h"
 #include "esp_check.h"
+#include "driver/gpio.h"
+#include "MotorDefs.h"
 
 #define LEDC_TIMER              LEDC_TIMER_0
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
@@ -17,14 +19,28 @@
 #define LEDC_DUTY               (4096) // Set duty to 50%. (2 ** 13) * 50% = 4096
 #define LEDC_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
-LN298::LN298(int idx)
+LN298::LN298()
 {
-    pmdefs = &(MotorDefs::MotorTable[idx]);
+
+}
+
+#ifndef MTR 
+#define MTR MotorTable[motorIdx]
+#endif
+
+/**
+ * @brief Configure the LN298 object
+ * 
+ * @param mtr 
+ */
+void LN298::setup(int mtr)
+{
+    motorIdx = mtr;
 
     // Initialize the output pins
     gpio_config_t  pinOutputscfg=
     {
-        .pin_bit_mask = (1ull<< pmdefs->ena_Pin) | (1ull << pmdefs->dir_pin_a) | (1ull << pmdefs->dir_pin_b),
+        .pin_bit_mask = (1ull<< MTR.ena_pin) | (1ull << MTR.dir_pin_a) | (1ull << MTR.dir_pin_b),
         .mode=GPIO_MODE_OUTPUT,               /*!< GPIO mode: set input/output mode                     */
         .pull_up_en=GPIO_PULLUP_DISABLE,       /*!< GPIO pull-up                                         */
         .pull_down_en=GPIO_PULLDOWN_DISABLE,   /*!< GPIO pull-down                                       */
@@ -34,9 +50,9 @@ LN298::LN298(int idx)
     #endif
     };
     ESP_ERROR_CHECK(gpio_config(&pinOutputscfg)) ;
-    gpio_set_level( pmdefs->ena_Pin, 0);
-    gpio_set_level( pmdefs->dir_pin_a, 0);
-    gpio_set_level( pmdefs->dir_pin_b, 0);
+    gpio_set_level( MTR.ena_pin, 0);
+    gpio_set_level( MTR.dir_pin_a, 0);
+    gpio_set_level( MTR.dir_pin_b, 0);
 
     // If not already done, configure the LEDC timer
     timerIsInited++;
@@ -55,11 +71,11 @@ LN298::LN298(int idx)
 
     // INITIALIZE the LEDC Channel -
     // channel number is the same as the index of the MotorTable.
-    led_channel = (ledc_channel_t) idx;
+    led_channel = (ledc_channel_t) mtr;
 
      // Prepare and then apply the LEDC PWM channel configuration
      ledc_channel_config_t ledc_channel = {
-        .gpio_num       = pmdefs->ena_Pin,
+        .gpio_num       = MTR.ena_pin,
         .speed_mode     = LEDC_MODE,
         .channel        = led_channel,
         .intr_type      = LEDC_INTR_DISABLE, 
@@ -85,11 +101,11 @@ void LN298::setPulseWidth(int pcnt)
     if (duty<0) 0-duty;
     if (pcnt>=0)
     {  // forward
-        gpio_set_level(pmdefs->dir_pin_a, true);
-        gpio_set_level(pmdefs->dir_pin_b,false);
+        gpio_set_level(MTR.dir_pin_a, true);
+        gpio_set_level(MTR.dir_pin_b,false);
     } else { // reverse
-        gpio_set_level(pmdefs->dir_pin_a, false);
-        gpio_set_level(pmdefs->dir_pin_b,true);
+        gpio_set_level(MTR.dir_pin_a, false);
+        gpio_set_level(MTR.dir_pin_b,true);
     }
     ESP_ERROR_CHECK( ledc_set_duty(LEDC_MODE, led_channel, duty) );
 }; // Set the pulse width (0..100)
@@ -103,8 +119,8 @@ void LN298::setPulseWidth(int pcnt)
 void LN298::drift()
 {
     // configure DIR pins
-    gpio_set_level(pmdefs->dir_pin_a, false);
-    gpio_set_level(pmdefs->dir_pin_b,false);
+    gpio_set_level(MTR.dir_pin_a, false);
+    gpio_set_level(MTR.dir_pin_b,false);
     setPulseWidth(0);
 }
 
@@ -125,8 +141,8 @@ void LN298::stop(int stopRate)
     if (stopRate>50) pw=50;
 
     setPulseWidth(10);
-    gpio_set_level(pmdefs->dir_pin_a, true);
-    gpio_set_level(pmdefs->dir_pin_b, true);
+    gpio_set_level(MTR.dir_pin_a, true);
+    gpio_set_level(MTR.dir_pin_b, true);
 
 } // stop this motor.
 
@@ -144,7 +160,7 @@ void LN298::stop(int stopRate)
 void LN298::hardStop()
 {
     setPulseWidth(60);
-    gpio_set_level(pmdefs->dir_pin_a, true);
-    gpio_set_level(pmdefs->dir_pin_b, true);
+    gpio_set_level(MTR.dir_pin_a, true);
+    gpio_set_level(MTR.dir_pin_b, true);
 
 } // stop this motor.

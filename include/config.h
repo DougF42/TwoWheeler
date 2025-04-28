@@ -43,8 +43,11 @@ extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 #define MOTOR_2_DRIVE_B GPIO_NUM_27
 
 // Speed Sensors 
-#define MOTOR_1_QUAD_A  GPIO_NUM_23
-#define MOTOR_1_QUAD_B  GPIO_NUM_24
+#define QUAD_PULSES_PER_REV   600
+#define SPEED_CHECK_INTERVAL_uSec 1000
+#define WHEEL_DIA_IN         4
+#define MOTOR_1_QUAD_A  GPIO_NUM_20
+#define MOTOR_1_QUAD_B  GPIO_NUM_21
 #define MOTOR_2_QUAD_A  GPIO_NUM_28
 #define MOTOR_2_QUAD_B  GPIO_NUM_29
 

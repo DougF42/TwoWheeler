@@ -21,28 +21,44 @@
  * position, to determine the speed.
  */
 #pragma once
-#include "MotorDefs.h"
+#include "config.h"
 #include "atomic"
 #include <driver/gpio.h>
 
+
 class QuadDecoder
 {
+    public:
+        typedef enum {UNITS_MM, UNITS_IN}QuadUnits_t;
+
     private:
-        MotorDefs *pmdefs; // Points to my motor definitions
+        // Encoder definitions
+        QuadUnits_t units;     // What unit of measure? this is for documentation purposes
+        double convertTickToDist;     // this is calculated!
+        double convertPositionToDist;
         typedef enum { AoffBoff, AonBoff, AoffBon, AonBon } QUAD_STATE_t;
         QUAD_STATE_t last_state;
-        std::atomic<int32_t> position;  // NOTE: Position *can* be negative!
-        std::atomic<uint32_t> pulseCount; 
+
+        //MotorDefs *pmdefs; // Points to my motor definitions
+        int motorIdx;
+
+        uint32_t lastLoopTime;
+        std::atomic<unsigned long> pulseCount; // number of pulses since last speed check
+        std::atomic<int32_t> position;  // Position in pulses- Position *can* be negative!
+        std::atomic<double> lastTicksPerSecond; // last rate (pulses per second)
+        uint32_t speedCheckIntervaluSec;
         static void ISR_handlePhaseA(void *arg);
         static void ISR_handlePhaseB(void *arg);
-        uint32_t lastLoopTime;
-        int32_t lastSpeed;
-        
+
     public:
-        QuadDecoder(int mtrNumber);
+        QuadDecoder();
         ~QuadDecoder();
+        void setup(int mtrNumber);
         uint32_t getCurPos();
         void resetPos(uint32_t newPos=0);
         void loop();
         int32_t getSpeed();
+        double getPosition(); 
+        void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_uSec);
+        void calibrate (uint pulsesPerRev, uint circumfrence, QuadUnits_t _units);       
 };
