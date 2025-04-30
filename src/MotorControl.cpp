@@ -39,7 +39,8 @@ void MotorControl::setup(const MotorControl_config_t &conf)
     input=0;
     output=0;
     setpoint=0;
-
+    loopRate=conf.loop_rate;
+    lastLoopTime=millis();
     setupLN298( conf.chnlNo, conf.ena_pin, conf.dir_pin_a, conf.dir_pin_b);
 
     // setup QuadDecoder
@@ -49,6 +50,10 @@ void MotorControl::setup(const MotorControl_config_t &conf)
     // TBD:   pidctlr = new PID_def( // TBD ??? );
 }
 
+void MotorControl::setLoopRate(unsigned long milliseconds)
+{
+    loopRate= milliseconds;
+}
 
 /**
  * @brief loop - call periodically.
@@ -56,10 +61,20 @@ void MotorControl::setup(const MotorControl_config_t &conf)
  */
 void MotorControl::loop()
 {
-    // get current speed
-    // TODO: quad();  // get my current speed
+    unsigned long now = millis();
+    unsigned long timeChange = (now - lastLoopTime);
+    if(timeChange < loopRate) return;
+
+    // get current speed (from quad)
+    input=getSpeed();
+
     pidctlr->Compute();   // determine change to power setting
-    // TODO: ln298// call ln298 to set power output
+
+    // set power output (from ln298)
+    setPulseWidth(output);
+
+    // Remember when we did this
+    lastLoopTime=now;
 }
 
 

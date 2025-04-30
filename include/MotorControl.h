@@ -12,6 +12,8 @@
  * The output is thru the ln298 driver. Range 0..100 (TBD: Is this fine enough?)
  *
  *  Loop must be called periodically (should this be from a timer????) 
+ * 
+ * TODO: Should we vary the K-factors depending on current power level?
  */
 #pragma once
 #include "PID_def.h"
@@ -31,6 +33,7 @@ typedef struct {
     gpio_num_t dir_pin_b;
     gpio_num_t quad_pin_a;
     gpio_num_t quad_pin_b;
+    unsigned long loop_rate;
     float kp;
     float ki;
     float kd;
@@ -43,14 +46,15 @@ class MotorControl: public LN298, public QuadDecoder
         float input;
         float output;
         float setpoint;
-        uint32_t loopRate; // how long between checks?
+        unsigned long loopRate; // how long between checks (msec)?
+        unsigned long lastLoopTime;
         PID_def   *pidctlr;
 
     public:
         MotorControl();
         ~MotorControl();
         void setup(const MotorControl_config_t &configuration);
-        void setLoopRate(uint32_t millsecs); // How long between each Speed check, PID update and power adjustment
+        void setLoopRate(unsigned long millsecs); // How long between each Speed check, PID update and power adjustment
         void loop();
         
         // Main configuration...
@@ -60,7 +64,7 @@ class MotorControl: public LN298, public QuadDecoder
         void getPIDCalibration(float *kp, float *kd, float *ki);
 
         // Operations
-        void setSpeed(float ratemm_Sec);
+        void setSpeed(float ratemm_sec);
         void setDrift();
-        void setStop(int stopRate);  // rate is 0..100
+        void setStop(int stopRate);  // rate is 0..100%
 };
