@@ -19,6 +19,14 @@
 #define UDP_PASS "iknowits42"
 #define UDP_PORT 23
 
+// SMAC defintitions
+// Set true if we want debugging messages from SMAC
+#define SMAC_DEBUGING false 
+
+#define MAC_SIZE  6
+#define SMAC_NODENAME "TWOWHEEL"
+#define SMAC_NODENO   0
+
 // Some command processing definitions
 extern void showHelp(Print *outdev, const Command_t *cmd);
 extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
