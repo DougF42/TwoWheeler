@@ -10,6 +10,7 @@
  */
 #include "CommandList.h"
 #include "config.h"
+#include "QuadDecoder.h"
 /**
  * @brief The list of available commands
  * 
@@ -20,6 +21,8 @@ const Command_t cmdList[]=
                                        0, 3,      nullptr,    cmdHelp },
     {"?"   , "Help command",
                                         1, 3,     nullptr,    cmdHelp },
+    {"quadRate", "Set quad rate (msecs)",
+                                        2, 2,     nullptr,     Commands::notImplemented },         
 
     {"END", "END", -1, -1, nullptr, nullptr} 
 };

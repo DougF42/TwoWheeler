@@ -206,3 +206,54 @@ void QuadDecoder::calibrate (uint tickPerRev, uint diameter, QuadUnits_t _units)
     convertTickToDist = (diameter*M_PI) / (tickPerRev*4.0);
 }
 
+// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+// PROCESS COMMANDS FROM SERIAL OR UDP CHANNEL
+// All commands - if no parameters, then the current settings are output
+//   via the outDev.  Otherwise, the parameters (as defined by each
+//   command) are expected.
+// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+// - - - - - - - - - - - - - - - - - - - 
+// Get/Set calibration for the Quadrature Decoder.
+// Format:   qcal <pulsesPerRev> <Circumfrence>
+//     Units are always in mm.
+// - - - - - - - - - - - - - - - - - - - 
+void QuadDecoder::cmd_QuadCal (Print *outdev, int tokCnt, char *toklist[])
+{
+
+};
+
+
+// - - - - - - - - - - - - - - - - - - - 
+// Get/Set the rate at which the PID updates
+// Format:  pidRate  <rate>
+//    the rate is in milliseconds between checks
+// - - - - - - - - - - - - - - - - - - - 
+void QuadDecoder::cmd_PIDRate (Print *outdev, int tokCnt, char *toklist[])
+{
+    // TODO:
+    Commands::notImplemented( outdev, tokCnt, toklist[]);
+}
+
+
+// - - - - - - - - - - - - - - - - - - - 
+// Get/Set the Calibration parameters 
+// Format:   <pidCal> <kp> <Kd> <Ki>
+// - - - - - - - - - - - - - - - - - - - 
+void QuadDecoder::cmd_PIDCal  (Print *outdev, int tokCnt, char *toklist[])
+{
+    // TODO:
+    Commands::notImplemented( outdev, tokCnt, toklist[]);
+}
+
+
+// - - - - - - - - - - - - - - - - - - - 
+// Get/Set the speed for this motor
+// Format:   MOTOR <speed>
+//    speed is in mm per second
+// - - - - - - - - - - - - - - - - - - - 
+void QuadDecoder::cmd_speed   (Print *outdev, int tokCnt, char *toklist[])
+{
+    // TODO:
+    Commands::notImplemented( outdev, tokCnt, toklist[]);
+}

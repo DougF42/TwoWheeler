@@ -216,7 +216,7 @@ bool Commands::isEndOfChar(char ch)
 
 /**
  * @brief  * @brief Break the command into component parts.
- * Commands are whitespace-separated tokens (sp, tab, cr, nl, comma)
+ * Commands are whitespace-separated tokens (sp, tab, cr, nl, comma, semi-coln)
  * 
  *   This builds a list of pointers to the 
  * begining of each 'token' into the 'tokens' array, 
@@ -238,7 +238,7 @@ void Commands::parseCommand()
     nxtCharInBuf=buffer;
     for (nxtToken=0; nxtToken<MAX_ARGUMENTS; nxtToken++)
     {
-        tokens[nxtToken] = strsep((char **) &nxtCharInBuf, " \t\n\r");
+        tokens[nxtToken] = strsep((char **) &nxtCharInBuf, COMMAND_WHITE_SPACE);
         if (tokens[nxtToken] == NULL)  break;
     }
 

@@ -60,5 +60,12 @@ class QuadDecoder
         int32_t getSpeed();
         double getPosition(); 
         void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_uSec);
-        void calibrate (uint pulsesPerRev, uint circumfrence, QuadUnits_t _units);       
+        void calibrate (uint pulsesPerRev, uint circumfrence, QuadUnits_t _units);  
+        
+        // Outside commands...
+        void cmd_QuadRate(Print *outdev, int tokCnt, char *toklist[]); 
+        void cmd_QuadCal (Print *outdev, int tokCnt, char *toklist[]); 
+        void cmd_PIDRate (Print *outdev, int tokCnt, char *toklist[]);
+        void cmd_PIDCal  (Print *outdev, int tokCnt, char *toklist[]);
+        void cmd_speed   (Print *outdev, int tokCnt, char *toklist[]);
 };

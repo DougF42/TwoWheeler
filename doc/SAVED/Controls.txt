@@ -1,0 +1,59 @@
+This is a list of the commands and actions we need:
+
+For motor configuration (one left, one right)
+    Set PID check rate (how often do we run the PID algorithhm)?
+    Set the Quadrature update rate (same as PID check rate?)
+    Quadrature Calibration:  (pulses per rev, Circumfrence of wheel, units [IN or MM])
+    PID Cal: Kp, Kd, Ki
+
+For motor operation:
+    Set direction???
+    Set motor speed(n)
+    Set drift mode()
+    Set Stop mode (int percnt)
+
+PATH OPERATIONS (combined controls)
+    Forward - same rate for both motors, define speed of each motor separatly.
+    Rotate to angle over time.
+
+
+
+(1) CONFIGURATION commands (to set/get various parameters) [This is from Device.h]
+∙ ExecuteCommand() is the method called when a command is received targeted for this Device.
+//                A command string holds the incoming command data and has the following four fields
+//                separated with the '|' char:
+//
+//                  ┌─────────────── 2-char nodeID (00-19)
+//                  │  ┌──────────── 2-char deviceID (00-99)
+//                  │  │   ┌──────── 4-char command (usually capital letters)
+//                  │  │   │     ┌── Optional variable length parameter string
+//                  │  │   │     │
+//                  nn|dd|CCCC|params
+////                GDNA = Get Device Name              : Returns this device's name
+//                SDNA = Set Device Name              : Sets this device's name (a User-Friendly name for the SMAC Interface)
+//                ENIP = Enable Immediate Processing  : Start executing the immediate process for this device
+//                DIIP = Disable Immediate Processing : Stop executing the immediate process for this device
+//                DOIP = Do Immediate Process         : Perform the immediate process one time
+//                ENPP = Enable Periodic Processing   : Start executing the periodic process for this device (start sending data) default
+//                DIPP = Disable Periodic Processing  : Stop executing the periodic process for this device (stop sending data)
+//                DOPP = Do Periodic Process          : Perform the periodic process one time, returns true or false
+//                GRAT = Get Rate                     : Get the current periodic process rate for this device in calls per hour:
+//                SRAT = Set Rate                     : Set the periodic process rate for this device in procs per hour
+
+
+// - - - - - -- - - - - - -- - - - - - -- - - - - -- - - 
+From Node.cpp: 
+ // Convert the <DataPacket> to a Data string.
+  // The <DataPacket> structure must be populated with deviceID, timestamp and value fields.
+  //
+  // A Data string has four fields separated with the '|' char:
+  //
+  //   ┌──────────────────── 2-char nodeID (00-19)
+  //   │  ┌───────────────── 2-char deviceID (00-99)
+  //   │  │     ┌─────────── variable length timestamp (usually millis())
+  //   │  │     │        ┌── variable length value string (including NULL terminating char)
+  //   │  │     │        │   this can be a numerical value or a text message
+  //   │  │     │        │
+  //   nn|dd|timestamp|value
+  //
+  // Data Strings must be NULL terminated.

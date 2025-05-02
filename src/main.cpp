@@ -26,6 +26,15 @@ uint8_t      RelayerMAC[MAC_SIZE];  // MAC Address of the Relayer Module stored 
                                     // This is set using the <SetMAC.html> tool in the SMAC_Interface folder.
                                     // { 0x7C, 0xDF, 0xA1, 0xE0, 0x92, 0x98 }
 
+// - - - - - - - - - - - - - - - - - - - - -
+// General setup -
+//   Serial port
+//   LED
+//   Motor Driver for left and right motors
+//   WiFi, UDP and ESP-NOW
+//   
+// - - - - - - - - - - - - - - - - - - - - -
+
 void setup() {
   Serial.begin(115200);
   Serial.println("I AM ALIVE....");
@@ -66,17 +75,21 @@ void setup() {
 
 
   // Define the NODE and its DEVICES
-  ThisNode = new Nodex("TwoWheeler", 0, Params::NODE_RELAY_MAC() ); // NODE Number 0
   //Nodex(const char *inName, int inNodeID, const uint8_t *macAddr);
+  ThisNode = new Nodex("TwoWheeler", 0, Params::NODE_RELAY_MAC() ); // NODE Number 0
+
 
   // TODO: ThisNode->AddDevice (new LightSensor ("Light Sensor", 6));
 }
 
+// - - - - -Just some stuff for 'loop' - - - - - - - - - - - - - - - -
 #define BLINK_RATE_MSECS 1000
 unsigned long lastBlinkTime=0;
 bool last_led_state=false; // true is 
 
-
+// - - - - - - - - - - - - - - - - - - - - -
+// Main operating loop
+// - - - - - - - - - - - - - - - - - - - - -
 void loop() {
 
   // toggle the LED periodically.

@@ -28,6 +28,7 @@
 #define SMAC_NODENO   0
 
 // Some command processing definitions
+#define COMMAND_WHITE_SPACE " :\n\r\t"
 extern void showHelp(Print *outdev, const Command_t *cmd);
 extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 
