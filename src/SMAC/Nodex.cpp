@@ -70,3 +70,30 @@ Nodex::Nodex(const char *inName, int inNodeID, const uint8_t *relayMacAddr):Node
  {
     memcpy(macAddr, RelayerMAC, MAC_SIZE);
  }
+
+ //=================================================
+ // @Brief:   Send a Ping to determine the addr of
+ //           our relayer - this blocks!
+ //    TODO:  DO NOT BLOCK
+ //    Send a ping, and Wait for up to the given timeout
+ //  for a response.
+ //  PARAM:    timeoutMs - how long to wait for a response. 0 means wait forever
+ //  RETURN:   True if we got a response. False if no response.
+ //=================================================
+ bool Nodex::ping(uint32_t timeoutMs)
+ {
+     // PING the Relayer once
+     Serial.println("PINGing Relayer ...");
+     strcpy(DataPacket.deviceID, "00");
+     strcpy(DataPacket.value, "PING");
+     unsigned long lastMillis = millis();
+     WaitingForRelayer = true;
+
+     // Wait for a response up to 'timeoutMs'
+     while ((WaitingForRelayer && (millis() - lastMillis) > timeoutMs))
+     {
+        if (!WaitingForRelayer) return(true);    
+     }
+    return(false);
+ }
+ 

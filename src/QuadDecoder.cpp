@@ -232,7 +232,7 @@ void QuadDecoder::cmd_QuadCal (Print *outdev, int tokCnt, char *toklist[])
 void QuadDecoder::cmd_PIDRate (Print *outdev, int tokCnt, char *toklist[])
 {
     // TODO:
-    Commands::notImplemented( outdev, tokCnt, toklist[]);
+    return;
 }
 
 
@@ -243,7 +243,7 @@ void QuadDecoder::cmd_PIDRate (Print *outdev, int tokCnt, char *toklist[])
 void QuadDecoder::cmd_PIDCal  (Print *outdev, int tokCnt, char *toklist[])
 {
     // TODO:
-    Commands::notImplemented( outdev, tokCnt, toklist[]);
+    return;
 }
 
 
@@ -255,5 +255,5 @@ void QuadDecoder::cmd_PIDCal  (Print *outdev, int tokCnt, char *toklist[])
 void QuadDecoder::cmd_speed   (Print *outdev, int tokCnt, char *toklist[])
 {
     // TODO:
-    Commands::notImplemented( outdev, tokCnt, toklist[]);
+    return;
 }

@@ -25,12 +25,24 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include "Node.h"
-#include "esp_mac.h"
 
 //--- Declarations ----------------------------------------
 
-void onCommandReceived (const esp_now_recv_info_t * esp_now_info, const uint8_t *inCommandString, int commandlength);
-// void onDataPacketSent  (const uint8_t *mac_addr, esp_now_send_status_t status);
+// ESP-NOW v2 Receive Method has changed !!!
+// (https://forum.dronebotworkshop.com/esp32-esp8266/problem-compiling/)
+//
+// In esp32 v2.x library, the function OnDataRecv has the format:
+//
+//   void OnDataRecv (const uint8_t* mac, const uint8_t* incomingData, int len)
+//
+// In the v3.x library the format has been changed to:
+//
+//   void OnDataRecv (const esp_now_recv_info_t* esp_now_info, const uint8_t* data, int data_len)
+
+// void onCommandReceived (const uint8_t *relayerMAC, const uint8_t *inCommandString, int commandlength);  // ESP-NOW v1
+void onCommandReceived (const esp_now_recv_info_t *info, const uint8_t *inCommandString, int commandlength);  // ESP-NOW v2
+
+// void onDataPacketSent  (const uint8_t *mac_addr, esp_now_send_status_t status);  // Not used in SMAC
 
 extern bool  WaitingForRelayer;
 
@@ -63,22 +75,32 @@ Node::Node (const char *inName, int inNodeID)
   // Set this device as a Wi-Fi Station
   if (!WiFi.mode (WIFI_STA))
   {
-    Serial.println ("ERROR: Unable to set WiFi mode.");
+    Serial.println ("ERROR: Unable to set WiFi mode");
     return;
   }
-  delay(10); // Give WiFi a chance
+  delay (100);
+
   // Load this Node's MAC address
-  uint8_t  macAddress[MAC_SIZE+2];
-  for (int i=0; i<MAC_SIZE+2; i++) macAddress[i] = 0;  // Clear result first
 
-  esp_efuse_mac_get_default (macAddress);  // System-programmed by Espressif, 6 bytes
-  // // --OR--
-  // macAddress = WiFi.macAddress ();
+  // // ESP-NOW v1 (deprecated)
+  // uint8_t  macAddress[MAC_SIZE+2];
+  // for (int i=0; i<MAC_SIZE+2; i++) macAddress[i] = 0;  // Clear result first
+  // esp_efuse_mac_get_default (macAddress);  // System-programmed by Espressif, 6 bytes
+  //
+  // // Set this Node's MAC Address string (for the Interface to show)
+  // sprintf (macAddressString, "%02X:%02X:%02X:%02X:%02X:%02X", macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+  // Serial.print   ("Node MAC = ");
+  // Serial.println (macAddressString);
+
+  // ESP-NOW v2
+  WiFi.macAddress().toCharArray (macAddressString, sizeof(macAddressString));
 
 
-  // // Set WiFi rate ???  5-GHz ???
+
+  // // Set ESP-NOW rate to 5-GHz for faster comms ???
   // esp_now_rate_config_t  rateConfig = { ... };
   // esp_now_set_peer_rate_config (macAddress, &rateConfig);
+
 
 
   // Init ESP-NOW protocol
@@ -114,22 +136,6 @@ Node::Node (const char *inName, int inNodeID)
     Serial.println (ESPNOW_Result);
     return;
   }
-
-
-  // // Register send event
-  // ESPNOW_Result = esp_now_register_send_cb (onDataPacketSent);
-  // if (ESPNOW_Result != ESP_OK)
-  // {
-  //   Serial.print   ("ERROR: Unable to register send event handler: ");
-  //   Serial.println (ESPNOW_Result);
-  //   return;
-  // }
-
-
-  // Set this Node's MAC Address string (for the Interface to show)
-  sprintf (macAddressString, "%02X:%02X:%02X:%02X:%02X:%02X", macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
-  Serial.print   ("Node MAC = ");
-  Serial.println (macAddressString);
 }
 
 //--- AddDevice -------------------------------------------
@@ -250,19 +256,25 @@ void Node::Run ()
     return;
 
   //--- Process next command ---
-  commandString = CommandBuffer->PopString ();
+  commandString = CommandBuffer->PopString ();  // Remember to free() this "popped" string
 
   if (commandString != NULL)
   {
+    if (Debugging)
+    {
+      Serial.print   ("commandString=");
+      Serial.println (commandString);
+    }
+
     int cLength = strlen (commandString);
 
     // Check length
     if (cLength < MIN_COMMAND_LENGTH)
-      Serial.println ("ERROR: Invalid Command.");
+      Serial.println ("ERROR: Invalid command");
     else
     {
       // Populate the global <CommandPacket>
-      CommandPacket.deviceIndex = 10*(commandString[0]-48) + (commandString[1]-48);
+      CommandPacket.deviceIndex = deviceIndex = 10*((int)(commandString[0])-48) + ((int)(commandString[1])-48);
 
       memcpy (CommandPacket.command, commandString + 3, COMMAND_SIZE);
       CommandPacket.command[COMMAND_SIZE] = 0;
@@ -281,7 +293,22 @@ void Node::Run ()
         //=================================================
         // Not a Node command, so pass to Device to handle
         //=================================================
-        pStatus = devices[CommandPacket.deviceIndex]->ExecuteCommand ();
+
+        // Check deviceIndex range
+        if (deviceIndex >= numDevices)
+        {
+          if (Debugging)
+          {
+            Serial.print ("Command targeted for unknown device: ");
+            Serial.print ("deviceIndex="); Serial.print (deviceIndex);
+            Serial.print (", numDevices="); Serial.println (numDevices);
+          }
+
+          strcpy (DataPacket.value, "ERROR: Command targeted for unknown device");
+          pStatus = FAIL_DATA;
+        }
+        else
+          pStatus = devices[deviceIndex]->ExecuteCommand ();
       }
 
       // Any data to send?
@@ -413,7 +440,8 @@ ProcessStatus Node::ExecuteCommand ()
 
 //--- onCommandReceived -----------------------------------
 
-void onCommandReceived (const esp_now_recv_info_t * esp_now_info, const uint8_t *commandString, int commandLength)
+// void onCommandReceived (const uint8_t *relayerMAC, const uint8_t *commandString, int commandLength)  // ESP-NOW v1
+void onCommandReceived (const esp_now_recv_info_t *info, const uint8_t *commandString, int commandLength)  // ESP-NOW v2
 {
   if (Debugging)
   {
@@ -429,12 +457,3 @@ void onCommandReceived (const esp_now_recv_info_t * esp_now_info, const uint8_t 
     // Add this ESP-NOW message to the command buffer
     CommandBuffer->PushString ((char *) commandString);
 }
-
-
-// //--- onDataPacketSent ------------------------------------
-//
-// void onDataPacketSent (const uint8_t *mac_addr, esp_now_send_status_t status)
-// {
-//   // ...
-// }
-

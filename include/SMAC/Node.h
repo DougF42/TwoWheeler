@@ -80,7 +80,7 @@
 class Node
 {
   private:
-    unsigned char  deviceIndex = 0;
+    int  deviceIndex = 0;
 
   protected:
     char           nodeID[ID_SIZE+1];                   // This unique ID (00-19) is assigned at construction

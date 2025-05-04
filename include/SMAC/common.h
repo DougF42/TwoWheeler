@@ -22,6 +22,7 @@
 //--- Defines ----------------------------------------------
 
 #define SERIAL_BAUDRATE      115200
+#define SERIAL_MAX_LENGTH        80
 #define MAX_VERSION_LENGTH       22
 #define MAX_NODES                20  // Maximum number of ESP-NOW peers
 #define MAX_DEVICES             100  // Maximum number of Devices that can connect to a Node
@@ -29,12 +30,10 @@
 #define MAX_NAME_LENGTH          32
 #define MAX_MESSAGE_LENGTH      250  // Max message size for ESP-NOW protocol
 #define MAC_SIZE                  6  // Size of ESP32 MAC Address
-#define COMMAND_SIZE              4
 #define MAX_VALUE_LENGTH        240
 #define MAX_PARAMS_LENGTH       240
 #define MIN_COMMAND_LENGTH        7  // Minimum Input Command String: dd|cccc
-#define MIN_DATA_LENGTH          10  // Minimum Output Data String: nn|dd|t|d
-#define TEMP_BUFFER_LENGTH      250
+#define COMMAND_SIZE              4
 
 // For the Espressif ESP32-S3-DevKitC-1 board, the built-in LED
 // is a 1-element addressable string of RGB LEDs of type WS2812.

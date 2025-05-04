@@ -36,6 +36,7 @@ bool Driver::addNewMotor(const MotorControl_config_t &configuration)
     motors[nextMotorIdx] = new MotorControl();
     motors[nextMotorIdx]->setup(configuration);
     nextMotorIdx++;
+    return(true);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -74,7 +75,7 @@ void Driver::loop()
 ProcessStatus  Driver::ExecuteCommand ()
 {
     ProcessStatus status=Device::ExecuteCommand();
-    if (status != NOT_HANDLED) return;
+    if (status != NOT_HANDLED) return(status);
     // we try to handle it...
     if (strcmp(CommandPacket.command, "QUAD") == 0)
     {   // TODO: Set/get Quad paramters        
@@ -161,25 +162,31 @@ ProcessStatus Driver::QuadParameters()
 
 ProcessStatus Driver::PidParameters()
 {
-
+    // TODO
+    return(NOT_HANDLED);
 }
 
 ProcessStatus Driver::rate()
 {
-
+    // TODO
+    return(NOT_HANDLED);
 }
 
 ProcessStatus Driver::moveFwd()
 {
 
+    // TODO:
+    return(NOT_HANDLED);
 }
 
 ProcessStatus Driver::rotate()
 {
-
+    // TODO:
+    return(NOT_HANDLED);
 }
 
 ProcessStatus Driver::stop()
 {
-
+    // TODO:
+    return(NOT_HANDLED);
 }
