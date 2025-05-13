@@ -58,10 +58,10 @@ class MotorControl: public LN298, public QuadDecoder
         void loop();
         
         // Main configuration...
-        void setQUADcalibration(uint pulsesPerRev, uint circumfrence, QuadDecoder::QuadUnits_t _units); 
-        void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence, QuadDecoder::QuadUnits_t *_units);
-        void setPIDcalibrate(float kp, float kd, float ki);
-        void getPIDCalibration(float *kp, float *kd, float *ki);
+        void setQUADcalibration(uint pulsesPerRev, uint circumfrence,   QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM); 
+        void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence, QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM);
+        void setPIDcalibrate(float kp, float ki, float kd);
+        void getPIDCalibration(float *kp, float *ki, float *kd);
 
         // Operations
         void setSpeed(float ratemm_sec);

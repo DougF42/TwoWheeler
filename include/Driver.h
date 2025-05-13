@@ -24,12 +24,22 @@ class Driver:public Device
 private:
     MotorControl *motors[MAX_MOTOR_COUNT];
     int nextMotorIdx = 0;
-    ProcessStatus QuadParameters();
-    ProcessStatus PidParameters();
-    ProcessStatus rate();
-    ProcessStatus moveFwd();
-    ProcessStatus rotate();
-    ProcessStatus stop();
+    
+    // COMMAND SET: 
+    //   QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
+    ProcessStatus cmdQUAD();
+
+    //   Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
+    ProcessStatus cmdPID();
+
+    //   SROTsetRotRate   <pidTime> <rate>
+    ProcessStatus cmdSROT();
+
+    //   FWD   <speed>   // set forward speed
+    ProcessStatus cmdFWD();
+
+    //   STOP    Stop.
+    ProcessStatus cmdSTOP(); // Stop - setting stop rate.
 
 public:
     Driver();
@@ -37,19 +47,8 @@ public:
     bool addNewMotor(const MotorControl_config_t &configuration);
     void loop(); // call this reasonably frequently
     ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
-    
-    // COMMAND SET: 
-    //   Calibrate QUAD  <pulsesPerRev>, <circum>, <units>
-    //   Calibrate PID   <Kp>,<Kd>,<Ki>
-    //   CheckRate   <pidTime> <quadTime>
-    // MOTION:
-    //   MoveFwd(Target speed)
-    //   Rotate(degrees to rotate)
-    //   stop (int stopRate);
 
-    void setCourse(float dir, float speed);
-    void setDir(float direction);
-    void setFwdSpeed(float speed);
-    void stop(int stopRate); // 0..100  0 is drift, 100 is panic stop
+    void setQuadParams(uint32_t stepTime, float kp, float ki, float kd);
+    void setPidParams(uint32_t stepTime, uint pulsesPerRev, uint circumfrence, QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM);
 
 };
