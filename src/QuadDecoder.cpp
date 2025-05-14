@@ -14,7 +14,17 @@
 
 QuadDecoder::QuadDecoder()
 {
-
+     // everything in the class gets *some* value...
+    pulsesPerRev = QUAD_PULSES_PER_REV*4;
+    quad_pin_a=GPIO_NUM_NC;
+    quad_pin_b=GPIO_NUM_NC;
+    convertPulsesToDist=0;
+    last_state=AoffBoff; // Hmm... how to initialize?
+    lastLoopTime = 0;
+    pulseCount=0;
+    position=0;
+    lastPulsesPerSecond=0;
+    speedCheckIntervaluSec=0;
 }
 
 
@@ -30,7 +40,6 @@ QuadDecoder::~QuadDecoder()
 /**
  * @brief Set parameters for this Quad decoder
  * 
- * @param motor_index 
  */
 void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
 {
@@ -42,10 +51,10 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
     pulseCount=0;
     position = 0;
     setSpeedCheckInterval(SPEED_CHECK_INTERVAL_uSec);
-    calibrate(QUAD_PULSES_PER_REV, 4, UNITS_IN);
+    calibrate(QUAD_PULSES_PER_REV, 4);
     lastLoopTime= esp_timer_get_time();
 
-    // TODO: CONFIGURE QUAD PINS FOR INPUT WITH INTERRUPT
+    // CONFIGURE QUAD PINS FOR INPUT WITH INTERRUPT
     gpio_config_t pGpioConfig=
     {
         .pin_bit_mask = (1ull << quad_pin_a) | (1ull<<quad_pin_b),
@@ -58,7 +67,7 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
     #endif
     };
 
-    gpio_config( &pGpioConfig);
+    ESP_ERROR_CHECK( gpio_config( &pGpioConfig) );
     ESP_ERROR_CHECK (gpio_install_isr_service(ESP_INTR_FLAG_LEVEL4) );
     gpio_isr_handler_add(quad_pin_a, ISR_handlePhaseA, this);
     gpio_isr_handler_add(quad_pin_b, ISR_handlePhaseB, this);
@@ -138,6 +147,7 @@ void QuadDecoder::ISR_handlePhaseB(void *arg)
 /**
  * @brief This is where we determine our speed
  * Call this frequently!
+ * 
  *    Speed is determined once every speedCheckIntervaluSec,
  *  which defaults to SPEED_CHECK_INTERVAL_uSec
  *
@@ -149,7 +159,7 @@ void QuadDecoder::quadLoop()
     uint32_t elapsedTime = lastLoopTime - timeNow;
     if (elapsedTime > speedCheckIntervaluSec)
     {
-        lastTicksPerSecond = pulseCount / elapsedTime; // ticks per microsecond
+        lastPulsesPerSecond = pulseCount / elapsedTime; // ticks per microsecond
         pulseCount = 0;
         lastLoopTime = timeNow;
     }
@@ -161,12 +171,13 @@ void QuadDecoder::quadLoop()
  * @brief Get the latest Speed
  *    The units will match the value set by 'calibrate'.
  * 
- * @return int32_t 
+ * @return int32_t - The Speed,  in millimeters per .
  */
 int32_t QuadDecoder::getSpeed()
 {
-    return(lastTicksPerSecond * convertTickToDist);
+    return(lastPulsesPerSecond * convertPulsesToDist);
 }
+
 
 /**
  * @brief Get the current Position
@@ -176,8 +187,9 @@ int32_t QuadDecoder::getSpeed()
  */
 double QuadDecoder::getPosition()
 {
-    return(position * convertTickToDist);
+    return(position * convertPulsesToDist);
 }
+
 
 /**
  * @brief How often do we read our current speed?
@@ -197,63 +209,11 @@ void QuadDecoder::setSpeedCheckInterval(uint32_t rate)
  * @brief Set the parameters to convert the Quad Encoder ticks to a distance
  *     This generates the 'convertTickToDist' factor.
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
- * @param diameter     - What is the diameter of the wheel.
+ * @param diameter     - What is the diameter of the wheel (millimeters).
  * @param _units       - what units should we use (UNITS_MM or UNITS_IN)
  */
-void QuadDecoder::calibrate (uint tickPerRev, uint diameter, QuadUnits_t _units)
+void QuadDecoder::calibrate (uint tickPerRev, uint diameter)
 {
-    units = _units;
-    convertTickToDist = (diameter*M_PI) / (tickPerRev*4.0);
+    convertPulsesToDist = (diameter*M_PI) / (tickPerRev*4.0);
 }
 
-// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-// PROCESS COMMANDS FROM SERIAL OR UDP CHANNEL
-// All commands - if no parameters, then the current settings are output
-//   via the outDev.  Otherwise, the parameters (as defined by each
-//   command) are expected.
-// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-
-// - - - - - - - - - - - - - - - - - - - 
-// Get/Set calibration for the Quadrature Decoder.
-// Format:   qcal <pulsesPerRev> <Circumfrence>
-//     Units are always in mm.
-// - - - - - - - - - - - - - - - - - - - 
-void QuadDecoder::cmd_QuadCal (Print *outdev, int tokCnt, char *toklist[])
-{
-
-};
-
-
-// - - - - - - - - - - - - - - - - - - - 
-// Get/Set the rate at which the PID updates
-// Format:  pidRate  <rate>
-//    the rate is in milliseconds between checks
-// - - - - - - - - - - - - - - - - - - - 
-void QuadDecoder::cmd_PIDRate (Print *outdev, int tokCnt, char *toklist[])
-{
-    // TODO:
-    return;
-}
-
-
-// - - - - - - - - - - - - - - - - - - - 
-// Get/Set the Calibration parameters 
-// Format:   <pidCal> <kp> <Kd> <Ki>
-// - - - - - - - - - - - - - - - - - - - 
-void QuadDecoder::cmd_PIDCal  (Print *outdev, int tokCnt, char *toklist[])
-{
-    // TODO:
-    return;
-}
-
-
-// - - - - - - - - - - - - - - - - - - - 
-// Get/Set the speed for this motor
-// Format:   MOTOR <speed>
-//    speed is in mm per second
-// - - - - - - - - - - - - - - - - - - - 
-void QuadDecoder::cmd_speed   (Print *outdev, int tokCnt, char *toklist[])
-{
-    // TODO:
-    return;
-}

@@ -12,6 +12,10 @@
  * It has entry point to allow it to define a new wheel
  * and add it to its in-house list.
  * 
+ * rate-of-turn input is in +/- Radians per millisecond, with 0 being straight forward. 
+ *   The rate-of-turn is limited to +/- PI/2 (i.e.: +/- 90 degrees) radians per millisecond.
+ * 
+ * The speed is in mm per millisecond. 
  */
 #pragma once
 

@@ -14,6 +14,10 @@
 #include "CommandList.h"
 #include "driver/gpio.h"
 
+// Robot Dimensions (in mm)
+#define WHEEL_BASE_MM   304
+#define WHEEL_DIAM_MM  101.6
+
 // Network Definitions
 #define UDP_SSID "defnet"
 #define UDP_PASS "iknowits42"
@@ -54,7 +58,6 @@ extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 // Speed Sensors 
 #define QUAD_PULSES_PER_REV   600
 #define SPEED_CHECK_INTERVAL_uSec 1000
-#define WHEEL_DIA_IN         4
 #define MOTOR_1_QUAD_A  GPIO_NUM_20
 #define MOTOR_1_QUAD_B  GPIO_NUM_21
 #define MOTOR_2_QUAD_A  GPIO_NUM_28

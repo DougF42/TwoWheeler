@@ -19,6 +19,9 @@
  * When loop is called, it used the elapsed time from
  * the last time it was called, and the difference in
  * position, to determine the speed.
+ * 
+ * Note: Units are in MM.
+ * To get distance, WHEEL_DIAM_MM is used.
  */
 #pragma once
 #include "config.h"
@@ -29,24 +32,25 @@
 class QuadDecoder
 {
     public:
-        typedef enum {UNITS_MM, UNITS_IN}QuadUnits_t;
 
     private:
         gpio_num_t quad_pin_a;
         gpio_num_t quad_pin_b;
 
-        // Encoder definitions
-        QuadUnits_t units;     // What unit of measure? this is for documentation purposes
-        double convertTickToDist;     // this is calculated!
-        double convertPositionToDist;
+        // Robot Characteristics
+        int    pulsesPerRev;
+        double wheelDiameter; 
+        double convertPulsesToDist;    // Calculated: the factor to convert ticks into distance. 
+
         typedef enum { AoffBoff, AonBoff, AoffBon, AonBon } QUAD_STATE_t;
         QUAD_STATE_t last_state;
 
         uint32_t lastLoopTime;
         std::atomic<unsigned long> pulseCount; // number of pulses since last speed check
-        std::atomic<int32_t> position;  // Position in pulses- Position *can* be negative!
-        std::atomic<double> lastTicksPerSecond; // last rate (pulses per second)
-        uint32_t speedCheckIntervaluSec;
+        std::atomic<int32_t> position;          // Position in pulses- Position *can* be negative!
+        std::atomic<double> lastPulsesPerSecond; // last rate (pulses per second)
+        uint32_t speedCheckIntervaluSec;        // How often we calculate speed (uSeconds)
+
         static void ISR_handlePhaseA(void *arg);
         static void ISR_handlePhaseB(void *arg);
 
@@ -60,12 +64,6 @@ class QuadDecoder
         int32_t getSpeed();
         double getPosition(); 
         void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_uSec);
-        void calibrate (uint pulsesPerRev, uint circumfrence, QuadUnits_t _units);  
-        
-        // Outside commands...
-        void cmd_QuadRate(Print *outdev, int tokCnt, char *toklist[]); 
-        void cmd_QuadCal (Print *outdev, int tokCnt, char *toklist[]); 
-        void cmd_PIDRate (Print *outdev, int tokCnt, char *toklist[]);
-        void cmd_PIDCal  (Print *outdev, int tokCnt, char *toklist[]);
-        void cmd_speed   (Print *outdev, int tokCnt, char *toklist[]);
+        void calibrate (uint pulsesPerRev, uint circumfrence);  
+
 };
