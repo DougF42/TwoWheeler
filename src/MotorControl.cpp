@@ -79,13 +79,13 @@ void MotorControl::loop()
 
 
 
-void setQUADcalibration(uint pulsesPerRev, uint circumfrence, QuadDecoder::QuadUnits_t _units)
+void setQUADcalibration(uint pulsesPerRev, uint circumfrence)
 {
 
 }
 
 
-void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence, QuadDecoder::QuadUnits_t *_units)
+void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence)
 {
 
 }

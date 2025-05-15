@@ -53,6 +53,6 @@ public:
     ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
 
     void setQuadParams(uint32_t stepTime, float kp, float ki, float kd);
-    void setPidParams(uint32_t stepTime, uint pulsesPerRev, uint circumfrence, QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM);
+    void setPidParams(uint32_t stepTime, uint pulsesPerRev, uint circumfrence);
 
 };

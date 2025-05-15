@@ -11,8 +11,12 @@
  * thru the PID class is used to govern the actual 
  * power applied to each wheel.
  */
+#include "config.h"
 #include "Driver.h"
 #include "QuadDecoder.h"
+
+// What we consider delimiters for commands 
+#define COMMAND_WHITE_SPACE " |\r\n"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
@@ -109,18 +113,19 @@ ProcessStatus  Driver::ExecuteCommand ()
     return(pStatus);
 }
 
+
 // - - - - - - - - - - - - - - - - - -
 // set or get the quad parameters.
+// quad            - with no arguments, acts as 'get'
 // quad|<pulsesPerRev>|<circum>
 //    pulsesPerRev -  self explanatory
 //    circum       - circumfrence in mm.
-// If no parameters, we return the pulses per rev and circum(in mm).
+// We return the new (current) pulses per rev and circum(in mm).
 // NOTE: Both motors will be set to the same values.
 ProcessStatus Driver::cmdQUAD()
 {
     uint pulsesPerRev;
     uint circumfrence; // in mm
-    QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM;
     char *ptr;
     char *endptr;
 
@@ -135,6 +140,7 @@ ProcessStatus Driver::cmdQUAD()
         if ((errno != 0) || (pulsesPerRev > 5000))
         {
             // TODO: ERROR - invalid ppr
+            sprintf(DataPacket.value, "Invalid pulses-per-revolution value");
             result = FAIL_DATA;
         }
 
@@ -143,34 +149,26 @@ ProcessStatus Driver::cmdQUAD()
         if (ptr == nullptr)
         {
             // TODO: ERROR - missing Curcumfrence
+            sprintf(DataPacket.value,"Missing or invalid circumfrence value");
             result = FAIL_DATA;
-        }
-        else
-        {
-            errno = 0;
-            circumfrence = strtoul(ptr, nullptr, 10);
-            if (errno != 0)
-            {
-                // TODO: ERROR invalid argument
-                result = FAIL_DATA;
-            };
         }
 
         if (result == SUCCESS_DATA)
         {
             // SET the new values
-            motors[0]->setQUADcalibration(pulsesPerRev, circumfrence, _units);
-            motors[1]->setQUADcalibration(pulsesPerRev, circumfrence, _units);
+            motors[0]->setQUADcalibration(pulsesPerRev, circumfrence);
+            motors[1]->setQUADcalibration(pulsesPerRev, circumfrence);
         }
     }
 
-
-    // we always return the current values
-    sprintf(DataPacket.value,"pulse_per_rev=%ud Circum=%ud units=%2s", 
-        pulsesPerRev, circumfrence,(_units==QuadDecoder::UNITS_MM)?"MM":"IN");
-
-    return(SUCCESS_DATA);
+    // we always return the current values (unless there was an error)
+    if (result==SUCCESS_DATA)
+    {
+        sprintf(DataPacket.value,"pulse_per_rev=%ud Circum=%ud ",pulsesPerRev, circumfrence);
+    }
+    return(result);
 }
+
 
 /**
  * @brief Set the paramters for the PID loop
@@ -261,6 +259,7 @@ ProcessStatus Driver::cmdSROT()
     return(NOT_HANDLED);
 }
 
+
 /**
  * @brief Set the forward motion to a given speed
  *  Format:  "FWD|speed"
@@ -273,6 +272,7 @@ ProcessStatus Driver::cmdFWD()
     // TODO:
     return(NOT_HANDLED);
 }
+
 
 /**
  * @brief Stop driving the motors

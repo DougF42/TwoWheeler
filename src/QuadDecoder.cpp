@@ -50,7 +50,7 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
     last_state = AoffBoff;
     pulseCount=0;
     position = 0;
-    setSpeedCheckInterval(SPEED_CHECK_INTERVAL_uSec);
+    setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
     calibrate(QUAD_PULSES_PER_REV, 4);
     lastLoopTime= esp_timer_get_time();
 
@@ -197,7 +197,7 @@ double QuadDecoder::getPosition()
  * loop() isn't called fast enough, a longer interval
  * between checks will occur.
  * 
- * @param rate - The minimum time interval between speed checks.
+ * @param rate - The minimum time interval between speed checks(millisecs)
  */
 void QuadDecoder::setSpeedCheckInterval(uint32_t rate)
 {

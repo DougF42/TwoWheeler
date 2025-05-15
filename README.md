@@ -2,6 +2,7 @@
 Drive a two-wheel robot. 
     * Platform: ESP32 variant
     * Uses dual L298N H-bridge to drive two DC motors.
+    * Uses Quadrature encoder on the Wheels.
 
     Sensor Fusion used to determine motion (and position?)
         Uses GY-521 Accel/gryo for direction control
@@ -9,18 +10,35 @@ Drive a two-wheel robot.
 
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 LN298N motor driver for 2 DC motors, using a L298N chip. 
-It has two inputs for each motor.
-Arduino PWM library (lib name in platformio is khoih-prog/ESP32_PWM@^1.3.3)
 
-= = = = = = = = = = = = = = = = = =
+NO: Arduino PWM library (lib name in platformio is khoih-prog/ESP32_PWM@^1.3.3)
+Using ESP_IDF 'ledc' timer.
+Pulse is currently 4khz.
+
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 Quadrature encoding used on the two motors. Link sensor to shaft
 via 1:1 pulley (need to design in onshape!) (?Use T2 belt?)
 
 The arduino PID library by Brett Beauregard is used. (library name in platformio.ini is br3ttb/PID@^1.2.1)
 Documentation at https://playground.arduino.cc/Code/PIDLibrary/
 
+Configuration:   pulses per rev, wheel diameter, speed check interval.
+
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
-GY-521 - uses I2C for communication. Provides Gyroscope and  Accelerometer
+MotorControl - one per motor
+   This combines the position and speed from the Quadrature decoder with the
+   pulse with setting of the h298 driver to vary the power to the motor
+   as needed to maintain the requested motor speed.
+   Motor speed is in MM/milliseconds.
+
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+Driver - this implements 2 MotorControl instances, receives commands from
+   various input channges (e.g.: turn left at given rate, move forward at given speed), and sets the two motors appropriatly.
+
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+FUTURE
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+GY-521 ( 5/14/2025) not currently implemented)- uses I2C for communication. Provides Gyroscope and  Accelerometer
     AND tempeture      There is a Motion Processor on board
 
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
@@ -30,7 +48,8 @@ Future: LIDAR - located on top of robot, should provide distance and direction
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 Serial port AND UDP...
 
-COMMANDS:
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+COMMANDS (def style):
 We assume that commands come from a channel (e.g.: UDP Port, Serial port, TCP port etc),
 which is implemented by a 'channel' class.   This class will have "Commands" as a base class. 
     The "Command" class handles parsing commands from an input stream provided by the 'channel',
@@ -70,6 +89,9 @@ void (*function)(Print *outdev, int tokCnt, char *toklist[]);
 
 Also note that a 'help' function is available, which simply reports the description
 of each command (as entered in 'cmdList').
+
+= = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
+SMAC Commands:
 
 = = = = = = = = = = = = = = = = = = == = = = = = = = = = = = = = = = = = =
 Backtrace:

@@ -1,10 +1,7 @@
 This is a list of the commands and actions we need:
 
 For motor configuration (one left, one right)
-    Set PID check rate (how often do we run the PID algorithhm)?
-    Set the Quadrature update rate (same as PID check rate?)
-    Quadrature Calibration:  (pulses per rev, Circumfrence of wheel, units [IN or MM])
-    PID Cal: Kp, Kd, Ki
+    
 
 For motor operation:
     Set direction???

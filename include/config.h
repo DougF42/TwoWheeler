@@ -11,7 +11,6 @@
 #ifndef C_O_N_F_I_G__H
 #define C_O_N_F_I_G__H
 #include "Arduino.h"
-#include "CommandList.h"
 #include "driver/gpio.h"
 
 // Robot Dimensions (in mm)
@@ -30,11 +29,6 @@
 #define MAC_SIZE  6
 #define SMAC_NODENAME "TWOWHEEL"
 #define SMAC_NODENO   0
-
-// Some command processing definitions
-#define COMMAND_WHITE_SPACE " :\n\r\t"
-extern void showHelp(Print *outdev, const Command_t *cmd);
-extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 
 //#define BUILT_IN_LED_PIN ( (gpio_num_t)2 )
 #define BUILT_IN_LED_PIN  LED_PIN
@@ -57,7 +51,7 @@ extern void cmdHelp(Print *outdev, int tokCnt, char **tokList);
 
 // Speed Sensors 
 #define QUAD_PULSES_PER_REV   600
-#define SPEED_CHECK_INTERVAL_uSec 1000
+#define SPEED_CHECK_INTERVAL_mSec 500
 #define MOTOR_1_QUAD_A  GPIO_NUM_20
 #define MOTOR_1_QUAD_B  GPIO_NUM_21
 #define MOTOR_2_QUAD_A  GPIO_NUM_28

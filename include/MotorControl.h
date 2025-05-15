@@ -22,18 +22,19 @@
 #include "driver/ledc.h"
 
 
+// - - - - - - - - - - - - - - - - - - - - - - - - -
 /**
  * @brief This class is used to configure the setup of the motor.
  * 
  */
 typedef struct {
-    ledc_channel_t  chnlNo;
-    gpio_num_t ena_pin;
-    gpio_num_t dir_pin_a;
-    gpio_num_t dir_pin_b;
-    gpio_num_t quad_pin_a;
-    gpio_num_t quad_pin_b;
-    unsigned long loop_rate;
+    ledc_channel_t  chnlNo;  // e.g. LEDC_CHANNEL_0
+    gpio_num_t ena_pin;      // e.g. pin_num_NC
+    gpio_num_t dir_pin_a;    // e.g. pin_num_NC
+    gpio_num_t dir_pin_b;    // e.g. pin_num_NC
+    gpio_num_t quad_pin_a;   // e.g. pin_num_NC
+    gpio_num_t quad_pin_b;   // e.g. pin_num_NC
+    unsigned long loop_rate; // millisecoonds between speed updates
     float kp;
     float ki;
     float kd;
@@ -58,8 +59,8 @@ class MotorControl: public LN298, public QuadDecoder
         void loop();
         
         // Main configuration...
-        void setQUADcalibration(uint pulsesPerRev, uint circumfrence,   QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM); 
-        void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence, QuadDecoder::QuadUnits_t _units=QuadDecoder::UNITS_MM);
+        void setQUADcalibration(uint pulsesPerRev, uint circumfrence); 
+        void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence);
         void setPIDcalibrate(float kp, float ki, float kd);
         void getPIDCalibration(float *kp, float *ki, float *kd);
 

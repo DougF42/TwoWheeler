@@ -1,0 +1,29 @@
+This attempts to regularize the various units of measure...
+
+Units of measure as used internally.  
+(Note: Some commands accept other units - these are immediatly converted to internal units.)
+
+(1) H298: PWM settings are 0 to +/-100 (pulse width percent on).  
+    pulse rate is a frequency (default 4khz).
+
+(2) Quad decoder: circumfrence is in mm. 
+    speed check interval in milliseconds.
+
+(3) MOTORControl: (combines H298, Quad, PID)
+    PID loop time and speed check:  milliseconds between loops.
+    Speed is in mm/second.
+
+(4) Driver (combines 2 MOTORControl instances)
+    Speed is in mm/millisecond.
+    Rate of turn is Radians/millisecond
+= = = = = 
+SETTINGS:
+   [NOTE: ALL COMMANDS ARE PROCESSED IN THE DRIVER, and passed down as needed]
+(1) H298:     pulse rate frequency (FIXED-not settable)
+(2) QUAD:     points ('holes') per rev, circum
+(3) PID:      Kp, Ki, Pd                 PID 
+              Speed check/PID loop rate  SROT
+(4) DRIVER:   desired Speed              FWD
+              desired turn rate          SROT
+              drift                      DRIF 
+              stop (rate).               STOP n

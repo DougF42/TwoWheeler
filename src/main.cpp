@@ -12,13 +12,12 @@
 #include "config.h"
 #include "Params.h"
 #include "Nodex.h"
-#include "UdpCmd.h"
 #include "MotorControl.h"
 #include "driver/ledc.h"
 
 MotorControl motorLeft;
 MotorControl motorRight;
-UdpCmd Udp;          // UDP command channel
+
 // SMAC related...
 Preferences  MCUPreferences;  // Non-volatile memory
 Nodex         *ThisNode;  // SMAC Node
@@ -31,7 +30,7 @@ uint8_t      RelayerMAC[MAC_SIZE];  // MAC Address of the Relayer Module stored 
 //   Serial port
 //   LED
 //   Motor Driver for left and right motors
-//   WiFi, UDP and ESP-NOW
+//   WiFi and ESP-NOW
 //   
 // - - - - - - - - - - - - - - - - - - - - -
 
@@ -42,8 +41,6 @@ void setup() {
   // LED pin is output
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // Set up Wifi/UDP
-  Udp.begin(UDP_SSID, UDP_PASS);
   // Motor Driver config
   MotorControl_config_t mtr_config1=
   {
@@ -78,8 +75,6 @@ void setup() {
   //Nodex(const char *inName, int inNodeID, const uint8_t *macAddr);
   ThisNode = new Nodex("TwoWheeler", 0, Params::NODE_RELAY_MAC() ); // NODE Number 0
 
-
-  // TODO: ThisNode->AddDevice (new LightSensor ("Light Sensor", 6));
 }
 
 // - - - - -Just some stuff for 'loop' - - - - - - - - - - - - - - - -
@@ -109,7 +104,5 @@ void loop() {
     }
     lastBlinkTime=millis();
   }
-
-  // Check UDP frequently
-  Udp.loop();
+  ThisNode->Run();
 }
