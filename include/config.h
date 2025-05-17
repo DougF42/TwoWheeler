@@ -40,22 +40,22 @@
 
 
 // Pins for DC motor 1
-#define MOTOR_1_EN      GPIO_NUM_20
-#define MOTOR_1_DRIVE_A GPIO_NUM_21
-#define MOTOR_1_DRIVE_B GPIO_NUM_22
+#define MOTOR_1_EN      GPIO_NUM_14
+#define MOTOR_1_DRIVE_A GPIO_NUM_27
+#define MOTOR_1_DRIVE_B GPIO_NUM_26
 
 // Pins for DC motor 2
-#define MOTOR_2_EN      GPIO_NUM_25
-#define MOTOR_2_DRIVE_A GPIO_NUM_26
-#define MOTOR_2_DRIVE_B GPIO_NUM_27
+#define MOTOR_2_EN      GPIO_NUM_32
+#define MOTOR_2_DRIVE_A GPIO_NUM_25
+#define MOTOR_2_DRIVE_B GPIO_NUM_33
 
 // Speed Sensors 
 #define QUAD_PULSES_PER_REV   600
 #define SPEED_CHECK_INTERVAL_mSec 500
-#define MOTOR_1_QUAD_A  GPIO_NUM_20
-#define MOTOR_1_QUAD_B  GPIO_NUM_21
-#define MOTOR_2_QUAD_A  GPIO_NUM_28
-#define MOTOR_2_QUAD_B  GPIO_NUM_29
+#define MOTOR_1_QUAD_A  GPIO_NUM_36
+#define MOTOR_1_QUAD_B  GPIO_NUM_39
+#define MOTOR_2_QUAD_A  GPIO_NUM_35
+#define MOTOR_2_QUAD_B  GPIO_NUM_34
 
 
 // * * * * * * * 

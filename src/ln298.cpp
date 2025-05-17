@@ -8,10 +8,14 @@
  * @copyright Copyright (c) 2025
  * 
  */
+#include <Arduino.h>
 #include "ln298.h"
 #include "esp_check.h"
 #include "driver/gpio.h"
 
+volatile bool LN298::timer_is_inited=0;
+
+// Timer - samefor all channels. 
 #define LEDC_TIMER              LEDC_TIMER_0
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
 #define LEDC_DUTY_RES           LEDC_TIMER_13_BIT // Set duty resolution to 13 bits
@@ -54,37 +58,40 @@ void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _d
     #if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
         .hys_ctrl_mode=GPIO_HYS_SOFT_DISABLE       /*!< GPIO hysteresis: hysteresis filter on slope input    */
     #endif
-    };
+    };    
     ESP_ERROR_CHECK(gpio_config(&pinOutputscfg)) ;
     gpio_set_level( ena_pin,   0);
     gpio_set_level( dir_pin_a, 0);
     gpio_set_level( dir_pin_b, 0);
 
-    // configure the LEDC timer
-    ledc_timer_config_t ledc_timer = {
-        .speed_mode = LEDC_MODE,
-        .duty_resolution = LEDC_DUTY_RES,
-        .timer_num = LEDC_TIMER,
-        .freq_hz = LEDC_FREQUENCY, // Set output frequency at 4 kHz
-        .clk_cfg = LEDC_AUTO_CLK};
-    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+    // initialize timer - timer is common to all channels - only do one time
+    if (!timer_is_inited)
+    {  
+        timer_is_inited = true;
+        ledc_timer_config_t ledc_timer = {
+            .speed_mode = LEDC_MODE,
+            .duty_resolution = LEDC_DUTY_RES,
+            .timer_num = LEDC_TIMER,
+            .freq_hz = LEDC_FREQUENCY, // Set output frequency at 4 kHz
+            .clk_cfg = LEDC_AUTO_CLK};
+        ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+    }
 
-    // ***TODO!!!! INITIALIZE the LEDC Channel -
+    // INITIALIZE the LEDC Channel -
     // channel number is the same as the index of the MotorTable.
     ledc_channel_config_t  chnl_config=
     {
         .gpio_num   = ena_pin,
         .speed_mode = LEDC_MODE,
         .channel=led_channel,
-        .intr_type=LEDC_INTR_DISABLE,     /*!< configure interrupt, Fade interrupt enable  or Fade interrupt disable */
-        .timer_sel=(ledc_timer_t)chnlNo,  /*!< Select the timer source of channel (0 - LEDC_TIMER_MAX-1) */
-        .duty = LEDC_DUTY,                /*!< LEDC channel duty, the range of duty setting is [0, (2**duty_resolution)] */
-        .hpoint=0,                        /*!< LEDC channel hpoint value, the range is [0, (2**duty_resolution)-1] */
+        .intr_type=LEDC_INTR_DISABLE,  /*!< configure interrupt, Fade interrupt enable  or Fade interrupt disable */
+        .timer_sel=LEDC_TIMER,         /*!< Select the timer source of channel (0 - LEDC_TIMER_MAX-1) */
+        .duty = LEDC_DUTY,             /*!< LEDC channel duty, the range of duty setting is [0, (2**duty_resolution)] */
+        .hpoint=0,                     /*!< LEDC channel hpoint value, the range is [0, (2**duty_resolution)-1] */
         .sleep_mode=LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,   /*!< choose the desired behavior for the LEDC channel in Light-sleep */
         .flags= 0,
     } ;
     ESP_ERROR_CHECK(ledc_channel_config( &chnl_config));
-
 }
 
 
@@ -99,15 +106,18 @@ void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _d
  */
 void LN298::setPulseWidth(int pcnt)
 {
-    uint32_t duty = pcnt* (1ul <<LEDC_DUTY_RES);
-    if (duty<0) 0-duty;
     setDirection(pcnt);
+    uint32_t duty;
+    Serial.printf("setPulseWidth Channel %d Arg=%d  ",(int)led_channel,  pcnt);
+    duty = map( abs(pcnt), 0, 100, 0, (1ul<<LEDC_DUTY_RES));
+    Serial.printf(" MAP returns %d\r\n", duty);
     ESP_ERROR_CHECK( ledc_set_duty(LEDC_MODE, led_channel, duty) );
+    ledc_update_duty(LEDC_MODE, led_channel);
 }; // Set the pulse width (0..100)
 
 
 /**
- * @brief Set the direction based on the sign of the argument.
+ * @brief INTERNAL:  Set the direction based on the sign of the argument.
  *    NOTE: Zero is treated as 'forward'
  * @param pcnt - positive for forward, negative for reverse.
  */
@@ -115,9 +125,11 @@ void LN298::setDirection(int pcnt)
 {
     if (pcnt>=0)
     {  // forward
+            Serial.printf("Set Motor %d direction FORWARD\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, true);
         gpio_set_level(dir_pin_b,false);
     } else { // reverse
+        Serial.printf("Set Motor %d direction REVERSE\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, false);
         gpio_set_level(dir_pin_b,true);
     }

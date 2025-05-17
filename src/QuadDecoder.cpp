@@ -68,7 +68,7 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
     };
 
     ESP_ERROR_CHECK( gpio_config( &pGpioConfig) );
-    ESP_ERROR_CHECK (gpio_install_isr_service(ESP_INTR_FLAG_LEVEL4) );
+    ESP_ERROR_CHECK (gpio_install_isr_service(ESP_INTR_FLAG_EDGE|ESP_INTR_FLAG_LOWMED) );
     gpio_isr_handler_add(quad_pin_a, ISR_handlePhaseA, this);
     gpio_isr_handler_add(quad_pin_b, ISR_handlePhaseB, this);
 
