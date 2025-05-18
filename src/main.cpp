@@ -8,7 +8,9 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#define TEST_LN298
+// #define TEST_LN298
+#define TEST_QUAD
+
 #include <Arduino.h>
 #include "config.h"
 #include "Params.h"
@@ -31,6 +33,12 @@ LN298 ln298_1;
 LN298 ln298_2;
 #endif
 
+#ifdef TEST_QUAD
+#include "QuadDecoder.h"
+QuadDecoder quad1;
+QuadDecoder quad2;
+#endif
+
 // - - - - - - - - - - - - - - - - - - - - -
 // General setup -
 //   Serial port
@@ -47,6 +55,10 @@ void setup() {
   // LED pin is output
   pinMode(LED_BUILTIN, OUTPUT);
 
+  // Use interrupts for Quad decoder
+  // The ISR service is only installed once for all pins
+  ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE | ESP_INTR_FLAG_LOWMED|ESP_INTR_FLAG_IRAM));
+  // ESP_INTR_FLAG_SHARED ????
   // Motor Driver config
   MotorControl_config_t mtr_config1=
   {
@@ -60,6 +72,7 @@ void setup() {
     .ki        =0, 
     .kd        =0,
   };
+
   #ifndef TEST_LN298
   motorLeft.setup(mtr_config1);
 #endif
@@ -75,7 +88,15 @@ void setup() {
     .ki         = 0, 
     .kd         = 0,
   };
-#ifdef TEST_LN298
+
+#if !defined TEST_LN298 && !defined TEST_QUAD
+  // Define the TWO? MOTORS and a driver
+  motorRight.setup(mtr_config2);
+  // Nodex(const char *inName, int inNodeID, const uint8_t *macAddr);
+  ThisNode = new Nodex("TwoWheeler", 0, Params::NODE_RELAY_MAC()); // NODE Number 0
+#endif
+
+#if defined TEST_LN298
   ln298_1.setupLN298(LEDC_CHANNEL_0, MOTOR_1_EN, MOTOR_1_DRIVE_A, MOTOR_1_DRIVE_B);
   ln298_1.setPulseWidth(45); // 45 percent power
   Serial.println("SETUP of #1 complete\r\n");
@@ -85,12 +106,14 @@ void setup() {
   Serial.println("Setup of #2 complete\r\n");
 
 
+#endif
 
-#else
-  // Define the TWO? MOTORS and a driver
-  motorRight.setup(mtr_config2);
-  // Nodex(const char *inName, int inNodeID, const uint8_t *macAddr);
-  ThisNode = new Nodex("TwoWheeler", 0, Params::NODE_RELAY_MAC()); // NODE Number 0
+#if defined TEST_QUAD
+  quad1.setupQuad( MOTOR_1_DRIVE_A, MOTOR_1_DRIVE_B);
+  Serial.printf("Quad 1 is defined\r\n");
+  // quad2.setupQuad( MOTOR_2_DRIVE_A, MOTOR_2_DRIVE_B,true);
+  // Serial.println("Quad 2 is defined\r\n");
+
 #endif
 }
 
@@ -99,9 +122,12 @@ void setup() {
 unsigned long lastBlinkTime=0;
 bool last_led_state=false; // true is 
 
-int speed1=30;
-int speed2=30;
+#ifdef TEST_LN298
+int speed1=0;
+int speed2=0;
 bool invertFlag=true;
+#endif
+
 // - - - - - - - - - - - - - - - - - - - - -
 // Main operating loop
 // - - - - - - - - - - - - - - - - - - - - -
@@ -123,7 +149,7 @@ void loop() {
         break;
     }
     lastBlinkTime = millis();
-
+#ifdef TEST_LN298
     invertFlag= !invertFlag;
      speed1 += 10;
      if (speed1 > 100) speed1 = 45;
@@ -139,11 +165,18 @@ void loop() {
      else
        ln298_2.setPulseWidth(speed2);
     Serial.println(" ");
+#endif
+
+#ifdef TEST_QUAD
+    Serial.printf("Position 1= %f\r\n", quad1.getPosition());
+    // Serial.printf("Position 1= %f\r\n", quad2.getPosition());
+#endif
   }
 
 #ifdef TEST_LN298
   // No test actions at this time
 #else
+  // Run the SMAC nodes and devices...
   ThisNode->Run();
 #endif
 }

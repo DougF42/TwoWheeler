@@ -43,27 +43,30 @@ class QuadDecoder
         double convertPulsesToDist;    // Calculated: the factor to convert ticks into distance. 
 
         typedef enum { AoffBoff, AonBoff, AoffBon, AonBon } QUAD_STATE_t;
-        QUAD_STATE_t last_state;
+        QUAD_STATE_t last_state;   //****** */
+        std::atomic<int32_t> position;          // Position in pulses- Position *can* be negative!
 
+        
         uint32_t lastLoopTime;
         std::atomic<unsigned long> pulseCount; // number of pulses since last speed check
-        std::atomic<int32_t> position;          // Position in pulses- Position *can* be negative!
+
         std::atomic<double> lastPulsesPerSecond; // last rate (pulses per second)
         uint32_t speedCheckIntervaluSec;        // How often we calculate speed (uSeconds)
 
-        static void ISR_handlePhaseA(void *arg);
-        static void ISR_handlePhaseB(void *arg);
+        static void IRAM_ATTR ISR_handlePhaseA(void *arg);
+        static void IRAM_ATTR ISR_handlePhaseB(void *arg);
 
     public:
         QuadDecoder();
         ~QuadDecoder();
         void quadLoop();
-        void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b);
+        void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b, bool is_isr_installed=false);
         uint32_t getCurPos();
         void resetPos(uint32_t newPos=0);
         int32_t getSpeed();
         double getPosition(); 
         void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_mSec);
         void calibrate (uint pulsesPerRev, uint circumfrence);  
+        void calibrate_raw_pos();
 
 };

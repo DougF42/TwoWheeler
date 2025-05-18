@@ -30,7 +30,6 @@ QuadDecoder::QuadDecoder()
 
 QuadDecoder::~QuadDecoder()
 {
-    gpio_uninstall_isr_service();
     gpio_reset_pin(quad_pin_a);
     gpio_reset_pin(quad_pin_b);
 
@@ -41,9 +40,8 @@ QuadDecoder::~QuadDecoder()
  * @brief Set parameters for this Quad decoder
  * 
  */
-void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
+void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b,  bool isr_previously_installed)
 {
-
     quad_pin_a = _quad_pin_a;
     quad_pin_b = _quad_pin_b;
 
@@ -66,9 +64,8 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
         .hys_ctrl_mode=GPIO_HYS_SOFT_DISABLE;       /*!< GPIO hysteresis: hysteresis filter on slope input    */
     #endif
     };
-
     ESP_ERROR_CHECK( gpio_config( &pGpioConfig) );
-    ESP_ERROR_CHECK (gpio_install_isr_service(ESP_INTR_FLAG_EDGE|ESP_INTR_FLAG_LOWMED) );
+
     gpio_isr_handler_add(quad_pin_a, ISR_handlePhaseA, this);
     gpio_isr_handler_add(quad_pin_b, ISR_handlePhaseB, this);
 
@@ -80,9 +77,9 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
  *
  * @param arg - points to the current instance of QuadDecoder
  */
-void QuadDecoder::ISR_handlePhaseA(void *arg)
+void IRAM_ATTR QuadDecoder::ISR_handlePhaseA(void *arg)
 {
-    QuadDecoder *me = (QuadDecoder *)arg;
+    static DRAM_ATTR QuadDecoder *me = (QuadDecoder *)arg;
     me->pulseCount++;
     switch(me->last_state)
     {
@@ -114,9 +111,9 @@ void QuadDecoder::ISR_handlePhaseA(void *arg)
  * 
  * @param arg - points to the current instance of QuadDecoder
  */
-void QuadDecoder::ISR_handlePhaseB(void *arg)
+void IRAM_ATTR QuadDecoder::ISR_handlePhaseB(void *arg)
 {
-    QuadDecoder *me = (QuadDecoder *)arg;
+    static DRAM_ATTR QuadDecoder *me = (QuadDecoder *)arg;
     me->pulseCount++;
     switch(me->last_state)
     {
@@ -217,3 +214,12 @@ void QuadDecoder::calibrate (uint tickPerRev, uint diameter)
     convertPulsesToDist = (diameter*M_PI) / (tickPerRev*4.0);
 }
 
+
+/**
+ * @brief Set configuration so that dist and pulses are '1'.
+ *   (This is really only usefull for testing)
+ */
+void QuadDecoder::calibrate_raw_pos()
+{
+    convertPulsesToDist=1;    
+}
