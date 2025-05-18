@@ -64,7 +64,9 @@ class QuadDecoder
         uint32_t getCurPos();
         void resetPos(uint32_t newPos=0);
         int32_t getSpeed();
-        double getPosition(); 
+        double getPosition();
+        unsigned long getPulseCount() { return(pulseCount); };
+
         void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_mSec);
         void calibrate (uint pulsesPerRev, uint circumfrence);  
         void calibrate_raw_pos();

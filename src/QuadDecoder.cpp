@@ -76,10 +76,14 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b,  boo
  * @brief Phase A changed.
  *
  * @param arg - points to the current instance of QuadDecoder
+ * 
+ * TODO: ADD IRAM_ATTR ???
  */
 void IRAM_ATTR QuadDecoder::ISR_handlePhaseA(void *arg)
 {
-    static DRAM_ATTR QuadDecoder *me = (QuadDecoder *)arg;
+    // static DRAM_ATTR QuadDecoder *me = (QuadDecoder *)arg;
+    QuadDecoder *me = (QuadDecoder *)arg;
+    ulong x=gpio_get_level(me->quad_pin_a); // clear the pin
     me->pulseCount++;
     switch(me->last_state)
     {
@@ -103,6 +107,7 @@ void IRAM_ATTR QuadDecoder::ISR_handlePhaseA(void *arg)
         me->last_state=AoffBon;
         break;
     }
+
 }
 
 
@@ -113,8 +118,9 @@ void IRAM_ATTR QuadDecoder::ISR_handlePhaseA(void *arg)
  */
 void IRAM_ATTR QuadDecoder::ISR_handlePhaseB(void *arg)
 {
-    static DRAM_ATTR QuadDecoder *me = (QuadDecoder *)arg;
+    QuadDecoder *me = (QuadDecoder *)arg;    
     me->pulseCount++;
+    ulong x=gpio_get_level(me->quad_pin_b); // clear the pin
     switch(me->last_state)
     {
         case(AoffBoff):
@@ -137,7 +143,6 @@ void IRAM_ATTR QuadDecoder::ISR_handlePhaseB(void *arg)
         me->last_state=AonBoff;
         break;
     }
-
 }
 
 
@@ -175,6 +180,11 @@ int32_t QuadDecoder::getSpeed()
     return(lastPulsesPerSecond * convertPulsesToDist);
 }
 
+void QuadDecoder::resetPos(uint32_t newPos)
+{
+    position=newPos;
+    pulseCount=0;
+}
 
 /**
  * @brief Get the current Position

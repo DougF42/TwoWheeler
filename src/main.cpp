@@ -8,6 +8,7 @@
  * @copyright Copyright (c) 2025
  * 
  */
+// #define USE_SMAC
 // #define TEST_LN298
 #define TEST_QUAD
 
@@ -23,7 +24,9 @@ MotorControl motorRight;
 
 // SMAC related...
 Preferences  MCUPreferences;  // Non-volatile memory
+#ifdef USE_SMAC
 Nodex         *ThisNode;  // SMAC Node
+#endif
 uint8_t      RelayerMAC[MAC_SIZE];  // MAC Address of the Relayer Module stored in non-volatile memory.
                                     // This is set using the <SetMAC.html> tool in the SMAC_Interface folder.
                                     // { 0x7C, 0xDF, 0xA1, 0xE0, 0x92, 0x98 }
@@ -57,8 +60,11 @@ void setup() {
 
   // Use interrupts for Quad decoder
   // The ISR service is only installed once for all pins
-  ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE | ESP_INTR_FLAG_LOWMED|ESP_INTR_FLAG_IRAM));
+  ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE | ESP_INTR_FLAG_LOWMED));
+  //  ESP_INTR_FLAG_IRAM
   // ESP_INTR_FLAG_SHARED ????
+
+
   // Motor Driver config
   MotorControl_config_t mtr_config1=
   {
@@ -118,7 +124,7 @@ void setup() {
 }
 
 // - - - - -Just some stuff for 'loop' - - - - - - - - - - - - - - - -
-#define BLINK_RATE_MSECS 5000
+#define BLINK_RATE_MSECS 2000
 unsigned long lastBlinkTime=0;
 bool last_led_state=false; // true is 
 
@@ -132,7 +138,6 @@ bool invertFlag=true;
 // Main operating loop
 // - - - - - - - - - - - - - - - - - - - - -
 void loop() {
-
   // toggle the LED periodically.
   if ( (millis()-lastBlinkTime) >= BLINK_RATE_MSECS)
   {
@@ -168,14 +173,18 @@ void loop() {
 #endif
 
 #ifdef TEST_QUAD
-    Serial.printf("Position 1= %f\r\n", quad1.getPosition());
-    // Serial.printf("Position 1= %f\r\n", quad2.getPosition());
+    //Serial.printf("Position 1= %f\r\n", quad1.getPosition());
+    Serial.printf("Pulse count is %lu  Position is %f\r\n", 
+          quad1.getPulseCount(), quad1.getPosition());
+    quad1.resetPos();
 #endif
   }
 
 #ifdef TEST_LN298
   // No test actions at this time
-#else
+#endif
+
+#ifdef USE_SMAC
   // Run the SMAC nodes and devices...
   ThisNode->Run();
 #endif
