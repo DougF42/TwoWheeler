@@ -26,7 +26,11 @@
 #pragma once
 #include "config.h"
 #include "atomic"
+#include "freertos/queue.h"
 #include <driver/gpio.h>
+
+
+ #define MAX_NO_OF_QUAD_DECODERS 2
 
 
 class QuadDecoder
@@ -34,6 +38,11 @@ class QuadDecoder
     public:
 
     private:
+        // The order corresponds to binary state assuming a is bit 1, b is bit 0
+        typedef enum { AoffBoff=0, AoffBon=1, AonBoff=2,  AonBon=3, QuadInitState=4} QUAD_STATE_t;
+
+        uint8_t quadIdx; // Which motor is assigned to me?
+        QueueHandle_t queue;  // keep track of quad events
         gpio_num_t quad_pin_a;
         gpio_num_t quad_pin_b;
 
@@ -42,30 +51,23 @@ class QuadDecoder
         double wheelDiameter; 
         double convertPulsesToDist;    // Calculated: the factor to convert ticks into distance. 
 
-        typedef enum { AoffBoff, AonBoff, AoffBon, AonBon } QUAD_STATE_t;
-        QUAD_STATE_t last_state;   //****** */
-        std::atomic<int32_t> position;          // Position in pulses- Position *can* be negative!
-
-        
         uint32_t lastLoopTime;
-        std::atomic<unsigned long> pulseCount; // number of pulses since last speed check
-
-        std::atomic<double> lastPulsesPerSecond; // last rate (pulses per second)
+        uint32_t lastPulsesPerSecond; // last rate (pulses per second)
         uint32_t speedCheckIntervaluSec;        // How often we calculate speed (uSeconds)
 
-        static void IRAM_ATTR ISR_handlePhaseA(void *arg);
-        static void IRAM_ATTR ISR_handlePhaseB(void *arg);
+        static void IRAM_ATTR ISR_handler(void *arg);
 
     public:
         QuadDecoder();
         ~QuadDecoder();
-        void quadLoop();
         void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b, bool is_isr_installed=false);
-        uint32_t getCurPos();
-        void resetPos(uint32_t newPos=0);
-        int32_t getSpeed();
+        void quadLoop();
+     
         double getPosition();
-        unsigned long getPulseCount() { return(pulseCount); };
+        void   resetPos(uint32_t newPos=0);
+        int32_t getSpeed();
+ 
+        uint32_t getPulseCount();
 
         void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_mSec);
         void calibrate (uint pulsesPerRev, uint circumfrence);  
