@@ -30,7 +30,7 @@ typedef struct
     uint32_t pulseCount;
 } Quad_t;
 
-static Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // should be in DRAM 
+static Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - should be in DRAM )
 
 // For the quad array, what is the next available position?
 static std::atomic_uint8_t nextQuadId;
@@ -41,6 +41,8 @@ QuadDecoder::QuadDecoder()
     quadIdx=nextQuadId++;    // this is atomic!
     if (quadIdx >= MAX_NO_OF_QUAD_DECODERS)
     {
+        quadIdx=-1;
+        nextQuadId--;
         Serial.printf("**** ERROR* ****  TOO MANY MOTORS DEFINED. Limit is %d!\r\n", MAX_NO_OF_QUAD_DECODERS);
         delay(5000);
         return;
@@ -48,7 +50,7 @@ QuadDecoder::QuadDecoder()
 
     quads[quadIdx].last_state = QuadInitState;
     quads[quadIdx].position   = 0;
-    quads[quadIdx].pulseCount = 0; 
+    quads[quadIdx].pulseCount = 0UL; 
 
      // everything in the class gets *some* value...
     pulsesPerRev = QUAD_PULSES_PER_REV*4;
@@ -76,9 +78,16 @@ QuadDecoder::~QuadDecoder()
  */
 void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b,  bool isr_previously_installed)
 {
+    //  Sanity checks
+    if (quadIdx < 0)
+    {
+        Serial.println("*** ERROR! TOO MANY QUADS - quadIdx not assigned!");
+        return;
+    }
     quad_pin_a = _quad_pin_a;
     quad_pin_b = _quad_pin_b;
 
+    // force initial values (TBD: Use prefs?)
     setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
     calibrate(QUAD_PULSES_PER_REV, 4);
     lastLoopTime= esp_timer_get_time();
@@ -96,9 +105,12 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b,  boo
     #endif
     };
     ESP_ERROR_CHECK( gpio_config( &pGpioConfig) );
+    ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, ISR_handler, this) );    
+    ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_b, ISR_handler, this) );
 
-    gpio_isr_handler_add(quad_pin_a, ISR_handler, this);
-    gpio_isr_handler_add(quad_pin_b, ISR_handler, this);
+    Serial.printf("Quad defined using index %d\r\n", quadIdx);
+    gpio_dump_io_configuration(stdout, (1ull<<quad_pin_a)|(1ull<<quad_pin_b));
+    
 }
 
 
@@ -116,11 +128,18 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     
     int pina=gpio_get_level(me->quad_pin_a); // get the current value of pinA
     int pinb=gpio_get_level(me->quad_pin_b); // get the current value of pinB
-    QUAD_STATE_t newState = (QUAD_STATE_t) ((pina<<1) | pinb);
+    QUAD_STATE_t newState = (QUAD_STATE_t) ((pina<<1) | pinb); // combine pina+pinb to get state
 
-    thisQuad->pulseCount++;
+    thisQuad->pulseCount++;         // regardles of state, one more 'pulse'
     switch (thisQuad->last_state)
     {
+    case (QuadInitState):
+        // Initialize the QUAD decoder
+        thisQuad->position = 0;
+        thisQuad->pulseCount = 1;
+        thisQuad->last_state = newState;
+        break;
+
     case (AonBoff):
         if (newState == AonBon)
         {
@@ -180,17 +199,22 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
  *    Speed is determined once every speedCheckIntervaluSec,
  *  which defaults to SPEED_CHECK_INTERVAL_uSec
  *
+ * (20000 uSecs = 20 msecs)
  */
-#define CHECK_INTERVAL_uSec 1000
+#define CHECK_INTERVAL_uSec 20000
 void QuadDecoder::quadLoop()
 {
-    uint32_t timeNow = esp_timer_get_time();
+    static double last_position=0.0;
+    uint32_t timeNow = esp_timer_get_time(); // time in uSecs
     
-    uint32_t elapsedTime = lastLoopTime - timeNow;
+    // We only measure speed periodically  (speedCheckIntervaluSec)
+    uint32_t elapsedTime = timeNow - lastLoopTime;
     if (elapsedTime > speedCheckIntervaluSec)
     {
-        lastPulsesPerSecond = quads[quadIdx].pulseCount / elapsedTime; // ticks per microsecond
-        quads[quadIdx].pulseCount = 0;
+        double dist =  fabs(last_position - quads[quadIdx].position );
+        lastPulsesPerSecond = (dist / elapsedTime) * 1E6;
+        last_position = quads[quadIdx].position;
+        quads[quadIdx].pulseCount = 0UL;
         lastLoopTime = timeNow;
     }
     return;
@@ -219,7 +243,7 @@ void QuadDecoder::resetPos(uint32_t newPos)
     Quad_t *myquad = & quads[quadIdx];        
     myquad->last_state = QuadInitState;
     myquad->position=newPos;
-    myquad->pulseCount=0;    
+    myquad->pulseCount=0UL;    
 }
 
 

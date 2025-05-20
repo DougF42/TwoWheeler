@@ -19,11 +19,14 @@
 #include "MotorControl.h"
 #include "driver/ledc.h"
 
+#ifdef USE_SMAC
 MotorControl motorLeft;
 MotorControl motorRight;
+#endif
 
 // SMAC related...
 Preferences  MCUPreferences;  // Non-volatile memory
+
 #ifdef USE_SMAC
 Nodex         *ThisNode;  // SMAC Node
 #endif
@@ -79,9 +82,7 @@ void setup() {
     .kd        =0,
   };
 
-  #ifndef TEST_LN298
-  motorLeft.setup(mtr_config1);
-#endif
+
   MotorControl_config_t mtr_config2=
   {
     .chnlNo    = LEDC_CHANNEL_2,
@@ -94,6 +95,11 @@ void setup() {
     .ki         = 0, 
     .kd         = 0,
   };
+
+#ifdef USE_SMAC
+  motorLeft.setup(mtr_config1);
+  motorRight.setup(mtr_config2);
+#endif
 
 #if !defined TEST_LN298 && !defined TEST_QUAD
   // Define the TWO? MOTORS and a driver
@@ -115,10 +121,13 @@ void setup() {
 #endif
 
 #if defined TEST_QUAD
-  quad1.setupQuad( MOTOR_1_DRIVE_A, MOTOR_1_DRIVE_B);
+  quad1.setupQuad( MOTOR_1_QUAD_A, MOTOR_1_QUAD_B);
+  quad1.calibrate_raw_pos();
   Serial.printf("Quad 1 is defined\r\n");
-  // quad2.setupQuad( MOTOR_2_DRIVE_A, MOTOR_2_DRIVE_B,true);
-  // Serial.println("Quad 2 is defined\r\n");
+
+  quad2.setupQuad( MOTOR_2_QUAD_A, MOTOR_2_QUAD_B, true);
+  quad2.calibrate_raw_pos();
+  Serial.println("Quad 2 is defined\r\n");
 
 #endif
 }
@@ -173,10 +182,13 @@ void loop() {
 #endif
 
 #ifdef TEST_QUAD
-    //Serial.printf("Position 1= %f\r\n", quad1.getPosition());
-    Serial.printf("Pulse count is %lu  Position is %f\r\n", 
-          quad1.getPulseCount(), quad1.getPosition());
+    quad1.quadLoop();
+    Serial.printf("Q1: Position is %8.2f   speed=%8lld\r\n", quad1.getPosition(), quad1.getSpeed());
     quad1.resetPos();
+
+    quad2.quadLoop();
+    Serial.printf("Q2: Position is %8.2f   speed=%8lld\r\n", quad2.getPosition(), quad2.getSpeed());
+    quad2.resetPos();
 #endif
   }
 
