@@ -25,6 +25,7 @@
  */
 #pragma once
 #include "config.h"
+#include "Arduino.h"
 #include "atomic"
 #include "freertos/queue.h"
 #include <driver/gpio.h>
@@ -46,16 +47,21 @@ class QuadDecoder
         gpio_num_t quad_pin_a;
         gpio_num_t quad_pin_b;
 
-        // Robot Characteristics
-        int    pulsesPerRev;
-        double wheelDiameter; 
+        // Robot Characteristics (Configuration, one-time calculations)
+        int    pulsesPerRev;           // Config
+        double wheelDiameter;          // Config
+        time_t speedCheckIntervaluSec;  // Config: Min rate we store speed (uSeconds) values.
         double convertPulsesToDist;    // Calculated: the factor to convert ticks into distance. 
+        
 
-        uint32_t lastLoopTime;
-        uint32_t lastPulsesPerSecond; // last rate (pulses per second)
-        uint32_t speedCheckIntervaluSec;        // How often we calculate speed (uSeconds)
+        // LOOP is used to calculate time interval and speed.
+        time_t   lastSpeedCheck;       // When last loop happened (uSecs)
+        dist_t   lastPosition;          // position (counts)
 
-        static void IRAM_ATTR ISR_handler(void *arg);
+        time_t   elapsedTime;          // How long since prev loop (uSecs)
+        dist_t   distPerLoop;          // dist traveled since prev loop
+
+        static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler
 
     public:
         QuadDecoder();
@@ -64,13 +70,11 @@ class QuadDecoder
         void quadLoop();
      
         double getPosition();
-        void   resetPos(uint32_t newPos=0);
+        void   resetPos();
         int32_t getSpeed();
  
-        uint32_t getPulseCount();
-
-        void setSpeedCheckInterval(uint32_t rate=SPEED_CHECK_INTERVAL_mSec);
-        void calibrate (uint pulsesPerRev, uint circumfrence);  
+        void setSpeedCheckInterval(time_t rate=SPEED_CHECK_INTERVAL_mSec);
+        void calibrate (uint pulsesPerRev, dist_t circumfrence);  
         void calibrate_raw_pos();
 
 };

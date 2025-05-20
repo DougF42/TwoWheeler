@@ -42,7 +42,7 @@ LN298 ln298_2;
 #ifdef TEST_QUAD
 #include "QuadDecoder.h"
 QuadDecoder quad1;
-QuadDecoder quad2;
+//QuadDecoder quad2;
 #endif
 
 // - - - - - - - - - - - - - - - - - - - - -
@@ -125,9 +125,9 @@ void setup() {
   quad1.calibrate_raw_pos();
   Serial.printf("Quad 1 is defined\r\n");
 
-  quad2.setupQuad( MOTOR_2_QUAD_A, MOTOR_2_QUAD_B, true);
-  quad2.calibrate_raw_pos();
-  Serial.println("Quad 2 is defined\r\n");
+  //quad2.setupQuad( MOTOR_2_QUAD_A, MOTOR_2_QUAD_B, true);
+  //quad2.calibrate_raw_pos();
+  //Serial.println("Quad 2 is defined\r\n");
 
 #endif
 }
@@ -147,6 +147,10 @@ bool invertFlag=true;
 // Main operating loop
 // - - - - - - - - - - - - - - - - - - - - -
 void loop() {
+#ifdef TEST_QUAD
+  quad1.quadLoop();
+  //quad2.quadLoop();
+  #endif
   // toggle the LED periodically.
   if ( (millis()-lastBlinkTime) >= BLINK_RATE_MSECS)
   {
@@ -182,13 +186,11 @@ void loop() {
 #endif
 
 #ifdef TEST_QUAD
-    quad1.quadLoop();
-    Serial.printf("Q1: Position is %8.2f   speed=%8lld\r\n", quad1.getPosition(), quad1.getSpeed());
-    quad1.resetPos();
 
-    quad2.quadLoop();
-    Serial.printf("Q2: Position is %8.2f   speed=%8lld\r\n", quad2.getPosition(), quad2.getSpeed());
-    quad2.resetPos();
+    Serial.printf("Q1:     Position is %8.2f   speed=%8ld\r\n",
+         quad1.getPosition(), quad1.getSpeed());
+
+    //Serial.printf("Q2: Position is %8.2f   speed=%8lld\r\n", quad2.getPosition(), quad2.getSpeed());
 #endif
   }
 
