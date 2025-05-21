@@ -69,7 +69,7 @@ class QuadDecoder
         void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b, bool is_isr_installed=false);
         void quadLoop();
      
-        double getPosition();
+        dist_t getPosition();
         void   resetPos();
         int32_t getSpeed();
  

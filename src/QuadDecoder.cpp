@@ -26,7 +26,7 @@
 typedef struct
 {
     uint8_t last_state;   // state of the decoder (set by ISR)
-    uint32_t position;    // position (pulses). ISR increments this...
+    dist_t position;    // position (pulses). ISR increments this...
 } Quad_t;
 
 static Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - should be in DRAM )
@@ -203,10 +203,10 @@ void QuadDecoder::quadLoop()
  * 
  * @return double current position
  */
-double QuadDecoder::getPosition()
+dist_t QuadDecoder::getPosition()
 {
     noInterrupts();
-    uint32_t position= quads[quadIdx].position;
+    dist_t position= quads[quadIdx].position;
     interrupts();
     return( position * convertPulsesToDist);
 }
@@ -239,14 +239,15 @@ int32_t QuadDecoder::getSpeed()
     // lastPosition
     time_t timeNow = esp_timer_get_time(); // time now (in uSecs)
     noInterrupts();
-    uint32_t curPos = quads[quadIdx].position;
+    dist_t curPos = quads[quadIdx].position;
     interrupts();
     time_t elapsed = timeNow - lastSpeedCheck;
     dist_t dist = lastPosition - curPos;
-    dist_t speed = (dist/elapsed);
+    dist_t speed = (dist*convertPulsesToDist)/elapsed; // Speed in mm/msec
     Serial.print("SPEED:  elapsed="); Serial.print(elapsed);
-    Serial.print("   dist="); Serial.print(dist);
-    Serial.print("   result="); Serial.println(speed);
+    Serial.print("   pulses="); Serial.print(dist); 
+    Serial.print("   Dist="); Serial.print(dist*convertPulsesToDist);
+    Serial.print("   speed="); Serial.println(speed);
 
     lastSpeedCheck=timeNow;
     lastPosition=curPos;
@@ -281,7 +282,8 @@ void QuadDecoder::calibrate (uint tickPerRev, dist_t diameter)
 {
     pulsesPerRev = tickPerRev*4; // QUAD encoder - 4 states per pulse cycle
     wheelDiameter = diameter;
-    convertPulsesToDist = (wheelDiameter*M_PI) / (pulsesPerRev);
+    convertPulsesToDist =   (wheelDiameter*M_PI) / (pulsesPerRev);
+    Serial.print("CALBIRATE: pulses to dist:   pulses * "); Serial.println(convertPulsesToDist);
 }
 
 

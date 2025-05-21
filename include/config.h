@@ -19,8 +19,8 @@
 typedef  long long dist_t;
 
 // Robot Dimensions (in mm)
-#define WHEEL_BASE_MM   304
-#define WHEEL_DIAM_MM  101.6
+#define WHEEL_BASE_MM   (17.0*25.4)
+#define WHEEL_DIAM_MM  (25.4*6.0)
 
 // Network Definitions
 #define UDP_SSID "defnet"
@@ -57,8 +57,8 @@ typedef  long long dist_t;
 // Speed Sensors 
 #define QUAD_PULSES_PER_REV   600
 #define SPEED_CHECK_INTERVAL_mSec 20000
-#define MOTOR_1_QUAD_A  GPIO_NUM_39
-#define MOTOR_1_QUAD_B  GPIO_NUM_36
+#define MOTOR_1_QUAD_A  GPIO_NUM_36
+#define MOTOR_1_QUAD_B  GPIO_NUM_39
 #define MOTOR_2_QUAD_A  GPIO_NUM_35
 #define MOTOR_2_QUAD_B  GPIO_NUM_34
 
