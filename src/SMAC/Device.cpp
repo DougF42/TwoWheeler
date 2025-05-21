@@ -106,7 +106,7 @@ ProcessStatus Device::RunPeriodic ()
 
 //--- DoImmediate -----------------------------------------
 
-ProcessStatus Device::DoImmediate ()
+IRAM_ATTR ProcessStatus Device::DoImmediate ()
 {
   // Override this method in your child class to perform
   // a continuous (as fast as possible) process.
@@ -120,7 +120,7 @@ ProcessStatus Device::DoImmediate ()
 
 //--- DoPeriodic ------------------------------------------
 
-ProcessStatus Device::DoPeriodic ()
+IRAM_ATTR ProcessStatus Device::DoPeriodic ()
 {
   // Override this method in your child class to perform
   // a timed periodic process.

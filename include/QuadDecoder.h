@@ -74,7 +74,8 @@ class QuadDecoder
         int32_t getSpeed();
  
         void setSpeedCheckInterval(time_t rate=SPEED_CHECK_INTERVAL_mSec);
-        void calibrate (uint pulsesPerRev, dist_t circumfrence);  
-        void calibrate_raw_pos();
+        void calibrate (uint pulsesPerRev, dist_t diameter);  
+        void getCalibration(uint *pulsesPerRev, dist_t *diameter);
+
 
 };

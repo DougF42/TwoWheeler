@@ -36,8 +36,8 @@ MotorControl::~MotorControl()
  */
 void MotorControl::setup(const MotorControl_config_t &conf)
 {
-    input=0;
-    output=0;
+    input_val=0;
+    output_val=0;
     setpoint=0;
     loopRate=conf.loop_rate;
     lastLoopTime=millis();
@@ -47,7 +47,8 @@ void MotorControl::setup(const MotorControl_config_t &conf)
     setupQuad( conf.dir_pin_a, conf.dir_pin_b);
     
     // setup PID controller
-    // TBD:   pidctlr = new PID_def( // TBD ??? );
+    pidctlr = new PID_def( &input_val, &output_val,  &setpoint,
+        conf.kp, conf.ki, conf.kd, P_ON_M, false);
 }
 
 void MotorControl::setLoopRate(unsigned long milliseconds)
@@ -66,56 +67,94 @@ void MotorControl::loop()
     if(timeChange < loopRate) return;
 
     // get current speed (from quad)
-    input=getSpeed();
+    input_val=getSpeed();
 
     pidctlr->Compute();   // determine change to power setting
 
     // set power output (from ln298)
-    setPulseWidth(output);
+    setPulseWidth(output_val);
 
     // Remember when we did this
     lastLoopTime=now;
 }
 
 
+/**
+ * @brief Set the Quadrature decoding parameters for this motor
+ * 
+ * @param pulsesPerRev  - how many 'slots' in the quadrature wheel?
+ * @param diameter  - Waht is the diameter of the wheel, in mm 
+ */
+void MotorControl::setQUADcalibration(uint pulsesPerRev, dist_t didiameteram)
+{
+    calibrate (pulsesPerRev,didiameteram);  
 
-void setQUADcalibration(uint pulsesPerRev, uint circumfrence)
+}
+
+/**
+ * @brief get the current quadrature config info
+ * 
+ * @param pulsesPerRev   - how many 'slots' in the quadrature wheel?
+ * @param diameter  - Waht is the diameter of the wheel, in mm 
+ */
+void MotorControl::getQUADcalibration(uint *pulsesPerRev, dist_t *diameter)
+{
+    getCalibration( pulsesPerRev, diameter);
+    return;
+}
+
+
+void MotorControl::setPIDTuning(float kp, float ki, float kd)
+{
+    pidctlr-> SetTunings(kp, ki, kd);
+}
+
+
+/**
+ * @brief Get the P I and D tuning paramters
+ * 
+ * @param kp 
+ * @param kd 
+ * @param ki 
+ */
+void MotorControl::getPIDTuning(float *kp, float *ki, float *kd)
+{
+    *kp = pidctlr->GetKp();
+    *ki = pidctlr->GetKi();
+    *kd = pidctlr->GetKd();
+    return;
+}
+
+
+/**
+ * @brief Set the Speed.
+ * 
+ * @param ratemm_Sec - speed, mm per millisecond???
+ */
+void MotorControl::setSpeed(float rate_mm_sec)
+{
+    setpoint = rate_mm_sec;
+}
+
+
+/**
+ * @brief Set the robot to drift.
+ * 
+ */
+void MotorControl::setDrift()
 {
 
 }
 
 
-void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence)
+/**
+ * @brief Stop the robot (Work in progress)
+ *    The motor has  motors engaged, but stopped.
+ * (Later, we will ramp the speed down at the 'stopRate')
+ *  
+ * @param stopRate  - TBD:
+ */
+void MotorControl::setStop(int stopRate)
 {
-
-}
-
-
-void setPIDcalibrate(float kp, float kd, float ki)
-{
-
-}
-
-
-void getPIDCalibration(float *kp, float *kd, float *ki)
-{
-
-}
-
-
-void setSpeed(float ratemm_Sec)
-{
-
-}
-
-
-void setDrift()
-{
-
-}
-
-
-void setStop(int stopRate)
-{
-
+    setSpeed(0);  // for now, just stop...
 }

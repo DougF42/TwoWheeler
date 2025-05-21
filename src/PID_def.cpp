@@ -1,7 +1,7 @@
 /**********************************************************************************************
  * Arduino PID Library - Version 1.2.1
  * by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
- *
+ *  (downloaded from github.com/br3ttb/Arduino-PID-Library)
  * This Library is licensed under the MIT License
  *   This version is a copy of that library, modified by Doug Fajardo to use float instead of double.
  * 
@@ -10,9 +10,11 @@
 #include <Arduino.h>
 #include <PID_def.h>
 
+
 /*Constructor (...)*********************************************************
  *    The parameters specified here are those for for which we can't set up
  *    reliable defaults, so we need to have the user set them.
+ * @param POn     Proportional on value or on error?  P_ON_M or P_ON_ERR
  ***************************************************************************/
 PID_def::PID_def(float* Input, float* Output, float* Setpoint,
         float Kp, float Ki, float Kd, int POn, int ControllerDirection)
@@ -33,6 +35,7 @@ PID_def::PID_def(float* Input, float* Output, float* Setpoint,
     lastTime = millis()-SampleTime;
 }
 
+
 /*Constructor (...)*********************************************************
  *    To allow backwards compatability for v1.1, or for people that just want
  *    to use Proportional on Error without explicitly saying so
@@ -42,7 +45,20 @@ PID_def::PID_def(float* Input, float* Output, float* Setpoint,
         float Kp, float Ki, float Kd, int ControllerDirection)
     :PID_def::PID_def(Input, Output, Setpoint, Kp, Ki, Kd, P_ON_E, ControllerDirection)
 {
+   myOutput = Output;
+   myInput = Input;
+   mySetpoint = Setpoint;
+   inAuto = false;
 
+   PID_def::SetOutputLimits(0, 255); // default output limit corresponds to
+                                     // the arduino pwm limits
+
+   SampleTime = 100;       // default Controller Sample Time is 0.1 seconds
+   bool POM_FLAG = P_ON_M; // P_ON_M or P_ON_ERR
+   PID_def::SetControllerDirection(ControllerDirection);
+   PID_def::SetTunings(Kp, Ki, Kd, POM_FLAG);
+
+   lastTime = millis() - SampleTime;
 }
 
 

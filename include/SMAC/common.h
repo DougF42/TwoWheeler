@@ -21,6 +21,29 @@
 
 //--- Defines ----------------------------------------------
 
+// Built-in LED on board
+//-----------------------
+// #define USE_MONO_LED   // Use this for boards with mono color leds
+#define USE_RGB_LED       // Use this for boards with RGB leds
+
+//--- Status LED ---
+#if defined USE_MONO_LED && defined USE_RGB_LED
+#error "ERROR: Only one of USE_MONO_LED or USE_RGB_LED may be defined"
+#endif
+
+#if (defined(USE_MONO_LED))
+#define STATUS_LED_PIN         LED_BUILTIN
+#define STATUS_LED_BAD         (digitalWrite (STATUS_LED_PIN, LOW))
+#define STATUS_LED_GOOD        (digitalWrite (STATUS_LED_PIN, HIGH))
+
+#elif (defined(USE_RGB_LED))
+#define STATUS_LED_PIN         38  // GPIO-48 for v1.0 boards, GPIO-38 for v1.1 boards
+#define STATUS_LED_BRIGHTNESS  20  // Not recommended above 64
+#define STATUS_LED_BAD         (rgbLedWrite (STATUS_LED_PIN, STATUS_LED_BRIGHTNESS, 0, 0))
+#define STATUS_LED_GOOD        (rgbLedWrite (STATUS_LED_PIN, 0, STATUS_LED_BRIGHTNESS, 0))
+#endif
+
+//--- Common Stuff ---
 #define SERIAL_BAUDRATE      115200
 #define SERIAL_MAX_LENGTH        80
 #define MAX_VERSION_LENGTH       22
@@ -34,11 +57,6 @@
 #define MAX_PARAMS_LENGTH       240
 #define MIN_COMMAND_LENGTH        7  // Minimum Input Command String: dd|cccc
 #define COMMAND_SIZE              4
-
-// For the Espressif ESP32-S3-DevKitC-1 board, the built-in LED
-// is a 1-element addressable string of RGB LEDs of type WS2812.
-#define STATUS_LED_PIN           38  // GPIO-48 for v1.0 boards, GPIO-38 for v1.1 boards
-#define STATUS_LED_BRIGHTNESS    20  // Not recommended above 64
 
 //--- Types -----------------------------------------------
 

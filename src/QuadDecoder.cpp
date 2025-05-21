@@ -276,7 +276,6 @@ void QuadDecoder::setSpeedCheckInterval(time_t rate)
  *     This generates the 'convertTickToDist' factor.
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
  * @param diameter     - What is the diameter of the wheel (millimeters).
- * @param _units       - what units should we use (UNITS_MM or UNITS_IN)
  */
 void QuadDecoder::calibrate (uint tickPerRev, dist_t diameter)
 {
@@ -287,12 +286,16 @@ void QuadDecoder::calibrate (uint tickPerRev, dist_t diameter)
 }
 
 
-// - - - - - - - - - - - - - - - - - - - - - --
 /**
- * @brief Set configuration so that Wheel diameter and pulsesper rev are '1'.
- *   (This is really only usefull for testing)
+ * @brief Get the current configuration
+ *     We store the requested values in the memory pointed to 
+ * by each of tthe arguments. 
+ * 
+ * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
+ * @param diameter     - What is the diameter of the wheel (millimeters).
  */
-void QuadDecoder::calibrate_raw_pos()
+void QuadDecoder::getCalibration(uint *tickPerRev, dist_t *diameter)
 {
-    calibrate(1, 1);
+    *tickPerRev = pulsesPerRev/4;
+    *diameter =  wheelDiameter;
 }

@@ -158,7 +158,7 @@ void Node::AddDevice (Device *device)
 
 //--- SendDataPacket --------------------------------------
 
-void Node::SendDataPacket ()
+IRAM_ATTR void Node::SendDataPacket ()
 {
   // Convert the <DataPacket> to a Data string.
   // The <DataPacket> structure must be populated with deviceID, timestamp and value fields.
@@ -396,18 +396,15 @@ ProcessStatus Node::ExecuteCommand ()
   //--- Blink (BLIN) --------------------------------------
   else if (strncmp (CommandPacket.command, "BLIN", COMMAND_SIZE) == 0)
   {
-    // Blink the Status LED white
+    // Blink the Status LED
     for (int i=0; i<10; i++)
     {
-      rgbLedWrite (STATUS_LED_PIN, STATUS_LED_BRIGHTNESS, STATUS_LED_BRIGHTNESS, STATUS_LED_BRIGHTNESS);
-      delay (20);
-
-      rgbLedWrite (STATUS_LED_PIN, 0, 0, 0);
+      STATUS_LED_BAD;
       delay (80);
-    }
 
-    // Return to green
-    rgbLedWrite (STATUS_LED_PIN, 0, STATUS_LED_BRIGHTNESS, 0);
+      STATUS_LED_GOOD;
+      delay (20);
+    }
 
     pStatus = SUCCESS_NODATA;
   }

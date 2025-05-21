@@ -42,7 +42,7 @@ LightSensor::LightSensor (const char *inName, int inSensorPin)
 
 //--- DoPeriodic (override) -------------------------------
 
-ProcessStatus LightSensor::DoPeriodic ()
+IRAM_ATTR ProcessStatus LightSensor::DoPeriodic ()
 {
   // The "Periodic Process" for this device is simply to measure a sample
   int sample = 4095 - analogRead (sensorPin);

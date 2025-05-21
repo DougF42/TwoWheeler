@@ -20,29 +20,21 @@
 #pragma once
 
 #include "MotorControl.h"
+#include "PID_def.h"
 #include "Device.h"
 
 #define MAX_MOTOR_COUNT 2
 class Driver:public Device
 {
 private:
-    MotorControl *motors[MAX_MOTOR_COUNT];
+    MotorControl *motors[MAX_MOTOR_COUNT];  // we need at least two motors
     int nextMotorIdx = 0;
     
     // COMMAND SET: 
-    //   QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
-    ProcessStatus cmdQUAD();
-
-    //   Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
-    ProcessStatus cmdPID();
-
-    //   SROTsetRotRate   <pidTime> <rate>
-    ProcessStatus cmdSROT();
-
-    //   FWD   <speed>   // set forward speed
-    ProcessStatus cmdFWD();
-
-    //   STOP    Stop.
+    ProcessStatus cmdQUAD();   //   QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
+    ProcessStatus cmdPID();    //   Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
+    ProcessStatus cmdSROT();   //   SROTsetRotRate   <pidTime> <rate>
+    ProcessStatus cmdFWD();   //   FWD   <speed>   // set forward spee
     ProcessStatus cmdSTOP(); // Stop - setting stop rate.
 
 public:
@@ -54,5 +46,4 @@ public:
 
     void setQuadParams(uint32_t stepTime, float kp, float ki, float kd);
     void setPidParams(uint32_t stepTime, uint pulsesPerRev, uint circumfrence);
-
 };

@@ -23,15 +23,16 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 Driver::Driver() : Device{"Driver"}
 {
-    nextMotorIdx=0;
+    nextMotorIdx=0;    
 }
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 Driver::~Driver()
 {
 
 }
+
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // Add a motor to our list. 
@@ -39,7 +40,7 @@ Driver::~Driver()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 bool Driver::addNewMotor(const MotorControl_config_t &configuration)
 {
-    if (nextMotorIdx+1 > MAX_MOTOR_COUNT) return(false);
+    if (nextMotorIdx+1 >= MAX_MOTOR_COUNT) return(false);
     motors[nextMotorIdx] = new MotorControl();
     motors[nextMotorIdx]->setup(configuration);
     nextMotorIdx++;
@@ -236,9 +237,9 @@ ProcessStatus Driver::cmdPID()
             goto endOfSetPidParameters;
         };
     }
-    // TODO:   SET THE PARAMETERS    
-    motors[0]->setPIDcalibrate( tmpkp, tmpki, tmpkd);
-    motors[1]->setPIDcalibrate( tmpkp, tmpki, tmpkd);
+    // SET THE PID PARAMETERS    
+    motors[0]->setPIDTuning( tmpkp, tmpki, tmpkd); 
+    motors[1]->setPIDTuning( tmpkp, tmpki, tmpkd);
     sprintf(DataPacket.value, "Kp=%f  kd=%f  ki=%f", tmpkp, tmpki, tmpkd);
     // SUPLLY CURRENT VALUE AS RESPONSE
 

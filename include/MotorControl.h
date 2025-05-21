@@ -44,12 +44,14 @@ typedef struct {
 class MotorControl: public LN298, public QuadDecoder
 {
     private:
-        float input;
-        float output;
+        // These are used by PID
+        float input_val;
+        float output_val;
         float setpoint;
+        //
         unsigned long loopRate; // how long between checks (msec)?
         unsigned long lastLoopTime;
-        PID_def   *pidctlr;
+        PID_def   *pidctlr;     // We dont inherit because PID requires too many initialization parameters
 
     public:
         MotorControl();
@@ -59,10 +61,11 @@ class MotorControl: public LN298, public QuadDecoder
         void loop();
         
         // Main configuration...
-        void setQUADcalibration(uint pulsesPerRev, uint circumfrence); 
-        void getQUADcalibration(uint *pulsesPerRev, uint *circumfrence);
-        void setPIDcalibrate(float kp, float ki, float kd);
-        void getPIDCalibration(float *kp, float *ki, float *kd);
+        void setQUADcalibration(uint pulsesPerRev, dist_t diameter); 
+        void getQUADcalibration(uint *pulsesPerRev, dist_t *diameter);
+
+        void setPIDTuning(float kp, float ki, float kd);
+        void getPIDTuning(float *kp, float *ki, float *kd);
 
         // Operations
         void setSpeed(float ratemm_sec);
