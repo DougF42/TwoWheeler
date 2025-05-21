@@ -37,45 +37,44 @@
 class QuadDecoder
 {
     public:
-
-    private:
         // The order corresponds to binary state assuming a is bit 1, b is bit 0
         typedef enum { AoffBoff=0, AoffBon=1, AonBoff=2,  AonBon=3, QuadInitState=4} QUAD_STATE_t;
 
+    private:
         uint8_t quadIdx; // Which motor is assigned to me?
         QueueHandle_t queue;  // keep track of quad events
         gpio_num_t quad_pin_a;
         gpio_num_t quad_pin_b;
 
         // Robot Characteristics (Configuration, one-time calculations)
-        int    pulsesPerRev;           // Config
-        double wheelDiameter;          // Config
+        pulse_t pulsesPerRev;           // 
+        dist_t  wheelDiameter;          // in MM.
         time_t speedCheckIntervaluSec;  // Config: Min rate we store speed (uSeconds) values.
-        double convertPulsesToDist;    // Calculated: the factor to convert ticks into distance. 
+        dist_t convertPulsesToDist;    // Calculated: the factor to convert ticks into mm. 
         
 
         // LOOP is used to calculate time interval and speed.
         time_t   lastSpeedCheck;       // When last loop happened (uSecs)
-        dist_t   lastPosition;          // position (counts)
+        pulse_t  lastPosition;          // position (pulses)
 
-        time_t   elapsedTime;          // How long since prev loop (uSecs)
-        dist_t   distPerLoop;          // dist traveled since prev loop
+      //  time_t   elapsedTime;          // How long since prev loop (uSecs)
+        pulse_t  distPerLoop;          // dist (pulses) traveled since prev loop
 
         static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler
 
     public:
         QuadDecoder();
         ~QuadDecoder();
-        void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b, bool is_isr_installed=false);
-        void quadLoop();
+        void setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b);
+        //  void quadLoop();   nothing to do..
      
         dist_t getPosition();
         void   resetPos();
         int32_t getSpeed();
  
         void setSpeedCheckInterval(time_t rate=SPEED_CHECK_INTERVAL_mSec);
-        void calibrate (uint pulsesPerRev, dist_t diameter);  
-        void getCalibration(uint *pulsesPerRev, dist_t *diameter);
+        void calibrate (pulse_t pulsesPerRev, dist_t diameter);  
+        void getCalibration(pulse_t *pulsesPerRev, dist_t *diameter);
 
 
 };

@@ -20,7 +20,7 @@
 #pragma once
 
 #include "MotorControl.h"
-#include "PID_def.h"
+#include "PID_v1.h"
 #include "Device.h"
 
 #define MAX_MOTOR_COUNT 2
@@ -44,6 +44,6 @@ public:
     void loop(); // call this reasonably frequently
     ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
 
-    void setQuadParams(uint32_t stepTime, float kp, float ki, float kd);
-    void setPidParams(uint32_t stepTime, uint pulsesPerRev, uint circumfrence);
+    void setQuadParams(time_t stepTime, double kp, double ki, double kd);
+    void setPidParams(time_t stepTime, pulse_t pulsesPerRev, dist_t circumfrence);
 };

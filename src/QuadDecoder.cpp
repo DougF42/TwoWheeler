@@ -20,40 +20,31 @@
  * @brief This keeps track of motor positions
  * 
  * It is static, and kept in DRAM so that the
- * ISR can run without waiting for flash to load
- * 
+ * ISR can run without waiting for flash to load -
+ * we must keep it short!
  */
 typedef struct
 {
-    uint8_t last_state;   // state of the decoder (set by ISR)
-    dist_t position;    // position (pulses). ISR increments this...
+    QuadDecoder::QUAD_STATE_t last_state;   // state of the decoder (set by ISR)
+    pulse_t position;    // position (pulses). ISR increments this...
 } Quad_t;
 
-static Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - should be in DRAM )
 
+static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - should be in DRAM )
 // For the quad array, what is the next available position?
 static std::atomic_uint8_t nextQuadId;
 
+
 // - - - - - - - - INITIALIZE - - - - - - - - - - - - - --
 QuadDecoder::QuadDecoder()
-{
-    quadIdx=nextQuadId++;    // this is atomic!
-    if (quadIdx >= MAX_NO_OF_QUAD_DECODERS)
-    {
-        quadIdx=-1;
-        nextQuadId--;
-        // Note: Cant print here - we are inside constructor.
-        // Serial.printf("**** ERROR* ****  TOO MANY MOTORS DEFINED. Limit is %d!\r\n", MAX_NO_OF_QUAD_DECODERS);
-        // delay(5000);
-        return;
-    }
- 
+{        
+    return;
 }
 
+// Never happens on the ESP32
 QuadDecoder::~QuadDecoder()
 {
-    gpio_reset_pin(quad_pin_a);
-    gpio_reset_pin(quad_pin_b);
+    return;
 }
 
 
@@ -62,10 +53,11 @@ QuadDecoder::~QuadDecoder()
  * @brief Set parameters for this Quad decoder
  * 
  */
-void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b,  bool isr_previously_installed)
+void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
 {
     //  Sanity checks
-    if (quadIdx < 0)
+    int quadIdx= nextQuadId++;
+    if (quadIdx > MAX_NO_OF_QUAD_DECODERS)
     {
         Serial.println("*** ERROR! TOO MANY QUADS - quadIdx not assigned!");
         return;
@@ -179,21 +171,18 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
- * @brief This periodically looks to see how far we traveled.
- *  The check performed no more than once per speedCheckIntervaluSec.
- * 
- *   We store the actual interval and distance (number of pulses)
- *  since the last check.  These will be translated to actual speed 
- *  only when the user asks for it via getSpeed();
  * 
  *
  * (20000 uSecs = 20 msecs)
  */
+#ifdef NOTTHEDROIDSYOUARELOOKINGFOR
 void QuadDecoder::quadLoop()
 {
     // Nothing to do..
     return;
 }
+#endif 
+
 
 // - - - - - - - - - - - - - - - - - --
 /**
@@ -205,9 +194,10 @@ void QuadDecoder::quadLoop()
  */
 dist_t QuadDecoder::getPosition()
 {
-    noInterrupts();
+    noInterrupts();  // thread safe - get position
     dist_t position= quads[quadIdx].position;
     interrupts();
+    
     return( position * convertPulsesToDist);
 }
 
@@ -221,17 +211,17 @@ void QuadDecoder::resetPos()
 {
     noInterrupts();
     quads[quadIdx].last_state = QuadInitState;
-    interrupts();
+    quads[quadIdx].position  =0;
+    interrupts(); 
     lastPosition = 0;
-    lastSpeedCheck = esp_timer_get_time();
-    interrupts();
+    lastSpeedCheck = esp_timer_get_time();  
 }
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
  * @brief Get the average speed since last call.
  *   
- * @return int32_t - The Speed,  in millimeters per .
+ * @return int32_t - The Speed,  in millimeters per msecond.
  */
 int32_t QuadDecoder::getSpeed()
 {
@@ -239,10 +229,11 @@ int32_t QuadDecoder::getSpeed()
     // lastPosition
     time_t timeNow = esp_timer_get_time(); // time now (in uSecs)
     noInterrupts();
-    dist_t curPos = quads[quadIdx].position;
+    pulse_t curPos = quads[quadIdx].position;
     interrupts();
-    time_t elapsed = timeNow - lastSpeedCheck;
-    dist_t dist = lastPosition - curPos;
+
+    time_t elapsed = (timeNow - lastSpeedCheck)*1000;  // elapsed in msecs
+    pulse_t dist = lastPosition - curPos;
     dist_t speed = (dist*convertPulsesToDist)/elapsed; // Speed in mm/msec
     Serial.print("SPEED:  elapsed="); Serial.print(elapsed);
     Serial.print("   pulses="); Serial.print(dist); 
@@ -264,9 +255,10 @@ int32_t QuadDecoder::getSpeed()
  * 
  * @param rate - The minimum time interval between speed checks(millisecs)
  */
-void QuadDecoder::setSpeedCheckInterval(time_t rate)
+void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
 {
-    speedCheckIntervaluSec=rate;
+    // Note:  The internal clock is in microseconds
+    speedCheckIntervaluSec=rateMsec*1000;
 }
 
 
@@ -277,7 +269,7 @@ void QuadDecoder::setSpeedCheckInterval(time_t rate)
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
  * @param diameter     - What is the diameter of the wheel (millimeters).
  */
-void QuadDecoder::calibrate (uint tickPerRev, dist_t diameter)
+void QuadDecoder::calibrate (pulse_t tickPerRev, dist_t diameter)
 {
     pulsesPerRev = tickPerRev*4; // QUAD encoder - 4 states per pulse cycle
     wheelDiameter = diameter;
@@ -294,7 +286,7 @@ void QuadDecoder::calibrate (uint tickPerRev, dist_t diameter)
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
  * @param diameter     - What is the diameter of the wheel (millimeters).
  */
-void QuadDecoder::getCalibration(uint *tickPerRev, dist_t *diameter)
+void QuadDecoder::getCalibration(pulse_t *tickPerRev, dist_t *diameter)
 {
     *tickPerRev = pulsesPerRev/4;
     *diameter =  wheelDiameter;

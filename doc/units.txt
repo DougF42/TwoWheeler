@@ -1,29 +1,28 @@
 This attempts to regularize the various units of measure...
+WHEEL FACTS
 
-Units of measure as used internally.  
-(Note: Some commands accept other units - these are immediatly converted to internal units.)
+        Circum=6 in,  circum (6*PI)= 18.850 in or 469.9 mm.
 
-(1) H298: PWM settings are 0 to +/-100 (pulse width percent on).  
-    pulse rate is a frequency (default 4khz).
 
-(2) Quad decoder: circumfrence is in mm. 
-    speed check interval in milliseconds.
+QuadDecoder:
+    Encoder is 400 pulses, or 2400 transitions per rotation.
+    Dist(mm) per pulse:  circum  / 2400 =  .195791 mm per pulse
 
-(3) MOTORControl: (combines H298, Quad, PID)
-    PID loop time and speed check:  milliseconds between loops.
-    Speed is in mm/second.
+    RAW (internal) position (integer pulses)  is stored as int32_t pulses (_ +/- 2147483648). 
+        WRAP AFTER: 2147483648 * .195791  gives 2,147,483,648 mm or  2,147. meters  (1.334 miles)
 
-(4) Driver (combines 2 MOTORControl instances)
-    Speed is in mm/millisecond.
-    Rate of turn is Radians/millisecond
-= = = = = 
-SETTINGS:
-   [NOTE: ALL COMMANDS ARE PROCESSED IN THE DRIVER, and passed down as needed]
-(1) H298:     pulse rate frequency (FIXED-not settable)
-(2) QUAD:     points ('holes') per rev, circum
-(3) PID:      Kp, Ki, Pd                 PID 
-              Speed check/PID loop rate  SROT
-(4) DRIVER:   desired Speed              FWD
-              desired turn rate          SROT
-              drift                      DRIF 
-              stop (rate).               STOP n
+    Converts position to double mm(). Use dist_t [double]
+    Speed is in mm per second.  Use dist_t / (TBD: millisecond?)
+
+
+
+The ln298 driver:
+    Accepts PWM from 0...+/-100.  Zero never drives, +/-100 drives continuously (no pulses visable)
+
+
+PID:
+    Input - from Quad incoder, mm/second
+    output - To PWM is 0...100
+    Setting - from external command: mm/second
+
+

@@ -47,14 +47,16 @@ void MotorControl::setup(const MotorControl_config_t &conf)
     setupQuad( conf.dir_pin_a, conf.dir_pin_b);
     
     // setup PID controller
-    pidctlr = new PID_def( &input_val, &output_val,  &setpoint,
+    pidctlr = new PID(&input_val, &output_val,  &setpoint,
         conf.kp, conf.ki, conf.kd, P_ON_M, false);
 }
 
-void MotorControl::setLoopRate(unsigned long milliseconds)
+void MotorControl::setLoopRate(time_t milliseconds)
 {
-    loopRate= milliseconds;
+    // Internally, time is in uSecs
+    loopRate= milliseconds*1000;
 }
+
 
 /**
  * @brief loop - call periodically.
@@ -62,8 +64,8 @@ void MotorControl::setLoopRate(unsigned long milliseconds)
  */
 void MotorControl::loop()
 {
-    unsigned long now = millis();
-    unsigned long timeChange = (now - lastLoopTime);
+    time_t now = esp_timer_get_time();
+    time_t timeChange = (now - lastLoopTime);
     if(timeChange < loopRate) return;
 
     // get current speed (from quad)
@@ -85,7 +87,7 @@ void MotorControl::loop()
  * @param pulsesPerRev  - how many 'slots' in the quadrature wheel?
  * @param diameter  - Waht is the diameter of the wheel, in mm 
  */
-void MotorControl::setQUADcalibration(uint pulsesPerRev, dist_t didiameteram)
+void MotorControl::setQUADcalibration(pulse_t pulsesPerRev, dist_t didiameteram)
 {
     calibrate (pulsesPerRev,didiameteram);  
 
@@ -97,14 +99,14 @@ void MotorControl::setQUADcalibration(uint pulsesPerRev, dist_t didiameteram)
  * @param pulsesPerRev   - how many 'slots' in the quadrature wheel?
  * @param diameter  - Waht is the diameter of the wheel, in mm 
  */
-void MotorControl::getQUADcalibration(uint *pulsesPerRev, dist_t *diameter)
+void MotorControl::getQUADcalibration(pulse_t *pulsesPerRev, dist_t *diameter)
 {
-    getCalibration( pulsesPerRev, diameter);
+    getCalibration(pulsesPerRev, diameter);
     return;
 }
 
 
-void MotorControl::setPIDTuning(float kp, float ki, float kd)
+void MotorControl::setPIDTuning(double kp, double ki, double kd)
 {
     pidctlr-> SetTunings(kp, ki, kd);
 }
@@ -117,7 +119,7 @@ void MotorControl::setPIDTuning(float kp, float ki, float kd)
  * @param kd 
  * @param ki 
  */
-void MotorControl::getPIDTuning(float *kp, float *ki, float *kd)
+void MotorControl::getPIDTuning(double *kp, double *ki, double *kd)
 {
     *kp = pidctlr->GetKp();
     *ki = pidctlr->GetKi();
@@ -131,9 +133,9 @@ void MotorControl::getPIDTuning(float *kp, float *ki, float *kd)
  * 
  * @param ratemm_Sec - speed, mm per millisecond???
  */
-void MotorControl::setSpeed(float rate_mm_sec)
+void MotorControl::setSpeed(double rate_mm_mmsec)
 {
-    setpoint = rate_mm_sec;
+    setpoint = rate_mm_mmsec;
 }
 
 
