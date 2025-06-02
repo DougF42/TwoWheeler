@@ -7,11 +7,16 @@
  * 
  * @copyright Copyright (c) 2025
  * 
+ * This 'device' inherits the h298 AND QuadDecoder classes. It adds a PID controler
+ * that accepts the desired speed AND the actual speed from the Quad Decoder, and
+ * modifies the Power going to the motor to correct the motor speed to match the target.
+ * 
  * Distance Units are set to Millimeters.
- * Input is the speed measured by the QuadDecoder (in mm/sec or in/sec?)
- * The output is thru the ln298 driver. Range 0..100 (TBD: Is this fine enough?)
+ * 
+ * 'Input' is the speed measured by the QuadDecoder (in mm/sec or in/sec?)
+ * The 'output' is thru the ln298 driver. Range 0..100 (TBD: Is this fine enough?)
  *
- *  Loop must be called periodically (should this be from a timer????) 
+ *  Loop is used to must be called periodically (should this be from a timer????) 
  * 
  * TODO: Should we vary the K-factors depending on current power level?
  */

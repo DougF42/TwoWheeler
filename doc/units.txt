@@ -1,7 +1,14 @@
 This attempts to regularize the various units of measure...
 WHEEL FACTS
 
-        Circum=6 in,  circum (6*PI)= 18.850 in or 469.9 mm.
+        Circum=6 in
+
+Speed/Distance:
+   Dist is in mm.  Time is in Seconds.  WHY?
+    (1) Wheel is 6 inches (152.24 mm)
+    (2) Motor MAX is 16-30 RPM. 
+    (3)   Units of mm per sec give us the speed range 127.67 to 239.39 
+        -  could use mm per millisec (range  127674.325 thru 239389.360), which might allow integer arithmetic?
 
 
 QuadDecoder:

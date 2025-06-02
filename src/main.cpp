@@ -43,7 +43,6 @@
 #include <Preferences.h>
 #include "common.h"
 #include "Node.h"
-// #include "LightSensor.h"
 #include "Driver.h"
 
 //--- Globals ---------------------------------------------
@@ -86,6 +85,7 @@ void setup()
   Serial.begin (SERIAL_BAUDRATE);
 
   Serial.println ("--- Program Start ----------------------");
+
 
   // Load the Relayer Module's MAC Address from non-volatile memory
   Serial.println ("Loading Relayer MAC Address ...");

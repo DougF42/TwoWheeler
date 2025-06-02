@@ -13,12 +13,10 @@
  * to all phase_a and phase_b transitions, and updates
  * our idea of position (TBD: and speed?) accordingly.
  * 
- * We also track the RATE at which the A phase goes high
- * to determine average speed.
+ * A periodic 'high resolution timer' is also implemented
+ * which will update our speed (based on the change of 
+ * position in the interval since the previous call).
  * 
- * When loop is called, it used the elapsed time from
- * the last time it was called, and the difference in
- * position, to determine the speed.
  * 
  * Note: Units are in MM.
  * To get distance, WHEEL_DIAM_MM is used.
@@ -29,9 +27,8 @@
 #include "atomic"
 #include "freertos/queue.h"
 #include <driver/gpio.h>
-
-
- #define MAX_NO_OF_QUAD_DECODERS 2
+#include "esp_timer.h"
+#include "sdkconfig.h"
 
 
 class QuadDecoder
@@ -46,21 +43,20 @@ class QuadDecoder
         gpio_num_t quad_pin_a;
         gpio_num_t quad_pin_b;
 
+
+
         // Robot Characteristics (Configuration, one-time calculations)
         pulse_t pulsesPerRev;           // 
         dist_t  wheelDiameter;          // in MM.
         time_t speedCheckIntervaluSec;  // Config: Min rate we store speed (uSeconds) values.
         dist_t convertPulsesToDist;    // Calculated: the factor to convert ticks into mm. 
-        
 
-        // LOOP is used to calculate time interval and speed.
-        time_t   lastSpeedCheck;       // When last loop happened (uSecs)
-        pulse_t  lastPosition;          // position (pulses)
+        static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler for quad inputs
 
-      //  time_t   elapsedTime;          // How long since prev loop (uSecs)
-        pulse_t  distPerLoop;          // dist (pulses) traveled since prev loop
+        // Speed updates - these are done periodically via a 'high-resolution' timer.
+        static void update_speed_ISR(void *arg);  // update the speed (called from timer);
+        esp_timer_handle_t spdUpdateTimer; // the timer for driving the speed checker
 
-        static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler
 
     public:
         QuadDecoder();
