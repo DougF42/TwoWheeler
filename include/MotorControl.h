@@ -26,6 +26,14 @@
 #include "QuadDecoder.h"
 #include "driver/ledc.h"
 
+// If this is defiend, we use the PID module
+// to control the actual power. 
+// If NOT defined, the input (+/- 2048) is mapped 
+// directly to the output directly.
+// (NOTE: All the PID code is still created, it just
+// isn't called i nthe loop if this is not defined)
+
+// #define USE_PID
 
 // - - - - - - - - - - - - - - - - - - - - - - - - -
 /**
@@ -69,11 +77,13 @@ class MotorControl: public LN298, public QuadDecoder
         // Main configuration...
         void setQUADcalibration(pulse_t pulsesPerRev, dist_t diameter); 
         void getQUADcalibration(pulse_t *pulsesPerRev, dist_t *diameter);
+    
 
+        // PID Tunning
         void setPIDTuning(double kp, double ki, double kd);
         void getPIDTuning(double *kp, double *ki, double *kd);
 
-        // Operations
+        // Operations - make it go
         void setSpeed(dist_t ratemm_sec);
         void setDrift();
         void setStop(int stopRate);  // rate is 0..100%

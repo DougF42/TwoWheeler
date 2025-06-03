@@ -24,6 +24,7 @@
 Driver::Driver() : Device{"Driver"}
 {
     nextMotorIdx=0;    
+    Serial.print(" ");
 }
 
 
@@ -99,13 +100,9 @@ ProcessStatus  Driver::ExecuteCommand ()
     {  // TODO: Set PID parameters
         status=cmdPID();
 
-    }  else if ((CommandPacket.command, "FWD") == 0)
-    {  // Move forward at a given speed
-        status=cmdFWD();
-
-    } else if ((CommandPacket.command, "ROT") == 0)
-    {  // TODO: Rotate by given degrees
-        status=cmdSROT();
+    }  else if ((CommandPacket.command, "MOV") == 0)
+    {  // Move  at a given speed and rate of rotation
+        status=cmdMOV();
         
     }  else if ((CommandPacket.command, "STOP") == 0)
     { // TODO: Stop all motion
@@ -248,42 +245,87 @@ ProcessStatus Driver::cmdPID()
 }
 
 
-/**
- * @brief Set the rate (and direction) of rotation
- * Format "SROT|rate"
- *    rate is in radians per second
- * @return ProcessStatus 
- */
-ProcessStatus Driver::cmdSROT()
-{
-    // TODO
-    return(NOT_HANDLED);
-}
-
 
 /**
  * @brief Set the forward motion to a given speed
- *  Format:  "FWD|speed"
- *      The speed is in mm/sec.
+ *  Format:  "FWD|speed|turnRate"
+ *      The speed is 0 +/-2048,  dir is 0 +/-2048
+ *  dir = +/-2048, then rotate in place.
+ * 
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdFWD()
+ProcessStatus Driver::cmdMOV()
 {
+    int tmpval = 0;
+    char *pRot = nullptr;
+    char *pSpd = nullptr;
+    int m1, m2=0;
 
-    // TODO:
-    return(NOT_HANDLED);
+    ProcessStatus result = SUCCESS_DATA;
+    pSpd = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st argument - speed
+    if (pSpd != nullptr)
+    {
+        errno = 0;
+        tmpval = strtol(pSpd, nullptr, 10);
+        if (errno != 0)
+        { // bad value (overflow/underflow)
+            result = FAIL_DATA;
+            sprintf(DataPacket.value, "speed parameter is not a valid value");
+            goto endCmdMOV;
+        }
+        else
+        {
+            mySpeed = tmpval;
+        }
+
+        char *pRot = strtok(nullptr,COMMAND_WHITE_SPACE); // 2nd argument is optional (direction)
+        if (pRot != nullptr)
+        { // if we have one, it must be valid...
+            errno = 0;
+            tmpval = strtol(pRot, nullptr, 10);
+            if (errno != 0)
+            {
+                result = FAIL_DATA;                
+                sprintf(DataPacket.value, "speed parameter is not a valid value");
+                goto endCmdMOV;
+            }
+            else
+            {
+                myDirect = tmpval;
+            }
+        }
+        else
+        { // No direction, must be straight ahead
+            myDirect = 0;
+        }
+    }
+    // TODO: command them appropriatly
+    m1=mySpeed+myDirect;
+    if (m1 > 2048) m1 = 2048; if (m1 < -2048) m1 = -2048;
+
+    m2=mySpeed-myDirect;
+    if (m2 > 2048) m2 = 2048; if (m2 < -2048) m2 = -2048;
+
+    motors[0]->setSpeed(m1);
+    motors[1]->setSpeed(m2);
+
+    // Report current speed and rotation rate
+    DataPacket.timestamp = millis();
+    sprintf(DataPacket.value, "Speed|%d|dir|%d|m1|%d|M2|%d", mySpeed, myDirect, m1, m2);
+
+endCmdMOV:
+    return (result);
 }
-
 
 /**
  * @brief Stop driving the motors
  *  Format: STOP|stoprate
  *     Stoprate is 0 (drift, motors not engaged) to 100 (panic stop)
- * 
- * @return ProcessStatus 
+ *
+ * @return ProcessStatus
  */
 ProcessStatus Driver::cmdSTOP()
 {
     // TODO:
-    return(NOT_HANDLED);
+    return (NOT_HANDLED);
 }

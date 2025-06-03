@@ -27,14 +27,14 @@
 class Driver:public Device
 {
 private:
-    MotorControl *motors[MAX_MOTOR_COUNT];  // we need at least two motors
+    MotorControl *motors[MAX_MOTOR_COUNT];  // we need two motors
     int nextMotorIdx = 0;
-    
+    int mySpeed;
+    int myDirect;
     // COMMAND SET: 
     ProcessStatus cmdQUAD();   //   QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
     ProcessStatus cmdPID();    //   Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
-    ProcessStatus cmdSROT();   //   SROTsetRotRate   <pidTime> <rate>
-    ProcessStatus cmdFWD();   //   FWD   <speed>   // set forward spee
+    ProcessStatus cmdMOV();   //   FWD  <speed> <dir> (if no dir, then straight ahead)
     ProcessStatus cmdSTOP(); // Stop - setting stop rate.
 
 public:

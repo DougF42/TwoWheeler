@@ -57,27 +57,43 @@ void MotorControl::setLoopRate(time_t milliseconds)
     loopRate= milliseconds*1000;
 }
 
+template <typename A>
+A defmap(A x, A in_min, A in_max, A out_min, A out_max)
+{
+    A res = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return(res);
+}
 
+#define FUZZ 0.01
 /**
  * @brief loop - call periodically.
  * 
  */
 void MotorControl::loop()
 {
+    static double last_output_val = 0;
     time_t now = esp_timer_get_time();
     time_t timeChange = (now - lastLoopTime);
-    if(timeChange < loopRate) return;
+    if (timeChange < loopRate)
+        return;
 
     // get current speed (from quad)
-    input_val=getSpeed();
+    input_val = getSpeed();
 
-    pidctlr->Compute();   // determine change to power setting
+#ifdef USE_PID
+    pidctlr->Compute(); // determine change to power setting
+#else
+    // map input directly to ouput
+    output_val = defmap<double>(input_val, -2048, 2048, -100, 100);
+#endif
 
-    // set power output (from ln298)
-    setPulseWidth(output_val);
+    if (fabs(last_output_val - output_val) > FUZZ)
+    { // IF there was a noticable change, then update the ln298 pulse rate
+        setPulseWidth(output_val);
+    }
 
-    // Remember when we did this
-    lastLoopTime=now;
+    last_output_val = output_val;
+    lastLoopTime = now;
 }
 
 
