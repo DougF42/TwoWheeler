@@ -73,8 +73,6 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
     quad_pin_a = _quad_pin_a;
     quad_pin_b = _quad_pin_b;
 
-    // force initial values (TBD: Use prefs?)
-    setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
     calibrate(QUAD_PULSES_PER_REV, WHEEL_DIAM_MM);
     quads[quadIdx].last_state = QuadInitState;
 
@@ -91,6 +89,7 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
 #endif
 };
 ESP_ERROR_CHECK(gpio_config(&pGpioConfig));
+ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE  ));
 ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, ISR_handler, this));
 ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_b, ISR_handler, this));
 
@@ -109,7 +108,7 @@ esp_timer_create_args_t speed_timer_args =
 };
 
 ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimer));
-
+setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
 
 return;
 }
@@ -313,7 +312,6 @@ void QuadDecoder::calibrate (pulse_t tickPerRev, dist_t diameter)
     pulsesPerRev = tickPerRev*4; // QUAD encoder - 4 states per pulse cycle
     wheelDiameter = diameter;
     convertPulsesToDist =   (wheelDiameter*M_PI) / (pulsesPerRev);
-    Serial.print("CALBIRATE: pulses to dist:   pulses * "); Serial.println(convertPulsesToDist);
 }
 
 

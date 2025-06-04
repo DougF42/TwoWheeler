@@ -35,6 +35,8 @@
 //              Copyright 2021-2025, D+S Tech Labs, Inc.
 //              All Rights Reserved
 //
+// NOTE: Python server:   'python -m http.server
+//
 //=============================================================================
 
 //--- Includes --------------------------------------------
@@ -47,7 +49,7 @@
 
 //--- Globals ---------------------------------------------
 
-bool         Debugging = false;  // ((( Set to false for production builds )))
+bool         Debugging = true;  // ((( Set to false for production builds )))
 char         Serial_Message[SERIAL_MAX_LENGTH];
 char         Serial_NextChar;
 int          Serial_Length = 0;
@@ -123,6 +125,7 @@ void setup()
           .ki = 0,
           .kd = 0,
       };
+  Serial.println("Adding LEFT motor");
   myDriver.addNewMotor(left_mtr_cfg);
 
   MotorControl_config_t right_mtr_cfg =
@@ -137,6 +140,7 @@ void setup()
           .ki = 0,
           .kd = 0,
       };
+  Serial.println("Adding RIGHT motor");
   myDriver.addNewMotor(right_mtr_cfg);
   ThisNode->AddDevice(&myDriver);
 

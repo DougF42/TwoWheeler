@@ -14,6 +14,7 @@
 #include "config.h"
 #include "Driver.h"
 #include "QuadDecoder.h"
+#include "stdlib.h"
 
 // What we consider delimiters for commands 
 #define COMMAND_WHITE_SPACE " |\r\n"
@@ -41,7 +42,8 @@ Driver::~Driver()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 bool Driver::addNewMotor(const MotorControl_config_t &configuration)
 {
-    if (nextMotorIdx+1 >= MAX_MOTOR_COUNT) return(false);
+    if (nextMotorIdx >= MAX_MOTOR_COUNT) return(false);
+    Serial.print("Driver: adding new motor at index "); Serial.println(nextMotorIdx);
     motors[nextMotorIdx] = new MotorControl();
     motors[nextMotorIdx]->setup(configuration);
     nextMotorIdx++;
@@ -92,23 +94,25 @@ ProcessStatus  Driver::ExecuteCommand ()
     ProcessStatus status=Device::ExecuteCommand();
     if (status != NOT_HANDLED) return(status);
     // we try to handle it...
+    Serial.print("Parsing Command '"); Serial.print(CommandPacket.command);Serial.println("'");
     if (strcmp(CommandPacket.command, "QUAD") == 0)
     {   // TODO: Set/get Quad paramters        
         status=cmdQUAD();
 
-    }  else if ((CommandPacket.command, "PID") == 0)
+    }  else if (strcmp(CommandPacket.command, "DPID") == 0)
     {  // TODO: Set PID parameters
         status=cmdPID();
 
-    }  else if ((CommandPacket.command, "MOV") == 0)
+    }  else if (strcmp(CommandPacket.command, "DMOV") == 0)
     {  // Move  at a given speed and rate of rotation
         status=cmdMOV();
         
-    }  else if ((CommandPacket.command, "STOP") == 0)
+    }  else if (strcmp(CommandPacket.command, "STOP") == 0)
     { // TODO: Stop all motion
         status=cmdSTOP();
     } 
-    return(pStatus);
+    Serial.print("STATUS:  "); Serial.println(pStatus);
+    return(status);
 }
 
 
@@ -122,13 +126,13 @@ ProcessStatus  Driver::ExecuteCommand ()
 // NOTE: Both motors will be set to the same values.
 ProcessStatus Driver::cmdQUAD()
 {
-    uint pulsesPerRev;
-    uint circumfrence; // in mm
+    pulse_t pulsesPerRev;
+    dist_t circumfrence; // in mm
     char *ptr;
     char *endptr;
 
     ProcessStatus result=SUCCESS_DATA;
-
+    Serial.println("See cmdQUAD");
     // Do we have any arguments?
     ptr = strtok(CommandPacket.params, COMMAND_WHITE_SPACE);
     if (ptr != nullptr)
@@ -140,16 +144,26 @@ ProcessStatus Driver::cmdQUAD()
             // TODO: ERROR - invalid ppr
             sprintf(DataPacket.value, "Invalid pulses-per-revolution value");
             result = FAIL_DATA;
-        }
+        } 
 
         // Decode circumfrence
         ptr = strtok(nullptr, COMMAND_WHITE_SPACE);
+        Serial.print("CIRCUM ARG is "); Serial.println(ptr);
+
         if (ptr == nullptr)
         {
-            // TODO: ERROR - missing Curcumfrence
             sprintf(DataPacket.value,"Missing or invalid circumfrence value");
             result = FAIL_DATA;
         }
+        circumfrence = strtod(ptr, nullptr);
+
+        if (circumfrence > 200)
+        {
+            sprintf(DataPacket.value,"Invalid circumfrence");
+            result = FAIL_DATA;
+        }
+
+        Serial.print("Circumfrence value is ");  Serial.println(circumfrence);
 
         if (result == SUCCESS_DATA)
         {
@@ -159,11 +173,15 @@ ProcessStatus Driver::cmdQUAD()
         }
     }
 
-    // we always return the current values (unless there was an error)
+    // on success, return the current values (unless there was an error)
     if (result==SUCCESS_DATA)
     {
-        sprintf(DataPacket.value,"pulse_per_rev=%ud Circum=%ud ",pulsesPerRev, circumfrence);
+        motors[0]->getCalibration(&pulsesPerRev, &circumfrence);
+        sprintf(DataPacket.value,"pulse_per_rev=%u Circum=%f ",pulsesPerRev, circumfrence);
+        DataPacket.timestamp=millis();
     }
+    
+    Serial.print(" QUAD command returns "); Serial.println(result);
     return(result);
 }
 
@@ -182,7 +200,7 @@ ProcessStatus Driver::cmdQUAD()
 ProcessStatus Driver::cmdPID()
 {
     ProcessStatus result = SUCCESS_DATA;
-
+    Serial.println("See cmdPID");
     unsigned long tmpTime;
     float tmpkp, tmpki, tmpkd;
     char *ptr;
@@ -260,7 +278,7 @@ ProcessStatus Driver::cmdMOV()
     char *pRot = nullptr;
     char *pSpd = nullptr;
     int m1, m2=0;
-
+    Serial.println("See cmdMOV");
     ProcessStatus result = SUCCESS_DATA;
     pSpd = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st argument - speed
     if (pSpd != nullptr)
@@ -327,5 +345,6 @@ endCmdMOV:
 ProcessStatus Driver::cmdSTOP()
 {
     // TODO:
+    Serial.println("See cmdSTOP - not implemented");
     return (NOT_HANDLED);
 }

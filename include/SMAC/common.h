@@ -23,8 +23,8 @@
 
 // Built-in LED on board
 //-----------------------
-// #define USE_MONO_LED   // Use this for boards with mono color leds
-#define USE_RGB_LED       // Use this for boards with RGB leds
+#define USE_MONO_LED   // Use this for boards with mono color leds
+//#define USE_RGB_LED       // Use this for boards with RGB leds
 
 //--- Status LED ---
 #if defined USE_MONO_LED && defined USE_RGB_LED
