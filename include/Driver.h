@@ -32,10 +32,12 @@ private:
     int mySpeed;
     int myDirect;
     // COMMAND SET: 
-    ProcessStatus cmdQUAD();   //   QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
-    ProcessStatus cmdPID();    //   Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
-    ProcessStatus cmdMOV();   //   FWD  <speed> <dir> (if no dir, then straight ahead)
-    ProcessStatus cmdSTOP(); // Stop - setting stop rate.
+    ProcessStatus cmdQUAD();  // QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
+    ProcessStatus cmdPID();   // Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
+    ProcessStatus cmdMOV();   // FWD  <speed> <dir> (if no dir, then straight ahead)
+    ProcessStatus cmdSTOP();  // Stop - setting stop rate.
+    ProcessStatus cmdSPEED(); // Set speed (used by joystick)
+    ProcessStatus cmdROTATION();  // Set rotation rate (used by joystick)
 
 public:
     Driver();
@@ -46,4 +48,5 @@ public:
 
     void setQuadParams(time_t stepTime, double kp, double ki, double kd);
     void setPidParams(time_t stepTime, pulse_t pulsesPerRev, dist_t circumfrence);
+    void setMotion(int speed, int rotation);
 };
