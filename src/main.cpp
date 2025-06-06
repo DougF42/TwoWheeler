@@ -107,7 +107,7 @@ void setup()
   // Node ID's cannot be duplicated in your SMAC System.
   // --- Do not use the same ID for other Nodes ---
   //=======================================================
-  ThisNode = new Node("My First Node", 0);
+  ThisNode = new Node("TwoWheeler", 1);
 
   //=======================================================
   // Add all Devices to the Node (one driver with two motors, 

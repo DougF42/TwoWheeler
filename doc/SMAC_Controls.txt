@@ -1,56 +1,48 @@
-This is a list of the commands and actions we need:
-
-For motor configuration (one left, one right)
-    
-
-For motor operation:
-    Set direction???
-    Set motor speed(n)
-    Set drift mode()
-    Set Stop mode (int percnt)
-
-PATH OPERATIONS (combined controls)
-    Forward - same rate for both motors, define speed of each motor separatly.
-    Rotate to angle over time.
-
-
-
-(1) CONFIGURATION commands (to set/get various parameters) [This is from Device.h]
-∙ ExecuteCommand() is the method called when a command is received targeted for this Device.
-//                A command string holds the incoming command data and has the following four fields
-//                separated with the '|' char:
-//
+SMAC commands format (to set/get various parameters)
 //                  ┌─────────────── 2-char nodeID (00-19)
 //                  │  ┌──────────── 2-char deviceID (00-99)
 //                  │  │   ┌──────── 4-char command (usually capital letters)
 //                  │  │   │     ┌── Optional variable length parameter string
 //                  │  │   │     │
 //                  nn|dd|CCCC|params
-////                GDNA = Get Device Name              : Returns this device's name
-//                SDNA = Set Device Name              : Sets this device's name (a User-Friendly name for the SMAC Interface)
-//                ENIP = Enable Immediate Processing  : Start executing the immediate process for this device
-//                DIIP = Disable Immediate Processing : Stop executing the immediate process for this device
-//                DOIP = Do Immediate Process         : Perform the immediate process one time
-//                ENPP = Enable Periodic Processing   : Start executing the periodic process for this device (start sending data) default
-//                DIPP = Disable Periodic Processing  : Stop executing the periodic process for this device (stop sending data)
-//                DOPP = Do Periodic Process          : Perform the periodic process one time, returns true or false
-//                GRAT = Get Rate                     : Get the current periodic process rate for this device in calls per hour:
-//                SRAT = Set Rate                     : Set the periodic process rate for this device in procs per hour
+//  Position        012345678901...
 
+COMMANDS HANDLED BY THE relayer
+// GMAC     get mac address
+//          Response: MAC=xx:xx:xx:xx:xx:xx (the mac address for this node)
+//	
+// SYSI     get All Node and Device Info from all nodes.)
+//          This is done by issuing a 'GNOI' and 'GDEI' command to all known 
+//          nodes (see GNDI and GDEI below for each node's repsonse);
+//
+// RELY|CLEAR  clear the relay list
+//          Response: 'LIST CLEAR\n'
+//
+// RELY|LIST  list the entire relay table
+//          Response: RELAY SRC=<source string> DST=<destination string>
+//		
+// RELY|<src>|<dst>  add an entry to the relay table
+//      <src>   is 'nn|dd|cccc' (node number, device number, command)
+//              if any field is all '?', that field is not used in comparison
+//      <dst>   is 'nn|dd|' (node number and device to relay this to).
 
-// - - - - - -- - - - - - -- - - - - - -- - - - - -- - - 
-From Node.cpp: 
- // Convert the <DataPacket> to a Data string.
-  // The <DataPacket> structure must be populated with deviceID, timestamp and value fields.
-  //
-  // A Data string has four fields separated with the '|' char:
-  //
-  //   ┌──────────────────── 2-char nodeID (00-19)
-  //   │  ┌───────────────── 2-char deviceID (00-99)
-  //   │  │     ┌─────────── variable length timestamp (usually millis())
-  //   │  │     │        ┌── variable length value string (including NULL terminating char)
-  //   │  │     │        │   this can be a numerical value or a text message
-  //   │  │     │        │
-  //   nn|dd|timestamp|value
-  //
-  // Data Strings must be NULL terminated.
+COMMANDS handled by the NODE:
+// SNNA|<name> Set the node name
+// GNOI        get Node info
+// GDEI        get Device Info
+// PING        <respond to relayer with PONG>
+// BLINK       Blink the LED 10 times 
+// RSET        Reset
+
+SMAC commands handled by the DEVICE 
+//  GDNA        Get Device Name              : Returns this device's name
+//  SDNA|<name> Set Device Name              : Sets this device's name (a User-Friendly name for the SMAC Interface)
+//  ENIP        Enable Immediate Processing  : Start executing the immediate process for this device
+//  DIIP        Disable Immediate Processing : Stop executing the immediate process for this device
+//  DOIP        Do Immediate Process         : Perform the immediate process one time
+//  ENPP        Enable Periodic Processing   : Start executing the periodic process for this device (start sending data) default
+//  DIPP        Disable Periodic Processing  : Stop executing the periodic process for this device (stop sending data)
+//  DOPP        Do Periodic Process          : Perform the periodic process one time, returns true or false
+//  GRAT        Get Rate                     : Get the current periodic process rate for this device in calls per hour:
+//  SRAT|<rate> Set Rate                     : Set the periodic process rate for this device in procs per hour
+

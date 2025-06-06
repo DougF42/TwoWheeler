@@ -62,7 +62,7 @@ Node::Node (const char *inName, int inNodeID)
   name[MAX_NAME_LENGTH-1] = 0;
 
   sprintf (nodeID, "%02d", inNodeID);
-
+ 
   strcpy (version, __DATE__ " " __TIME__);
 
 
