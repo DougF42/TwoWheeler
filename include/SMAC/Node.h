@@ -81,6 +81,8 @@ class Node
 {
   private:
     int  deviceIndex = 0;
+    unsigned long keepAliveInterval;
+    unsigned long lastSendTime;
 
   protected:
     char           nodeID[ID_SIZE+1];                   // This unique ID (00-19) is assigned at construction

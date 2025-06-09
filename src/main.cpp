@@ -49,7 +49,7 @@
 
 //--- Globals ---------------------------------------------
 
-bool         Debugging = true;  // ((( Set to false for production builds )))
+bool         Debugging = false;  // ((( Set to false for production builds )))
 char         Serial_Message[SERIAL_MAX_LENGTH];
 char         Serial_NextChar;
 int          Serial_Length = 0;

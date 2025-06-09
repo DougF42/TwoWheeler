@@ -50,6 +50,8 @@ extern bool  WaitingForRelayer;
 
 Node::Node (const char *inName, int inNodeID)
 {
+  keepAliveInterval=DEFAULT_XMIT_INTERVAL_MS;
+  lastSendTime=millis();
   // Check name and nodeID range
   if ((strlen (inName) < 1) || (inNodeID < 0) || (inNodeID >= MAX_NODES))
   {
@@ -187,6 +189,7 @@ IRAM_ATTR void Node::SendDataPacket ()
   // Send Data String to Relayer
   //=============================                                                              ┌─ include string terminator
   ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) DataString, strlen(DataString) + 1);
+  lastSendTime=millis();   // reset the keep alive timer
   if (ESPNOW_Result != ESP_OK)
   {
     Serial.print   ("ERROR: Unable to send Data String: ");
@@ -248,6 +251,17 @@ void Node::Run ()
       }
     }
   }
+
+    //===================================
+    // HEARTBEAT: If we havn't send any packets in a while (keepAliveInterval),
+    // then send a ping.
+    //===================================
+    if ((keepAliveInterval > 10) && ((millis() - lastSendTime) > keepAliveInterval))
+    {
+      strcpy(DataPacket.value, "PING");
+      DataPacket.timestamp = millis();
+      SendDataPacket();
+    }
 
   //===================================
   //   Check for any commands
@@ -324,7 +338,8 @@ void Node::Run ()
     //====================================
     // Free the Popped string from buffer
     //====================================
-    free (commandString);
+
+    free(commandString);
   }
 }
 
@@ -357,6 +372,16 @@ ProcessStatus Node::ExecuteCommand ()
     strcat (DataPacket.value, name);
 
     pStatus = SUCCESS_DATA;
+  }
+
+  //--- Set the keep alive timeout ----------------------
+  if (strncmp(CommandPacket.command,"SKEP", COMMAND_SIZE) == 0)
+  {
+    keepAliveInterval = strtol(CommandPacket.params, nullptr, 10);
+    if (Debugging) {
+      Serial.print("New heartbeat interval is "); Serial.println(keepAliveInterval);
+    }
+    pStatus = SUCCESS_NODATA;
   }
 
   //--- Get Node Info (GNOI) ----------------------------

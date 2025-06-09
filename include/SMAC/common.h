@@ -21,6 +21,12 @@
 
 //--- Defines ----------------------------------------------
 
+// Heartbeat inteerval
+// Send a ping if we dont send enything else within this 
+// time interval (in milliseconds). Default 15 seconds.
+// If the value is 0, then no 'keepalive' ping is sent
+#define DEFAULT_XMIT_INTERVAL_MS 15000
+
 // Built-in LED on board
 //-----------------------
 #define USE_MONO_LED   // Use this for boards with mono color leds
