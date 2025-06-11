@@ -13,6 +13,13 @@
 #include "Arduino.h"
 #include "driver/gpio.h"
 
+// When comparing floating point numbers, 
+// How close is close enough to match?
+#define FUZZ .001
+#define ISEQUAL(A,B) (fabs(A-B) < FUZZ)
+#define ISNOTEQUAL(A,B) (fabs(A-B) >= FUZZ)
+
+
 // For consistency, time is time_t (long long )
 //     from _timeval.h (ESP32 idf?)
 // DISTANCE:

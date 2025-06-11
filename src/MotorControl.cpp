@@ -64,7 +64,7 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
     return(res);
 }
 
-#define FUZZ 0.01
+
 /**
  * @brief loop - call periodically.
  * 
@@ -87,7 +87,7 @@ void MotorControl::loop()
     output_val = defmap<double>(input_val, -2048, 2048, -100, 100);
 #endif
 
-    if (fabs(last_output_val - output_val) > FUZZ)
+    if ( ISNOTEQUAL(last_output_val, output_val) )
     { // IF there was a noticable change, then update the ln298 pulse rate
         setPulseWidth(output_val);
     }

@@ -106,7 +106,7 @@ ProcessStatus  Driver::ExecuteCommand ()
     char *paramPtr;
 
     // we try to handle it...
-    Serial.printf("Parsing Command device index '%d', command='%s' with paramters '%s'\n", CommandPacket.deviceIndex, CommandPacket.command, CommandPacket.params);
+//    Serial.printf("Parsing Command device index '%d', command='%s' with paramters '%s'\n", CommandPacket.deviceIndex, CommandPacket.command, CommandPacket.params);
     // Relayed messages have a timestamp (which we ignore), but while direct commands do not (and commands do not start with a digit)...
     if ( isDigit(CommandPacket.command[0]) )
     {
@@ -120,8 +120,8 @@ ProcessStatus  Driver::ExecuteCommand ()
         cmdPtr=CommandPacket.command;
         paramPtr=CommandPacket.params;
     }
-    Serial.printf("---- cmd is  '%s' \n", cmdPtr);
-    Serial.printf("      Param = %s\n", paramPtr);
+  //  Serial.printf("---- cmd is  '%s' \n", cmdPtr);
+  //  Serial.printf("      Param = %s\n", paramPtr);
 
     if (strncmp(cmdPtr, "QUAD",4 ) == 0)
     {   // Set/get Quad paramters        
@@ -310,35 +310,38 @@ ProcessStatus Driver::cmdPID(char *pParams)
  */
 void Driver::setMotion(int speed, int rotation)
 {
-    Serial.printf("** In setMotion. Speed=%d  rotation=%d\n", speed, rotation);
-    int tmpSpeed, tmpDirection = 0;
-    dist_t m1, m2 = 0.0;
+    Serial.printf("** In setMotion: Speed=%d  rotation=%d\n", speed, rotation);
+    int tmpSpeed, tmpRotate = 0;   // these are the raw joystick readings, 0 to +/-2048
+    dist_t m1, m2 = 0.0;           // These are in mm/sec.
 
     tmpSpeed = constrain(speed, -2048, 2048);
-    tmpDirection = constrain(rotation, -2048, 2048);
+    tmpRotate = constrain(rotation, -2048, 2048);
 
     // calculate motor 1 speed. limit to +/-2048
     m1 = mySpeed + myDirect;
     m1 = constrain(m1, -2048, 2048);
 
-    // Limit Direction to +/- 2048
+    // calculate motor 2 speed. Limit to +/- 2048
     m2 = mySpeed - myDirect;
     m2 = constrain(m2, -2048, 2048);
-    if ((tmpSpeed != mySpeed) || (tmpDirection != myDirect))
+
+    if ((tmpSpeed != mySpeed) || (tmpRotate != myDirect))
     {
+        Serial.println("*** In SetMotion: Setting new motor speeds");
+        mySpeed = tmpSpeed;  // TODO: Convert +/-2048 to mm/second
+        myDirect = tmpRotate;  // TODO: Convert +/-2048 to mm/second
         motors[0]->setSpeed(m1);
         motors[1]->setSpeed(m2);
     }
     // Report current speed and rotation rate
     DataPacket.timestamp = millis();
-    sprintf(DataPacket.value, "Speed|%d| dir|%d| m1|%d| M2|%d", mySpeed, myDirect, m1, m2);
+    sprintf(DataPacket.value, "*** In SetMotion: Speed|%d| dir|%d| m1|%f| M2|%f", mySpeed, myDirect, m1, m2);
 }
 
 /**
  * @brief Set the forward motion to a given speed
  *  Format:  "FWD|speed|turnRate"
  *      The speed is 0 +/-2048,  dir is 0 +/-2048
- *  dir = +/-2048, then rotate in place.
  *  If no arguments, then just report the current motion. 
  *  If no turnRate, assume straight ahead
  * @return ProcessStatus 
@@ -423,8 +426,7 @@ ProcessStatus Driver::cmdSPEED(char *pParams)
     tmpval = strtol(pParams, nullptr,10);
     if (errno != 0)
     { // bad value (overflow/underflow)
-        Serial.printf("ERROR: INVALID SPEED VALUE: %d\n", tmpval);
-        sprintf(DataPacket.value, "speed parameter is not a valid value");
+        Serial.printf("ERROR: INVALID SPEED VALUE: %d", tmpval);
         result = FAIL_DATA;
         goto cmdSPEEDend;
     } else {
