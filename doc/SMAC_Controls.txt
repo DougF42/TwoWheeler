@@ -46,3 +46,9 @@ SMAC commands handled by the DEVICE
 //  GRAT        Get Rate                     : Get the current periodic process rate for this device in calls per hour:
 //  SRAT|<rate> Set Rate                     : Set the periodic process rate for this device in procs per hour
 
+Commands for the DRIVER device:
+// QUAD  <pulsesPerRev> <circum_mm>   Set parameters for quadrature decoder.
+// DPID  <p><i><d>   Set paramteers for PID.
+// STOP  <rate>      Stop motion.
+// SPED  <speed>     Set speed - 0 +/- 2047.
+// ROTA  <rotRate>   Rate is 0 +/- 2047.

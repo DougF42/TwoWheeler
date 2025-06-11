@@ -49,7 +49,7 @@
 
 //--- Globals ---------------------------------------------
 
-bool         Debugging = false;  // ((( Set to false for production builds )))
+bool         Debugging = true;  // ((( Set to false for production builds )))
 char         Serial_Message[SERIAL_MAX_LENGTH];
 char         Serial_NextChar;
 int          Serial_Length = 0;
@@ -65,7 +65,7 @@ CPacket      CommandPacket;
 char         DataString[MAX_MESSAGE_LENGTH];
 
 Node         *ThisNode;  // The Node for this example
-Driver       myDriver;
+Driver       *myDriver;
 //--- Declarations ----------------------------------------
 
 void Serial_CheckInput     ();
@@ -108,7 +108,7 @@ void setup()
   // --- Do not use the same ID for other Nodes ---
   //=======================================================
   ThisNode = new Node("TwoWheeler", 1);
-
+  myDriver = new Driver(1);  // device ID 1
   //=======================================================
   // Add all Devices to the Node (one driver with two motors, 
   //      each has pid, ln298 and MotorControl))
@@ -126,7 +126,7 @@ void setup()
           .kd = 0,
       };
   Serial.println("Adding LEFT motor");
-  myDriver.addNewMotor(left_mtr_cfg);
+  myDriver->addNewMotor(left_mtr_cfg);
 
   MotorControl_config_t right_mtr_cfg =
       {
@@ -141,8 +141,8 @@ void setup()
           .kd = 0,
       };
   Serial.println("Adding RIGHT motor");
-  myDriver.addNewMotor(right_mtr_cfg);
-  ThisNode->AddDevice(&myDriver);
+  myDriver->addNewMotor(right_mtr_cfg);
+  ThisNode->AddDevice(myDriver);
 
   // PING the Relayer once per second until it responds with PONG
   Serial.println ("PINGing Relayer ...");

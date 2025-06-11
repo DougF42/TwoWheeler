@@ -28,19 +28,20 @@ class Driver:public Device
 {
 private:
     MotorControl *motors[MAX_MOTOR_COUNT];  // we need two motors
-    int nextMotorIdx = 0;
+    int nextMotorIdx;
     int mySpeed;
     int myDirect;
+    
     // COMMAND SET: 
-    ProcessStatus cmdQUAD();  // QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
-    ProcessStatus cmdPID();   // Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
-    ProcessStatus cmdMOV();   // FWD  <speed> <dir> (if no dir, then straight ahead)
-    ProcessStatus cmdSTOP();  // Stop - setting stop rate.
-    ProcessStatus cmdSPEED(); // Set speed (used by joystick)
-    ProcessStatus cmdROTATION();  // Set rotation rate (used by joystick)
+    ProcessStatus cmdQUAD(char *paramPtr);  // QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
+    ProcessStatus cmdPID(char *paramPtr);   // Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
+    ProcessStatus cmdMOV(char *paramPtr);   // FWD  <speed> <dir> (if no dir, then straight ahead)
+    ProcessStatus cmdSTOP(char *paramPtr);  // Stop - setting stop rate.
+    ProcessStatus cmdSPEED(char *paramPtr); // Set speed (used by joystick)
+    ProcessStatus cmdROTATION(char *paramPtr);  // Set rotation rate (used by joystick)
 
 public:
-    Driver();
+    Driver(int devId);
     ~Driver();
     bool addNewMotor(const MotorControl_config_t &configuration);
     void loop(); // call this reasonably frequently
@@ -48,5 +49,5 @@ public:
 
     void setQuadParams(time_t stepTime, double kp, double ki, double kd);
     void setPidParams(time_t stepTime, pulse_t pulsesPerRev, dist_t circumfrence);
-    void setMotion(int speed, int rotation);
+    void setMotion(int speed, int _rotation);
 };

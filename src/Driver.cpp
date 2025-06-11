@@ -22,9 +22,12 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-Driver::Driver() : Device{"Driver"}
+Driver::Driver(int devId) : Device{"Driver"}
 {
-    nextMotorIdx=0;    
+    nextMotorIdx=0;   
+    mySpeed=0;
+    myDirect=0; 
+    SetID(devId);
     Serial.print(" ");
 }
 
@@ -89,37 +92,62 @@ void Driver::loop()
   //   SPD   <rate>      // +/- 2048  heading change in mm per Millisecond. May be negative.
   //   ROT <degrees>      // +/- 2048 degrees per Millisecond. Negative is right, positive is left
   //   stop (int stopRate); // 0..100 0 means drift, 100 means emergency stop, otherwise percentage
+  //
+
+  //       
 ProcessStatus  Driver::ExecuteCommand ()
 {
-    ProcessStatus status=Device::ExecuteCommand();
+    ProcessStatus status;
+    status = Device::ExecuteCommand();
     if (status != NOT_HANDLED) return(status);
+
+    status=FAIL_NODATA;
+    char *cmdPtr;
+    char *paramPtr;
+
     // we try to handle it...
-    Serial.print("Parsing Command '"); Serial.print(CommandPacket.command);Serial.println("'");
-    if (strcmp(CommandPacket.command, "QUAD") == 0)
-    {   // TODO: Set/get Quad paramters        
-        status=cmdQUAD();
-
-    }  else if (strcmp(CommandPacket.command, "DPID") == 0)
-    {  // TODO: Set PID parameters
-        status=cmdPID();
-
-    }  else if (strcmp(CommandPacket.command, "DMOV") == 0)
-    {  // Move  at a given speed and rate of rotation
-        status=cmdMOV();
-        
-    }  else if (strcmp(CommandPacket.command, "STOP") == 0)
-    { // TODO: Stop all motion
-        status=cmdSTOP();
-
-    } else if (strcmp(CommandPacket.command,"SPED") == 0)
-    {  // TODO: Set speed
-        status = cmdSPEED();
-
-    } else if (strcmp(CommandPacket.command,"ROTA") == 0)
-    {  // TODO: Set rotation rate
-        status = cmdROTATION();
+    Serial.printf("Parsing Command device index '%d', command='%s' with paramters '%s'\n", CommandPacket.deviceIndex, CommandPacket.command, CommandPacket.params);
+    // Relayed messages have a timestamp (which we ignore), but while direct commands do not (and commands do not start with a digit)...
+    if ( isDigit(CommandPacket.command[0]) )
+    {
+        // Skip the time stamp...
+        for ( cmdPtr = CommandPacket.params; (( *cmdPtr!='\0')  &&  !isalpha(*cmdPtr));  cmdPtr++) 
+        { // do nothing
+         };
+        paramPtr= cmdPtr+5;
+    } else {
+        // No time stamp - use as is
+        cmdPtr=CommandPacket.command;
+        paramPtr=CommandPacket.params;
     }
-    Serial.print("STATUS:  "); Serial.println(pStatus);
+    Serial.printf("---- cmd is  '%s' \n", cmdPtr);
+    Serial.printf("      Param = %s\n", paramPtr);
+
+    if (strncmp(cmdPtr, "QUAD",4 ) == 0)
+    {   // Set/get Quad paramters        
+        status=cmdQUAD(paramPtr);
+
+    }  else if (strncmp(cmdPtr, "DPID",4) == 0)
+    {  // Set PID parameters
+        status=cmdPID(paramPtr);
+
+    }  else if (strncmp(cmdPtr, "DMOV",4) == 0)
+    {  // Move  at a given speed and rate of rotation
+        status=cmdMOV(paramPtr);
+        
+    }  else if (strncmp(cmdPtr, "STOP",4) == 0)
+    { // Stop all motion
+        status=cmdSTOP(paramPtr);
+
+    } else if (strncmp(cmdPtr,"SPED",4) == 0)
+    {  // Set speed
+        status = cmdSPEED(paramPtr);
+
+    } else if (strncmp(cmdPtr,"ROTA",4 ) == 0)
+    {  // Set rotation rate
+        status = cmdROTATION(paramPtr);
+    }
+    Serial.print("STATUS:  "); Serial.println(status);
     return(status);
 }
 
@@ -132,7 +160,8 @@ ProcessStatus  Driver::ExecuteCommand ()
 //    circum       - circumfrence in mm.
 // We return the new (current) pulses per rev and circum(in mm).
 // NOTE: Both motors will be set to the same values.
-ProcessStatus Driver::cmdQUAD()
+// @pParams - pointer to the parameters
+ProcessStatus Driver::cmdQUAD(char *pParams)
 {
     pulse_t pulsesPerRev;
     dist_t circumfrence; // in mm
@@ -142,7 +171,7 @@ ProcessStatus Driver::cmdQUAD()
     ProcessStatus result=SUCCESS_DATA;
     Serial.println("See cmdQUAD");
     // Do we have any arguments?
-    ptr = strtok(CommandPacket.params, COMMAND_WHITE_SPACE);
+    ptr = strtok(pParams, COMMAND_WHITE_SPACE);
     if (ptr != nullptr)
     { // we have arguments - this is a 'Set' command
         errno = 0;
@@ -205,7 +234,7 @@ ProcessStatus Driver::cmdQUAD()
  * The command is processed in-place with strtok
  * to parse tokens.
  */
-ProcessStatus Driver::cmdPID()
+ProcessStatus Driver::cmdPID(char *pParams)
 {
     ProcessStatus result = SUCCESS_DATA;
     Serial.println("See cmdPID");
@@ -214,12 +243,12 @@ ProcessStatus Driver::cmdPID()
     char *ptr;
     errno = 0;
 
-    ptr = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st pointer
+    ptr = strtok(pParams, COMMAND_WHITE_SPACE); // 1st pointer
     if (ptr != nullptr)
     { // yes, we have arguments... process the settng}
         
         errno = 0;
-        // STEP TIME
+        // Kp
         tmpTime = strtol( ptr, nullptr, 10);
         if ((ptr == nullptr) || (errno != 0))
         {
@@ -227,9 +256,6 @@ ProcessStatus Driver::cmdPID()
             sprintf(DataPacket.value, "Kp parameter is not a valid floating point value");
             goto endOfSetPidParameters;
         }
-
-        // Kp
-        ptr =  strtok(nullptr, COMMAND_WHITE_SPACE);
         tmpkp = strtof(ptr, nullptr);
         if ((ptr == nullptr) || (errno != 0))
         {
@@ -239,9 +265,9 @@ ProcessStatus Driver::cmdPID()
         };
 
         // Ki
-        ptr = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st pointer
+        ptr = strtok(nullptr, COMMAND_WHITE_SPACE); // 1st pointer
         errno=0;
-        tmpkd = strtof(ptr, nullptr);
+        tmpki = strtof(ptr, nullptr);
         if ((ptr == nullptr) || (errno != 0))
         {
             result = FAIL_DATA;
@@ -250,9 +276,9 @@ ProcessStatus Driver::cmdPID()
         };
 
         // Kd
-        ptr = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st pointer
+        ptr = strtok(nullptr, COMMAND_WHITE_SPACE); // 1st pointer
         errno=0;
-        tmpki = strtof(ptr, nullptr);
+        tmpkd = strtof(ptr, nullptr);
         if ((ptr == nullptr) || (errno != 0))
         {
             result = FAIL_DATA;
@@ -263,7 +289,7 @@ ProcessStatus Driver::cmdPID()
     // SET THE PID PARAMETERS    
     motors[0]->setPIDTuning( tmpkp, tmpki, tmpkd); 
     motors[1]->setPIDTuning( tmpkp, tmpki, tmpkd);
-    sprintf(DataPacket.value, "Kp=%f  kd=%f  ki=%f", tmpkp, tmpki, tmpkd);
+    sprintf(DataPacket.value, "Kp=%f  ki=%f  kd=%f", tmpkp, tmpki, tmpkd);
     // SUPLLY CURRENT VALUE AS RESPONSE
 
  endOfSetPidParameters:
@@ -284,6 +310,7 @@ ProcessStatus Driver::cmdPID()
  */
 void Driver::setMotion(int speed, int rotation)
 {
+    Serial.printf("** In setMotion. Speed=%d  rotation=%d\n", speed, rotation);
     int tmpSpeed, tmpDirection = 0;
     dist_t m1, m2 = 0.0;
 
@@ -316,7 +343,7 @@ void Driver::setMotion(int speed, int rotation)
  *  If no turnRate, assume straight ahead
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdMOV()
+ProcessStatus Driver::cmdMOV(char *pParams)
 {
     int tmpval = 0;
     char *pSpd = nullptr;
@@ -325,7 +352,7 @@ ProcessStatus Driver::cmdMOV()
 
     Serial.println("See cmdMOV");
     ProcessStatus result = SUCCESS_DATA;
-    pSpd = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st argument - speed
+    pSpd = strtok(pParams, COMMAND_WHITE_SPACE); // 1st argument - speed
     if (pSpd != nullptr)
     {   // We have a speed...
         errno = 0;
@@ -374,7 +401,7 @@ endCmdMOV:
  *
  * @return ProcessStatus
  */
-ProcessStatus Driver::cmdSTOP()
+ProcessStatus Driver::cmdSTOP(char *pParams)
 {
     // TODO:
     Serial.println("See cmdSTOP - not implemented");
@@ -383,27 +410,26 @@ ProcessStatus Driver::cmdSTOP()
 
 
 /**
- * @brief SMAC command handler - set speed,
+ * @brief SMAC command handler - set speed
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdSPEED()
+ProcessStatus Driver::cmdSPEED(char *pParams)
 {
-    ProcessStatus result = SUCCESS_DATA;
+    ProcessStatus result;
+    Serial.printf("*** IN cmdSPEED. Parameters string is '%s'\n", pParams);
     char *pSpd;
     int tmpval;
-    pSpd = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st argument - speed
     errno = 0;
-    if (pSpd != nullptr)
-    {
-        tmpval = strtod(pSpd, nullptr);
-        if (errno != 0)
-        { // bad value (overflow/underflow)
-            result = FAIL_DATA;
-            sprintf(DataPacket.value, "speed parameter is not a valid value");
-            goto cmdSPEEDend;
-        } 
-
-        setMotion(mySpeed, tmpval);
+    tmpval = strtol(pParams, nullptr,10);
+    if (errno != 0)
+    { // bad value (overflow/underflow)
+        Serial.printf("ERROR: INVALID SPEED VALUE: %d\n", tmpval);
+        sprintf(DataPacket.value, "speed parameter is not a valid value");
+        result = FAIL_DATA;
+        goto cmdSPEEDend;
+    } else {
+        setMotion(tmpval, myDirect);
+        result = SUCCESS_DATA;
     }
 
 cmdSPEEDend:
@@ -415,25 +441,28 @@ cmdSPEEDend:
  * 
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdROTATION()
+ProcessStatus Driver::cmdROTATION(char *pParams)
 {
     ProcessStatus result = SUCCESS_DATA;
 
     char *pRot;
     int tmpval;
-    pRot = strtok(CommandPacket.params, COMMAND_WHITE_SPACE); // 1st argument - speed
+    pRot = strtok(pParams, COMMAND_WHITE_SPACE); // 1st argument - speed
     errno = 0;
     if (pRot != nullptr)
     {
-        tmpval = strtod(pRot, nullptr);
+        tmpval = strtol(pRot, nullptr, 10);
         if (errno != 0)
         { // bad value (overflow/underflow)
             result = FAIL_DATA;
             sprintf(DataPacket.value, "rotation rate parameter is not a valid value");
             goto cmdSPEEDend;
-        } 
-
-        setMotion(mySpeed, tmpval);
+        }
+        else
+        {
+            setMotion(mySpeed, tmpval);
+            result=SUCCESS_DATA;
+        }
     }
 
 cmdSPEEDend:
