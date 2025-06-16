@@ -21,33 +21,30 @@
 
 #include "MotorControl.h"
 #include "PID_v1.h"
-#include "Device.h"
+#include "DefDevice.h"
 
 #define MAX_MOTOR_COUNT 2
-class Driver:public Device
+class Driver:public DefDevice
 {
 private:
-    MotorControl *motors[MAX_MOTOR_COUNT];  // we need two motors
     int nextMotorIdx;
     int mySpeed;
     int myDirect;
     
     // COMMAND SET: 
-    ProcessStatus cmdQUAD(char *paramPtr);  // QUAD Calibrate Quadrature encoders  <pulsesPerRev>, <circum>
-    ProcessStatus cmdPID(char *paramPtr);   // Calibrate PID  stepTime, <Kp>,<Ki>,<Kd>
     ProcessStatus cmdMOV(char *paramPtr);   // FWD  <speed> <dir> (if no dir, then straight ahead)
     ProcessStatus cmdSTOP(char *paramPtr);  // Stop - setting stop rate.
     ProcessStatus cmdSPEED(char *paramPtr); // Set speed (used by joystick)
     ProcessStatus cmdROTATION(char *paramPtr);  // Set rotation rate (used by joystick)
+    MotorControl  *leftMtr;
+    MotorControl  *rightMtr;
 
 public:
-    Driver(int devId);
+    Driver( Node *_node, const char * name);
     ~Driver();
-    bool addNewMotor(const MotorControl_config_t &configuration);
-    void loop(); // call this reasonably frequently
+    void setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg); // Instantiate all the subtasks...
     ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
+    ProcessStatus  DoPeriodic() override;       
 
-    void setQuadParams(time_t stepTime, double kp, double ki, double kd);
-    void setPidParams(time_t stepTime, pulse_t pulsesPerRev, dist_t circumfrence);
     void setMotion(int speed, int _rotation);
 };

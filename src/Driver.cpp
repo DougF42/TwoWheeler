@@ -22,12 +22,12 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-Driver::Driver(int devId) : Device{"Driver"}
+Driver::Driver(Node *myNode, const char *_name) : DefDevice(myNode, _name)
 {
     nextMotorIdx=0;   
     mySpeed=0;
     myDirect=0; 
-    SetID(devId);
+    // SetID(devid);  // TBD: Do I need this?
     Serial.print(" ");
 }
 
@@ -37,37 +37,33 @@ Driver::~Driver()
 {
 
 }
-
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-// Add a motor to our list. 
-// Return:  true normally, false if too many motors
-// - - - - - - - - - - - - - - - - - - - - - - - - - - 
-bool Driver::addNewMotor(const MotorControl_config_t &configuration)
+/**
+ * @brief Set up the left and right motors.
+ *      (The motors, in turn, will set up the ln298, QuadDecoder and PID devices)
+ * 
+ * @param left_cfg 
+ * @param right_cfg 
+ */
+void Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg)
 {
-    if (nextMotorIdx >= MAX_MOTOR_COUNT) return(false);
-    Serial.print("Driver: adding new motor at index "); Serial.println(nextMotorIdx);
-    motors[nextMotorIdx] = new MotorControl();
-    motors[nextMotorIdx]->setup(configuration);
-    nextMotorIdx++;
-    return(true);
+    leftMtr  = new MotorControl( myNode, "leftMotor");
+    leftMtr->setup(left_cfg, "left_");
+    rightMtr = new MotorControl( myNode, "rightMotor");
+    rightMtr->setup(right_cfg, "right_");
 }
 
 
+// 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-// Main loop - This calls both low-level motor 
-//    controllers (which uses the Position sensor and
-//    a PID loop to govern the motor speed). It is 
-//    separate from the 'doPeriodic' routine which 
-//    processes commands.
+// TODO Periodically report the driver status:
+//     current positionm current direction, current (average)speed over ground
 //  
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-void Driver::loop()
+ProcessStatus Driver::DoPeriodic()
 {
-    for (int idx=0; idx<nextMotorIdx; idx++)
-    {
-        motors[idx]->loop();
-    }
+    // TODO:
+    return(SUCCESS_NODATA);
 }
 
 
@@ -102,36 +98,12 @@ ProcessStatus  Driver::ExecuteCommand ()
     if (status != NOT_HANDLED) return(status);
 
     status=FAIL_NODATA;
-    char *cmdPtr;
-    char *paramPtr;
-
-    // we try to handle it...
-//    Serial.printf("Parsing Command device index '%d', command='%s' with paramters '%s'\n", CommandPacket.deviceIndex, CommandPacket.command, CommandPacket.params);
-    // Relayed messages have a timestamp (which we ignore), but while direct commands do not (and commands do not start with a digit)...
-    if ( isDigit(CommandPacket.command[0]) )
-    {
-        // Skip the time stamp...
-        for ( cmdPtr = CommandPacket.params; (( *cmdPtr!='\0')  &&  !isalpha(*cmdPtr));  cmdPtr++) 
-        { // do nothing
-         };
-        paramPtr= cmdPtr+5;
-    } else {
-        // No time stamp - use as is
-        cmdPtr=CommandPacket.command;
-        paramPtr=CommandPacket.params;
-    }
+    char *cmdPtr = CommandPacket.command;
+    char *paramPtr = CommandPacket.params;    
   //  Serial.printf("---- cmd is  '%s' \n", cmdPtr);
   //  Serial.printf("      Param = %s\n", paramPtr);
 
-    if (strncmp(cmdPtr, "QUAD",4 ) == 0)
-    {   // Set/get Quad paramters        
-        status=cmdQUAD(paramPtr);
-
-    }  else if (strncmp(cmdPtr, "DPID",4) == 0)
-    {  // Set PID parameters
-        status=cmdPID(paramPtr);
-
-    }  else if (strncmp(cmdPtr, "DMOV",4) == 0)
+    if (strncmp(cmdPtr, "DMOV",4) == 0)
     {  // Move  at a given speed and rate of rotation
         status=cmdMOV(paramPtr);
         
@@ -147,154 +119,10 @@ ProcessStatus  Driver::ExecuteCommand ()
     {  // Set rotation rate
         status = cmdROTATION(paramPtr);
     }
-    Serial.print("STATUS:  "); Serial.println(status);
+    // Serial.print("STATUS:  "); Serial.println(status);
     return(status);
 }
 
-
-// - - - - - - - - - - - - - - - - - -
-// set or get the quad parameters.
-// quad            - with no arguments, acts as 'get'
-// quad|<pulsesPerRev>|<circum>
-//    pulsesPerRev -  self explanatory
-//    circum       - circumfrence in mm.
-// We return the new (current) pulses per rev and circum(in mm).
-// NOTE: Both motors will be set to the same values.
-// @pParams - pointer to the parameters
-ProcessStatus Driver::cmdQUAD(char *pParams)
-{
-    pulse_t pulsesPerRev;
-    dist_t circumfrence; // in mm
-    char *ptr;
-    char *endptr;
-
-    ProcessStatus result=SUCCESS_DATA;
-    Serial.println("See cmdQUAD");
-    // Do we have any arguments?
-    ptr = strtok(pParams, COMMAND_WHITE_SPACE);
-    if (ptr != nullptr)
-    { // we have arguments - this is a 'Set' command
-        errno = 0;
-        pulsesPerRev = strtoul(ptr, nullptr, 10);
-        if ((errno != 0) || (pulsesPerRev > 5000))
-        {
-            // TODO: ERROR - invalid ppr
-            sprintf(DataPacket.value, "Invalid pulses-per-revolution value");
-            result = FAIL_DATA;
-        } 
-
-        // Decode circumfrence
-        ptr = strtok(nullptr, COMMAND_WHITE_SPACE);
-        Serial.print("CIRCUM ARG is "); Serial.println(ptr);
-
-        if (ptr == nullptr)
-        {
-            sprintf(DataPacket.value,"Missing or invalid circumfrence value");
-            result = FAIL_DATA;
-        }
-        circumfrence = strtod(ptr, nullptr);
-
-        if (circumfrence > 200)
-        {
-            sprintf(DataPacket.value,"Invalid circumfrence");
-            result = FAIL_DATA;
-        }
-
-        Serial.print("Circumfrence value is ");  Serial.println(circumfrence);
-
-        if (result == SUCCESS_DATA)
-        {
-            // SET the new values
-            motors[0]->setQUADcalibration(pulsesPerRev, circumfrence);
-            motors[1]->setQUADcalibration(pulsesPerRev, circumfrence);
-        }
-    }
-
-    // on success, return the current values (unless there was an error)
-    if (result==SUCCESS_DATA)
-    {
-        motors[0]->getCalibration(&pulsesPerRev, &circumfrence);
-        sprintf(DataPacket.value,"pulse_per_rev=%u Circum=%f ",pulsesPerRev, circumfrence);
-        DataPacket.timestamp=millis();
-    }
-    
-    Serial.print(" QUAD command returns "); Serial.println(result);
-    return(result);
-}
-
-
-/**
- * @brief Set the paramters for the PID loop
- * Format: "PID|step_time|kp|ki|kd"
- *     Time is in steps per second
- *     kp, ki, kd are the PID parameters. 
- * 
- * @return ProcessStatus 
- * 
- * The command is processed in-place with strtok
- * to parse tokens.
- */
-ProcessStatus Driver::cmdPID(char *pParams)
-{
-    ProcessStatus result = SUCCESS_DATA;
-    Serial.println("See cmdPID");
-    unsigned long tmpTime;
-    float tmpkp, tmpki, tmpkd;
-    char *ptr;
-    errno = 0;
-
-    ptr = strtok(pParams, COMMAND_WHITE_SPACE); // 1st pointer
-    if (ptr != nullptr)
-    { // yes, we have arguments... process the settng}
-        
-        errno = 0;
-        // Kp
-        tmpTime = strtol( ptr, nullptr, 10);
-        if ((ptr == nullptr) || (errno != 0))
-        {
-            result = FAIL_DATA;
-            sprintf(DataPacket.value, "Kp parameter is not a valid floating point value");
-            goto endOfSetPidParameters;
-        }
-        tmpkp = strtof(ptr, nullptr);
-        if ((ptr == nullptr) || (errno != 0))
-        {
-            result = FAIL_DATA;
-            sprintf(DataPacket.value, "Kp parameter is not a valid floating point value");
-            goto endOfSetPidParameters;
-        };
-
-        // Ki
-        ptr = strtok(nullptr, COMMAND_WHITE_SPACE); // 1st pointer
-        errno=0;
-        tmpki = strtof(ptr, nullptr);
-        if ((ptr == nullptr) || (errno != 0))
-        {
-            result = FAIL_DATA;
-            sprintf(DataPacket.value, "Kd parameter is not a valid floating point value");
-            goto endOfSetPidParameters;
-        };
-
-        // Kd
-        ptr = strtok(nullptr, COMMAND_WHITE_SPACE); // 1st pointer
-        errno=0;
-        tmpkd = strtof(ptr, nullptr);
-        if ((ptr == nullptr) || (errno != 0))
-        {
-            result = FAIL_DATA;
-            sprintf(DataPacket.value, "Ki parameter is not a valid floating point value");
-            goto endOfSetPidParameters;
-        };
-    }
-    // SET THE PID PARAMETERS    
-    motors[0]->setPIDTuning( tmpkp, tmpki, tmpkd); 
-    motors[1]->setPIDTuning( tmpkp, tmpki, tmpkd);
-    sprintf(DataPacket.value, "Kp=%f  ki=%f  kd=%f", tmpkp, tmpki, tmpkd);
-    // SUPLLY CURRENT VALUE AS RESPONSE
-
- endOfSetPidParameters:
-    return(result);
-}
 
 
 /**
@@ -330,8 +158,8 @@ void Driver::setMotion(int speed, int rotation)
         Serial.println("*** In SetMotion: Setting new motor speeds");
         mySpeed = tmpSpeed;  // TODO: Convert +/-2048 to mm/second
         myDirect = tmpRotate;  // TODO: Convert +/-2048 to mm/second
-        motors[0]->setSpeed(m1);
-        motors[1]->setSpeed(m2);
+        leftMtr  -> setSpeed(m1);
+        rightMtr -> setSpeed(m2);
     }
     // Report current speed and rotation rate
     DataPacket.timestamp = millis();

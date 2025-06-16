@@ -66,6 +66,7 @@ char         DataString[MAX_MESSAGE_LENGTH];
 
 Node         *ThisNode;  // The Node for this example
 Driver       *myDriver;
+
 //--- Declarations ----------------------------------------
 
 void Serial_CheckInput     ();
@@ -108,10 +109,10 @@ void setup()
   // --- Do not use the same ID for other Nodes ---
   //=======================================================
   ThisNode = new Node("TwoWheeler", 1);
-  myDriver = new Driver(1);  // device ID 1
+
+
   //=======================================================
-  // Add all Devices to the Node (one driver with two motors, 
-  //      each has pid, ln298 and MotorControl))
+  //Set up the DRIVER device
   //=======================================================
   MotorControl_config_t left_mtr_cfg =
       {
@@ -125,12 +126,10 @@ void setup()
           .ki = 0,
           .kd = 0,
       };
-  Serial.println("Adding LEFT motor");
-  myDriver->addNewMotor(left_mtr_cfg);
 
   MotorControl_config_t right_mtr_cfg =
       {
-          .chnlNo = LEDC_CHANNEL_1,
+          .chnlNo = LEDC_CHANNEL_2,
           .ena_pin = MOTOR_2_EN,
           .dir_pin_a = MOTOR_2_DRIVE_A,
           .dir_pin_b = MOTOR_2_DRIVE_B,
@@ -140,9 +139,11 @@ void setup()
           .ki = 0,
           .kd = 0,
       };
-  Serial.println("Adding RIGHT motor");
-  myDriver->addNewMotor(right_mtr_cfg);
+
+  myDriver = new Driver(ThisNode, "RightMtr");
+  myDriver->setup(&left_mtr_cfg, &right_mtr_cfg);
   ThisNode->AddDevice(myDriver);
+
 
   // PING the Relayer once per second until it responds with PONG
   Serial.println ("PINGing Relayer ...");

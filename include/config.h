@@ -77,4 +77,24 @@ typedef double  dist_t;
 #define I2C_SCL_PIN 22
 #define I2C_SDA_PIN 23
 
+// - - - - - - - - - - - - - - - - - - - - - - - - -
+/**
+ * @brief This class is used to configure a motor.
+ * 
+ */
+typedef struct {
+    esp_timer_handle_t spdUpdateTimer; // The timer handle. This timer defined in main   
+    ledc_channel_t  chnlNo;  // e.g. LEDC_CHANNEL_0 - used by ln298
+    gpio_num_t ena_pin;      // e.g. pin_num_NC
+    gpio_num_t dir_pin_a;    // e.g. pin_num_NC
+    gpio_num_t dir_pin_b;    // e.g. pin_num_NC
+    gpio_num_t quad_pin_a;   // e.g. pin_num_NC
+    gpio_num_t quad_pin_b;   // e.g. pin_num_NC
+    unsigned long loop_rate; // millisecoonds between speed updates
+    double kp;
+    double ki;
+    double kd;
+} MotorControl_config_t;
+
+
 #endif

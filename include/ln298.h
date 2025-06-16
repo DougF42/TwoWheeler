@@ -16,30 +16,34 @@
  */
 #pragma once
 #include <atomic>
+#include "config.h"
 #include "driver/ledc.h"
+#include "DefDevice.h"
 
 
-class LN298
+class LN298 : public DefDevice
 {
     private:
-        volatile static bool timer_is_inited;
+        volatile static uint8_t timer_is_inited;
         ledc_channel_t led_channel; // the LEDC channel number
+
         // TIMER is one per motor
         ledc_timer_config_t timerCfg;
         gpio_num_t ena_pin;
         gpio_num_t dir_pin_a;
         gpio_num_t dir_pin_b;
         void setDirection(int pcnt);   // use the sign of pcnt to set direction
+        enum  MotorStatus {MOTOR_DIS, MOTOR_FWD, MOTOR_REV, MOTOR_STOP} motorStatus;
+        int lastPcnt;
         
     public:
-        LN298();
-        void setupLN298(ledc_channel_t chnlNo, gpio_num_t ena_pin, gpio_num_t dir_pin_a, gpio_num_t dir_pin_b);
+        LN298( Node *_node, const char * Name);
+        void setupLN298(MotorControl_config_t *cfg);
         ~LN298();
+        ProcessStatus  ExecuteCommand ();
         void setPulseWidth(int pcnt); // Set the pulse width (0..100)
-
-        void drift();    // allow motor to drift to a stop (no brakes)
-        void stop(int stopRate);  // 'gently' stop (brake) this motor
+        void enable();
+        void disable();
         void hardStop();
-        // TBD:  void setAccel();
 
 };

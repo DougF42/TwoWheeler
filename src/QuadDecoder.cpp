@@ -8,11 +8,9 @@
  * @copyright Copyright (c) 2025
  * 
  */
-
 #include "config.h"
-#include "QuadDecoder.h"
-
-#include "atomic"
+#include "QuadDecoder.h" 
+#include <atomic>
 
 // This MUST be kept as small as possible - it determines
 // the size of a structure that is stored in DRAM for the
@@ -24,30 +22,39 @@
 /**
  * @brief This keeps track of motor positions
  * 
- * It is static, and kept in DRAM so that the
- * ISR can run without waiting for flash to load -
- * we must keep it short!
+ * These variables are used by the ISR routines,
+ * and so they must be available - static, and in
+ * PSRAM (RAM?) memory. Since the memoryy is a 
+ * precious resource, these are NOT part of the 
+ * class, so they can be stored separatly.
+ * 
+ * This needs to be an array, because there are two QuadDecoder
+ * instances which must be kept separate!
+ * 
  */
 typedef struct
 {
     QuadDecoder::QUAD_STATE_t last_state;   // state of the decoder (set by ISR)
-    pulse_t position;    // Current position (pulses). ISR increments this...
-    double speed;        // how fast am I going?
-    dist_t prev_position;               // The previous position (for determining speed)
+    pulse_t position;    // change in Current position since last speed check.  (ISR increments this...)
+    dist_t  speed;        // how fast am I going?
+    dist_t  absPosition; // my absolute position
+    
     time_t  last_update_time;           // The last time we updated the speed
 } Quad_t;
 
-
 static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - should be in DRAM )
+
 // For the quad array, what is the next available position?
-static std::atomic_uint8_t nextQuadId;
+static std::atomic_uint8_t nextQuadId=0;
 
 
-// - - - - - - - - INITIALIZE - - - - - - - - - - - - - --
-QuadDecoder::QuadDecoder()
-{        
+
+QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, InName)
+{
+    reportEnableFlag = false;
     return;
 }
+
 
 // Never happens on the ESP32
 QuadDecoder::~QuadDecoder()
@@ -61,7 +68,7 @@ QuadDecoder::~QuadDecoder()
  * @brief Set parameters for this Quad decoder
  * 
  */
-void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
+void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
 {
     //  Sanity checks
     int quadIdx = nextQuadId++;
@@ -70,8 +77,8 @@ void QuadDecoder::setupQuad(gpio_num_t _quad_pin_a, gpio_num_t _quad_pin_b)
         Serial.println("*** ERROR! TOO MANY QUADS - quadIdx not assigned!");
         return;
     }
-    quad_pin_a = _quad_pin_a;
-    quad_pin_b = _quad_pin_b;
+    quad_pin_a =  cfg->dir_pin_a;
+    quad_pin_b =  cfg->dir_pin_b;
 
     calibrate(QUAD_PULSES_PER_REV, WHEEL_DIAM_MM);
     quads[quadIdx].last_state = QuadInitState;
@@ -103,19 +110,21 @@ esp_timer_create_args_t speed_timer_args =
     .dispatch_method=ESP_TIMER_TASK,  //!< Dispatch callback from task or ISR; if not specified, esp_timer task
     //                                !< is used; for ISR to work, also set Kconfig option
     //                                !< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
-    .name="SpeedTimer", //!< Timer name, used in esp_timer_dump() function
-    .skip_unhandled_events = true    //!< Setting to skip unhandled events in light sleep for periodic timers
+    .name="SpeedTimer",               //!< Timer name, used in esp_timer_dump() function
+    .skip_unhandled_events = true     //!< Setting to skip unhandled events in light sleep for periodic timers
 };
 
 ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimer));
 setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
+resetPos();
 
 return;
 }
 
+
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
- * @brief ISR routine - update our position based on Encoder pulses
+ * @brief ISR routine - update our position when a pulse happens
  *
  * @param arg - points to the current instance of QuadDecoder
  * 
@@ -157,7 +166,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
         {
             qptr->position++;
             qptr->last_state = newState;
-         } else if (newState == AonBoff);
+         } else if (newState == AonBoff)
          {
             qptr->position--;
             qptr->last_state = newState;
@@ -195,10 +204,11 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 /**
  * @brief Re-calculate the speed
  * 
- *    Driven from speed_timer as an ISR (not 
- * task dispatch?), this determines our speed,
- * based on the change in position since the 
- * last call, and the time period since that call.
+ *    Driven from speed_timer (as a task dispatch?),
+ * this determines our speed, based on the change in 
+ * position since the last call and the time period
+ * since that call.
+ * 
  * The resulting speed is in 'pulses' (not scaled
  * to physical units)
  * 
@@ -209,45 +219,179 @@ void QuadDecoder::update_speed_ISR(void *arg)
 {
     QuadDecoder *me=(QuadDecoder *)arg;
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
-    qptr->speed = (qptr->prev_position - qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
+    qptr->speed = (qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
     qptr->last_update_time = esp_timer_get_time();
-    qptr->prev_position = qptr->position;
+    qptr->position = 0;
     return;
 }
 
 
-// - - - - - - - - - - - - - - - - - - - - - --
 /**
+ * @brief Run this periodically...
  * 
- *
- * (20000 uSecs = 20 msecs)
+ * Output the current position and speed for this motor
  */
-#ifdef NOTTHEDROIDSYOUARELOOKINGFOR
-void QuadDecoder::quadLoop()
+ProcessStatus QuadDecoder::DoPeriodic()
 {
-    // Nothing to do..
-    return;
-}
-#endif 
+    if (! reportEnableFlag) return(FAIL_NODATA);  // no reports
 
+    Quad_t *qptr = &(quads[quadIdx]); // Point to my quad entry
+    noInterrupts();
+    dist_t pos= qptr->absPosition;
+    dist_t spd=qptr->speed;
+    interrupts();
+
+    sprintf(DataPacket.value, "QUAD,%f, %ld", qptr->speed, qptr->position);
+    DataPacket.timestamp = millis();
+    return (SUCCESS_DATA);
+}
+
+
+/**
+ * @brief Decode commands for the QUAD decoder
+ * 
+ * Commands:
+ *      QSET- set <wheel diameter> and <number of pulses per rotation>
+ *  QSTA <ON..OFF>     enable/disable report
+ * @return ProcessStatus 
+ */
+ProcessStatus QuadDecoder::ExecuteCommand()
+{
+    ProcessStatus retVal = SUCCESS_DATA;
+    dist_t wheelDia;
+    uint32_t pulseCnt;
+    retVal = Device::ExecuteCommand();
+    if (retVal != NOT_HANDLED )  return(retVal);
+
+    scanParam();
+    if (isCommand("QSET")) 
+    {   // set wheel dia and pulses. 
+        retVal = cmdQSET();
+    }
+    else if (isCommand("QRPT"))
+    {   // enable reporting position
+        retVal = cmdQRPT();
+    } else if (isCommand("QRST"))
+    {
+        resetPos();
+        retVal = SUCCESS_NODATA;
+    } else if (isCommand("QSCK"))
+    {
+        retVal = cmdSetSpeedCheckInterval();        
+    }
+
+    return (retVal);
+}
+
+
+/**
+ * @brief Decode the command to Set the Wheel diameter and pulses per rev
+ *    format:   QSET|<wheelDia>|<PulsePerRev>   -set these params
+ *    format:   QSET                            -- just report params
+ * 
+ * @return - we always return the current parameters
+ */
+ProcessStatus QuadDecoder::cmdQSET()
+{
+    ProcessStatus res=SUCCESS_NODATA;
+
+    if (argCount == 2)
+    {
+        double wheel;
+        uint32_t pulses;
+        if (0 != getDouble(0, &wheel, "Wheel Diameter: "))
+        {
+            res = FAIL_DATA;
+
+        } else if (0 != getUint32(1, &pulses, "Pulse Count: "))
+        {
+
+            res = FAIL_DATA;
+        }
+        else
+        {
+            setQuadParams(wheel, pulses);
+            res = SUCCESS_NODATA;
+        }
+        
+    } else if (argCount != 0)  {
+        sprintf(DataPacket.value, "ERRR| wrong number of arguments");
+        res = FAIL_DATA;
+    }
+
+    if (res == SUCCESS_NODATA)
+    {
+        // Show the current parameters
+        sprintf(DataPacket.value, "QPARM|%f|%d", getPosition(), pulsesPerRev / 4);
+        res = SUCCESS_DATA;
+    }
+
+    defDevSendData( 0L,false);
+    return (res);
+}
+
+
+/**
+ * @brief Set the actual wheel diameter and number of pulses
+ * 
+ * @param wheel 
+ * @param pulses 
+ */
+void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
+{
+    wheelDiameter = wheel * 4;
+    pulsesPerRev = pulses;
+    convertPulsesToDist = ((M_PI * wheelDiameter) / pulsesPerRev);
+}
+
+/**
+ * @brief decode and implement command to Enable/disable report
+ *   Format:   QRPT|on  (turn on reports)
+ *             QRPT|off   (turn off reports)
+ * @return ProcessStatus
+ */
+ProcessStatus QuadDecoder::cmdQRPT()
+{
+    ProcessStatus resVal=SUCCESS_NODATA;
+    scanParam();
+    if (argCount==1)
+    {   // Set the 
+        if (0==strcasecmp(arglist[0], "YES"))
+            reportEnableFlag=true;
+        else if (0==strcasecmp(arglist[0], "NO"))
+            reportEnableFlag=false;
+        else
+        {
+            sprintf(DataPacket.value, "ERROR in QRPT command: DataPacket.value must be YES or NO");
+            resVal=FAIL_DATA;
+        }
+        
+
+    if (resVal != FAIL_DATA)
+    {
+        sprintf(DataPacket.value, "Reporting is %s", (reportEnableFlag)? "YES":"NO");
+    }
+    defDevSendData(0, false);
+    return (SUCCESS_DATA);
+}
 
 // - - - - - - - - - - - - - - - - - --
 /**
  * @brief Get the current Position
  *     Position is in terms of 'ticks' of the quad encoder
  * we convert it here into the units of choice
- * 
- * @return double current position
+ *
+ * @return current position
  */
 dist_t QuadDecoder::getPosition()
 {
-    noInterrupts();  // thread safe - get position
-    dist_t position= quads[quadIdx].position;
+    double result;
+    noInterrupts(); // thread safe - get position
+    dist_t position = quads[quadIdx].position;
     interrupts();
-    
-    return( position * convertPulsesToDist);
+    result = position * convertPulsesToDist;
+    return (result);
 }
-
 
 // - - - - - - - - - - - - - - - - - - - - - -
 // Reset the position (and quad decoder logic)
@@ -257,21 +401,21 @@ dist_t QuadDecoder::getPosition()
 void QuadDecoder::resetPos()
 {
     noInterrupts();
-    
+
     quads[quadIdx].last_state = QuadInitState;
-    quads[quadIdx].position  =0;
-    quads[quadIdx].prev_position = 0;
+    quads[quadIdx].position = 0;
+    quads[quadIdx].absPosition = 0;
     quads[quadIdx].last_update_time = esp_timer_get_time();
+    quads[quadIdx].speed = 0;
 
-    interrupts();
-    setSpeedCheckInterval(speedCheckIntervaluSec*1000); 
-
+        interrupts();
+    setSpeedCheckInterval(speedCheckIntervaluSec * 1000);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
  * @brief Get the average speed since last call.
- *   
+ *
  * @return int32_t - The Speed,  in millimeters per msecond.
  */
 int32_t QuadDecoder::getSpeed()
@@ -279,26 +423,50 @@ int32_t QuadDecoder::getSpeed()
     noInterrupts();
     double curSpeed = quads[quadIdx].speed;
     interrupts();
-    curSpeed = curSpeed * (wheelDiameter/ pulsesPerRev);
-    return(curSpeed);
+    curSpeed = curSpeed * (wheelDiameter / pulsesPerRev);
+    return (curSpeed);
 }
-
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
- * @brief How often do we update the current speed?
+ * @brief Decode the command to Get/Set the speed check interval
  * 
+ * @return ProcessStatus 
+ */
+ProcessStatus QuadDecoder::cmdSetSpeedCheckInterval()
+{
+    ProcessStatus retVal = SUCCESS_NODATA;
+
+    time_t interv;
+    if (argCount==1)
+    {
+         if (0 != getLLint(0, &interv, "Error in speed check interval ") )
+            retVal=FAIL_DATA;
+
+    } if (argCount!=0)
+    {
+        sprintf(DataPacket.value, "ERR: Wrong number of arguments");
+        retVal = FAIL_DATA;
+    }
+
+    if (retVal == SUCCESS_NODATA)
+        defDevSendData(0, false);
+    return(retVal);
+}
+// - - - - - - - - - - - - - - - - - - - - - --
+/**
+ * @brief How often do we update the current speed?
+ *
  * @param rate - The minimum time interval between speed checks(millisecs)
  */
 void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
 {
     // Note:  The internal clock is in microseconds
-    speedCheckIntervaluSec=rateMsec*1000;
+    speedCheckIntervaluSec = rateMsec * 1000;
     // Stop the timer, restart with new period
     esp_timer_stop(spdUpdateTimer);
     ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimer, speedCheckIntervaluSec));
 }
-
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
@@ -307,24 +475,23 @@ void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
  * @param diameter     - What is the diameter of the wheel (millimeters).
  */
-void QuadDecoder::calibrate (pulse_t tickPerRev, dist_t diameter)
+void QuadDecoder::calibrate(pulse_t tickPerRev, dist_t diameter)
 {
-    pulsesPerRev = tickPerRev*4; // QUAD encoder - 4 states per pulse cycle
+    pulsesPerRev = tickPerRev * 4; // QUAD encoder - 4 states per pulse cycle
     wheelDiameter = diameter;
-    convertPulsesToDist =   (wheelDiameter*M_PI) / (pulsesPerRev);
+    convertPulsesToDist = (wheelDiameter * M_PI) / (pulsesPerRev);
 }
-
 
 /**
  * @brief Get the current configuration
- *     We store the requested values in the memory pointed to 
- * by each of tthe arguments. 
- * 
+ *     We store the requested values in the memory pointed to
+ * by each of tthe arguments.
+ *
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
  * @param diameter     - What is the diameter of the wheel (millimeters).
  */
 void QuadDecoder::getCalibration(pulse_t *tickPerRev, dist_t *diameter)
 {
-    *tickPerRev = pulsesPerRev/4;
-    *diameter =  wheelDiameter;
+    *tickPerRev = pulsesPerRev / 4;
+    *diameter = wheelDiameter;
 }

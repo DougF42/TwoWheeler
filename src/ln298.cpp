@@ -13,7 +13,7 @@
 #include "esp_check.h"
 #include "driver/gpio.h"
 
-volatile bool LN298::timer_is_inited=0;
+volatile uint8_t LN298::timer_is_inited=0;
 
 // Timer - samefor all channels. 
 #define LEDC_TIMER              LEDC_TIMER_0
@@ -22,14 +22,16 @@ volatile bool LN298::timer_is_inited=0;
 #define LEDC_DUTY               (4096) // Set duty to 50%. (2 ** 13) * 50% = 4096
 #define LEDC_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
-LN298::LN298()
+LN298::LN298(Node *_node, const char * Name) : DefDevice(_node, Name)
 {
-
+    lastPcnt = 0;
+    motorStatus=MOTOR_DIS;
+    return;
 }
 
 LN298::~LN298()
 {
-    
+    return;
 }
 
 /**
@@ -41,12 +43,13 @@ LN298::~LN298()
  * 
  * @param chnlNo - the LEDC channel number to use.
  */
-void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b)
+// void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b)
+void LN298::setupLN298(MotorControl_config_t *cfg)
 {
-    led_channel = chnlNo;
-    ena_pin   = _ena_pin;
-    dir_pin_a = _dir_pin_a;
-    dir_pin_b = _dir_pin_b;
+    led_channel = cfg->chnlNo;
+    ena_pin   = cfg->ena_pin;
+    dir_pin_a = cfg->dir_pin_a;
+    dir_pin_b = cfg->dir_pin_b;
 
     gpio_config_t  pinOutputscfg=
     {
@@ -63,9 +66,11 @@ void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _d
     gpio_set_level( ena_pin,   0);
     gpio_set_level( dir_pin_a, 0);
     gpio_set_level( dir_pin_b, 0);
+    motorStatus = MOTOR_DIS;
 
-    // initialize timer - timer is common to all channels - only do one time
-    if (!timer_is_inited)
+    // initialize PWM timer - timer is common to all channels - only do one time
+    timer_is_inited=timer_is_inited+1;
+    if (timer_is_inited == 1)
     {  
         timer_is_inited = true;
         ledc_timer_config_t ledc_timer = {
@@ -77,7 +82,7 @@ void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _d
         ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
     }
 
-    // INITIALIZE the LEDC Channel -
+    // INITIALIZE the LEDC Channelfor this motor
     // channel number is the same as the index of the MotorTable.
     ledc_channel_config_t  chnl_config=
     {
@@ -94,6 +99,40 @@ void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _d
     ESP_ERROR_CHECK(ledc_channel_config( &chnl_config));
 }
 
+/**
+ * @brief Handle commands:
+ *  (1) SPWM | <percnt>
+ *  (2) ENAB 
+ *  (3) DISA
+ * 
+ * @return ProcessStatus 
+ */
+ ProcessStatus  LN298::ExecuteCommand ()
+ {
+    ProcessStatus retVal=SUCCESS_NODATA;
+    retVal = Device::ExecuteCommand();
+    if (retVal != NOT_HANDLED )  return(retVal);
+    
+    long int val=0;
+    scanParam();
+    if (isCommand("DISA"))
+    {   // disable motor driver
+        disable();
+        retVal=SUCCESS_NODATA;
+
+    } else if (isCommand("MPWM"))
+    {   // set pulse width (autmatically enables driver)
+        getInt32(0, &val, "Error: Pulse width from 0 to +/- 100");
+        if ( (val<100) && (val >100)) 
+        {
+            sprintf(DataPacket.value, "ERROR: Value must be 0 +/- 100");
+            retVal=FAIL_DATA;
+        }
+        setPulseWidth( (int)val);        
+    }
+
+    return(retVal);
+ }
 
 /**
  * @brief Set the pulse width
@@ -106,19 +145,19 @@ void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _d
  */
 void LN298::setPulseWidth(int pcnt)
 {
-    setDirection(pcnt);
+
     uint32_t duty;
     Serial.printf("setPulseWidth Channel %d Arg=%d  ",(int)led_channel,  pcnt);
-    duty = map( abs(pcnt), 0, 100, 0, (1ul<<LEDC_DUTY_RES));
-    Serial.printf(" MAP returns %d\r\n", duty);
+    setDirection(pcnt);
     ESP_ERROR_CHECK( ledc_set_duty(LEDC_MODE, led_channel, duty) );
     ledc_update_duty(LEDC_MODE, led_channel);
+    lastPcnt = duty;
 }; // Set the pulse width (0..100)
 
 
 /**
- * @brief INTERNAL:  Set the direction based on the sign of the argument.
- *    NOTE: Zero is treated as 'forward'
+ * @brief INTERNAL:  Set the direction based on the sign of the pcnt argument.
+ *    NOTE: Zero is treated as 'forward'. This has the affect of enabling the driver
  * @param pcnt - positive for forward, negative for reverse.
  */
 void LN298::setDirection(int pcnt)
@@ -128,65 +167,21 @@ void LN298::setDirection(int pcnt)
             Serial.printf("Set Motor %d direction FORWARD\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, true);
         gpio_set_level(dir_pin_b,false);
+        motorStatus = MOTOR_FWD;
     } else { // reverse
         Serial.printf("Set Motor %d direction REVERSE\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, false);
         gpio_set_level(dir_pin_b,true);
+        motorStatus = MOTOR_REV;
     }
 }
 
-
-/**
- * @brief Configure the motor to drift
- *    The pulse width is 0 (not driving anything)
- *    and ena_a and ena_b are LOW (off).
- */
-void LN298::drift()
+void LN298::disable()
 {
-    // configure DIR pins
-    gpio_set_level(dir_pin_a, false);
-    gpio_set_level(dir_pin_b,false);
-
     setPulseWidth(0);
+    gpio_set_level(dir_pin_a, false);
+    gpio_set_level(dir_pin_b, false);
+    gpio_set_level(ena_pin, false);
+    motorStatus=MOTOR_DIS;
 }
 
-
-/**
- * @brief Stop the motor
- *  This drives the motor to 'stop'. 
- * This is done by setting the pulse width to
- * 10% (very little drive), and the direction pins both high.
- * 
- * Stop rate: range 10..50 (10 to 50 %) indicating how hard to
- * try and stop).
- */
-void LN298::stop(int stopRate)
-{
-    uint32_t pw=stopRate;
-    if (stopRate<0) pw=10;
-    if (stopRate>50) pw=50;
-
-    setPulseWidth(pw);
-    gpio_set_level(dir_pin_a, true);
-    gpio_set_level(dir_pin_b, true);
-
-} // stop this motor.
-
-
-/**
- * @brief Stop the motor
- *  This drives the motor to 'stop'. 
- * This is done by setting the pulse width to
- * 60%, and the direction pins both high.
- * 
- * NOTE: This leaves the idle power to the motors 
- * high (60%). User should call 'stop' with
- * a lower rate after motion has stopped.
- */
-void LN298::hardStop()
-{
-    setPulseWidth(60);
-    gpio_set_level(dir_pin_a, true);
-    gpio_set_level(dir_pin_b, true);
-
-} // stop this motor.

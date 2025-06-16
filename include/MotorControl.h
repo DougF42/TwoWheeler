@@ -21,67 +21,39 @@
  * TODO: Should we vary the K-factors depending on current power level?
  */
 #pragma once
+#include "DefDevice.h"
 #include "PID_v1.h"
 #include "ln298.h"
 #include "QuadDecoder.h"
 #include "driver/ledc.h"
 
-// If this is defiend, we use the PID module
-// to control the actual power. 
-// If NOT defined, the input (+/- 2048) is mapped 
-// directly to the output directly.
-// (NOTE: All the PID code is still created, it just
-// isn't called i nthe loop if this is not defined)
-
 // #define USE_PID
 
-// - - - - - - - - - - - - - - - - - - - - - - - - -
-/**
- * @brief This class is used to configure the setup of the motor.
- * 
- */
-typedef struct {
-    ledc_channel_t  chnlNo;  // e.g. LEDC_CHANNEL_0
-    gpio_num_t ena_pin;      // e.g. pin_num_NC
-    gpio_num_t dir_pin_a;    // e.g. pin_num_NC
-    gpio_num_t dir_pin_b;    // e.g. pin_num_NC
-    gpio_num_t quad_pin_a;   // e.g. pin_num_NC
-    gpio_num_t quad_pin_b;   // e.g. pin_num_NC
-    unsigned long loop_rate; // millisecoonds between speed updates
-    double kp;
-    double ki;
-    double kd;
-} MotorControl_config_t;
+
 
 // - - - - - - - - - - - - - - - - - - - - - - - - -
-class MotorControl: public LN298, public QuadDecoder
+// This class links the LN298 driver, the QUAD position decoder,
+//    and the PID motor adjustment/feedback
+//    for one motor.
+// - - - - - - - - - - - - - - - - - - - - - - - - - -
+class MotorControl: public DefDevice
 {
     private:
         // These are used by PID
-        double input_val;
-        double output_val;
-        double setpoint;
+        double input_val;   // the actual speed (mm/sec)
+        double output_val;  // PWM percentage to set the motor(0..100)
+        double setpoint;    // The target string (mm/sec)
 
-        //
-        time_t loopRate; // how long between checks (msec)?
-        time_t lastLoopTime;
-        PID   *pidctlr;     // We dont inherit because PID requires too many initialization parameters
+        QuadDecoder *quadDecoder; // The quadrature decoder class instance
+        LN298  *ln298;     // The ln298 instance
+        PID   *pidctlr;    // The PID controler instance
 
     public:
-        MotorControl();
+        MotorControl( Node *_node, const char * Name);
         ~MotorControl();
-        void setup(const MotorControl_config_t &configuration);
-        void setLoopRate(time_t millsecs); // How long between each Speed check, PID update and power adjustment
-        void loop();
-        
-        // Main configuration...
-        void setQUADcalibration(pulse_t pulsesPerRev, dist_t diameter); 
-        void getQUADcalibration(pulse_t *pulsesPerRev, dist_t *diameter);
-    
-
-        // PID Tunning
-        void setPIDTuning(double kp, double ki, double kd);
-        void getPIDTuning(double *kp, double *ki, double *kd);
+        void setup(MotorControl_config_t *cfg, const char *prefix);
+        ProcessStatus  DoPeriodic() override;
+        ProcessStatus  ExecuteCommand() override;
 
         // Operations - make it go
         void setSpeed(dist_t ratemm_sec);
