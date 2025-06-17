@@ -20,18 +20,28 @@ class PidDevice : public DefDevice
     private:
         PID *pid;
         char *name;
+
         double input;
         double output;
         double setPoint;
+
         double kp;
         double ki;
         double kd;
+        bool enableReportFlag;
 
     public:
         PidDevice(Node *_node, const char * _name, MotorControl_config_t *cfg);
         ~PidDevice();
-        void setPID(); 
 
         ProcessStatus  DoPeriodic     () override; 
+        ProcessStatus  DoImmediate    () override;
         ProcessStatus  ExecuteCommand () override;
+
+        ProcessStatus cmdSetPid();
+        ProcessStatus cmdSetMode();
+        ProcessStatus cmdSetSTime();
+        ProcessStatus cmdSetRept();
+
+
 };
