@@ -14,7 +14,7 @@
 
 MotorControl::MotorControl( Node *_node, const char * InName) : DefDevice(_node, InName)
 {
-    pidctlr = nullptr;
+    piddev = nullptr;
  }
 
 
@@ -50,7 +50,10 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     // Create and add the pid controler
     // Set up new PID. THIS IS NOT (currently) A DEVICE!
     //  Input, Output Setpoint, Kp, Ki, Kd, P_ON_E Flag,   controlerDirection
-    pidctlr = new PID(&input_val, &output_val, &setpoint, cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);
+    sprintf(name, "%s%s", prefix,"PID");
+    piddev = new PidDevice(myNode, name, cfg);
+    myNode->AddDevice(piddev);
+
  
 }
 
@@ -61,11 +64,32 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
     return(res);
 }
 
-
+/**
+ * @brief Handle Device commands
+ *  MSPD <speed> - set motor speed  +/- 2048
+ *  REPT <Y|N>   - enable periodic reports
+ * @return ProcessStatus 
+ */
  ProcessStatus  MotorControl::ExecuteCommand()
  {
-    // TODO:
-    return(FAIL_NODATA);
+    ProcessStatus retVal = SUCCESS_DATA;
+    retVal = Device::ExecuteCommand();
+    if (retVal != NOT_HANDLED)
+        return (retVal);
+
+    if (isCommand("MSPD"))
+    { // Set motor speed
+        // TODO:
+        retVal = SUCCESS_DATA;
+    } else if (isCommand("REPT"))
+    { // Enable/disable report
+        // TODO:
+        retVal=SUCCESS_DATA;
+    } else {
+        // Unrecognized command
+        retVal=NOT_HANDLED;
+    }
+    return(retVal);
  }
 
 /**

@@ -33,14 +33,17 @@ class LN298 : public DefDevice
         gpio_num_t dir_pin_a;
         gpio_num_t dir_pin_b;
         void setDirection(int pcnt);   // use the sign of pcnt to set direction
-        enum  MotorStatus {MOTOR_DIS, MOTOR_FWD, MOTOR_REV, MOTOR_STOP} motorStatus;
+        enum  MotorStatus {MOTOR_DIS, MOTOR_IDLE, MOTOR_FWD, MOTOR_REV, MOTOR_STOP} motorStatus;
         int lastPcnt;
+        bool enableReport; // Periodicallyy send current percentage and enable state
         
     public:
         LN298( Node *_node, const char * Name);
         void setupLN298(MotorControl_config_t *cfg);
         ~LN298();
-        ProcessStatus  ExecuteCommand ();
+        ProcessStatus  ExecuteCommand () override;
+        ProcessStatus  DoPeriodic()  override;
+        void setReportStatus(bool enaFlag);
         void setPulseWidth(int pcnt); // Set the pulse width (0..100)
         void enable();
         void disable();

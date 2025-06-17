@@ -33,6 +33,7 @@ class DefDevice : public Device
         int   getUint32(int arg, uint32_t *result, const char *msg);
         int   getInt32(int arg,  int32_t *result, const char *msg);
         int   getDouble(int arg, double *result, const char *msg);
+        int   getBool(int arg, bool *result, const char *msg);
         bool  isCommand(const char *cmd);
 
     public:

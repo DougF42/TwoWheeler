@@ -352,7 +352,7 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
  */
 ProcessStatus QuadDecoder::cmdQRPT()
 {
-    ProcessStatus resVal=SUCCESS_NODATA;
+    ProcessStatus retVal=SUCCESS_NODATA;
     scanParam();
     if (argCount==1)
     {   // Set the 
@@ -363,16 +363,16 @@ ProcessStatus QuadDecoder::cmdQRPT()
         else
         {
             sprintf(DataPacket.value, "ERROR in QRPT command: DataPacket.value must be YES or NO");
-            resVal=FAIL_DATA;
+            retVal=FAIL_DATA;
         }
-        
+    }
 
-    if (resVal != FAIL_DATA)
+    if (retVal != FAIL_DATA)
     {
         sprintf(DataPacket.value, "Reporting is %s", (reportEnableFlag)? "YES":"NO");
     }
     defDevSendData(0, false);
-    return (SUCCESS_DATA);
+    return (retVal);
 }
 
 // - - - - - - - - - - - - - - - - - --

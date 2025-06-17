@@ -26,6 +26,7 @@ LN298::LN298(Node *_node, const char * Name) : DefDevice(_node, Name)
 {
     lastPcnt = 0;
     motorStatus=MOTOR_DIS;
+    enableReport=false;
     return;
 }
 
@@ -107,31 +108,83 @@ void LN298::setupLN298(MotorControl_config_t *cfg)
  * 
  * @return ProcessStatus 
  */
- ProcessStatus  LN298::ExecuteCommand ()
- {
-    ProcessStatus retVal=SUCCESS_NODATA;
+ProcessStatus LN298::ExecuteCommand()
+{
+    ProcessStatus retVal = SUCCESS_NODATA;
     retVal = Device::ExecuteCommand();
-    if (retVal != NOT_HANDLED )  return(retVal);
-    
-    long int val=0;
-    scanParam();
-    if (isCommand("DISA"))
-    {   // disable motor driver
-        disable();
-        retVal=SUCCESS_NODATA;
+    if (retVal != NOT_HANDLED)
+        return (retVal);
 
-    } else if (isCommand("MPWM"))
-    {   // set pulse width (autmatically enables driver)
+    long int val = 0;
+    scanParam();
+
+    if (isCommand("SPWM"))
+    { // set pulse width (autmatically enables driver)
         getInt32(0, &val, "Error: Pulse width from 0 to +/- 100");
-        if ( (val<100) && (val >100)) 
+        if ((val < 100) && (val > 100))
         {
             sprintf(DataPacket.value, "ERROR: Value must be 0 +/- 100");
-            retVal=FAIL_DATA;
+            retVal = FAIL_DATA;
         }
-        setPulseWidth( (int)val);        
+        setPulseWidth((int)val);
     }
+    else if (isCommand("ENAB"))
+    { // Enable
+    }
+    else if (isCommand("DISA"))
+    { // Disable
+    } else if (isCommand("REPT"))
+    {  // report enable/disable
+        if ((arglist[0][0] == 'Y') || (arglist[0][0] == 'y'))
+        {
+            setReportStatus(true);
+            retVal = SUCCESS_NODATA;
+        }
+        else if ((arglist[0][0] == 'N') || (arglist[0][0] == 'n'))
+        {
+            setReportStatus(false);
+            retVal = SUCCESS_NODATA;
+        }
+        else
+        {
+            sprintf(DataPacket.value, "ERROR: Invalid argument");
+            retVal = FAIL_DATA;
+        }
 
-    return(retVal);
+        if (retVal == SUCCESS_NODATA)
+        {
+            sprintf(DataPacket.value,"OK");
+            retVal = SUCCESS_DATA;
+        }
+    }
+    return (retVal);
+}
+
+/**
+ * @brief Periodic event - report status
+ * 
+ * @return ProcessStatus 
+ */
+ ProcessStatus LN298::DoPeriodic()
+ {
+     if (motorStatus == MOTOR_DIS)
+     {
+        sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, "DIS", lastPcnt);
+     } else {
+        sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, "ENA", lastPcnt);
+     }
+         return (SUCCESS_DATA);
+ }
+
+ /**
+  * @brief Enable or disable reporting
+  * 
+  * @param enaFlag 
+  */
+ void LN298::setReportStatus(bool enaFlag)
+ {
+    enableReport = enaFlag;
+    return;
  }
 
 /**
@@ -145,7 +198,7 @@ void LN298::setupLN298(MotorControl_config_t *cfg)
  */
 void LN298::setPulseWidth(int pcnt)
 {
-
+    if (motorStatus == MOTOR_DIS) return;
     uint32_t duty;
     Serial.printf("setPulseWidth Channel %d Arg=%d  ",(int)led_channel,  pcnt);
     setDirection(pcnt);
@@ -162,9 +215,10 @@ void LN298::setPulseWidth(int pcnt)
  */
 void LN298::setDirection(int pcnt)
 {
+    if (motorStatus == MOTOR_DIS) return;
     if (pcnt>=0)
     {  // forward
-            Serial.printf("Set Motor %d direction FORWARD\r\n", (int)led_channel);
+        Serial.printf("Set Motor %d direction FORWARD\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, true);
         gpio_set_level(dir_pin_b,false);
         motorStatus = MOTOR_FWD;
@@ -176,6 +230,10 @@ void LN298::setDirection(int pcnt)
     }
 }
 
+/**
+ * @brief Disable the motor driver
+ * 
+ */
 void LN298::disable()
 {
     setPulseWidth(0);
@@ -183,5 +241,19 @@ void LN298::disable()
     gpio_set_level(dir_pin_b, false);
     gpio_set_level(ena_pin, false);
     motorStatus=MOTOR_DIS;
+    ledc_stop(LEDC_MODE, led_channel, 0 );
 }
 
+/**
+ * @brief Enable the motor driver
+ * 
+ */
+void LN298::enable()
+{
+    if (motorStatus != MOTOR_DIS) return;
+
+    gpio_set_level(ena_pin, true);
+    setPulseWidth( 0);
+    motorStatus = MOTOR_IDLE;
+    return;
+}

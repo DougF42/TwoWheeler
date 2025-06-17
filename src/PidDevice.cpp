@@ -10,10 +10,15 @@
  */
 #include "PidDevice.h"
 
-PidDevice::PidDevice(Node *_node, const char *_name) : DefDevice(_node, _name)
+PidDevice::PidDevice(Node *_node, const char *_name, MotorControl_config_t *cfg) : DefDevice(_node, _name)
 {
     pid = nullptr;
     name = strdup(_name);
+        //PID(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
+        // double, double, double, int, int);   //   Setpoint.  Initial tuning parameters are also set here.
+                                                //   (overload for specifying proportional mode)
+    pid = new PID(&input, &output, &setPoint,  // links the PID to the Input, Output, and setpoint
+        cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
 }
 
 

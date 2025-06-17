@@ -22,7 +22,7 @@
  */
 #pragma once
 #include "DefDevice.h"
-#include "PID_v1.h"
+#include "PidDevice.h"
 #include "ln298.h"
 #include "QuadDecoder.h"
 #include "driver/ledc.h"
@@ -45,8 +45,8 @@ class MotorControl: public DefDevice
         double setpoint;    // The target string (mm/sec)
 
         QuadDecoder *quadDecoder; // The quadrature decoder class instance
-        LN298  *ln298;     // The ln298 instance
-        PID   *pidctlr;    // The PID controler instance
+        LN298     *ln298;     // The ln298 instance
+        PidDevice *piddev;    // The PID controler instance
 
     public:
         MotorControl( Node *_node, const char * Name);

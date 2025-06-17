@@ -9,6 +9,7 @@
  * 
  */
 #pragma once
+#include "config.h"
 #include "DefDevice.h"
 #include "PID_v1.h"
 #include "esp_timer.h"
@@ -27,7 +28,7 @@ class PidDevice : public DefDevice
         double kd;
 
     public:
-        PidDevice(Node *_node, const char * _name);
+        PidDevice(Node *_node, const char * _name, MotorControl_config_t *cfg);
         ~PidDevice();
         void setPID(); 
 

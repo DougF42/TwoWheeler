@@ -93,10 +93,10 @@ int DefDevice::getLLint(int arg, long long *result, const char *msg)
  * If an error is detected, a diagnostic
  * is queued in DataPacket.value
  * 
- * @param arg   - the argument number
- * @param msg   - msg header for error messages
- * @param result - pointer to the resulting value
- * @return error code (0 normal)
+ * @param arg    - argument number (index of arglist)
+ * @param result - where to store the result 
+ * @param msg    - header for error messages
+ * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
  */
 int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
 {
@@ -124,10 +124,10 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
 /**
  * @brief Get a signed integer (32 bit)
  * 
- * @param arg 
- * @param result 
- * @param msg 
- * @return int 
+ * @param arg    - argument number (index of arglist)
+ * @param result - where to store the result 
+ * @param msg    - header for error messages
+ * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
  */
 int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
 {
@@ -155,10 +155,10 @@ int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
 /**
  * @brief Get a 'double' value
  * 
- * @param arg 
- * @param result 
- * @param msg 
- * @return int 
+ * @param arg    - argument number (index of arglist)
+ * @param result - where to store the result 
+ * @param msg    - header for error messages
+ * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
  */
 int DefDevice::getDouble(int arg, double *result, const char *msg)
 {
@@ -180,6 +180,41 @@ int DefDevice::getDouble(int arg, double *result, const char *msg)
     *result=tmpVal;
     return(0);
 }
+
+/**
+ * @brief Get the Bool value
+ *     values recognized - 0, 1, Y(es) N(o), T(rue), F(alse)
+ * 
+ * @param arg    - argument number (index of arglist)
+ * @param result - where to store the result 
+ * @param msg    - header for error messages
+ * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
+ */
+int DefDevice::getBool(int arg, bool *result, const char *msg)
+{
+    int retval=0;
+    if (arg>=argCount)
+    {
+        sprintf( DataPacket.value, "%s: %s %d", msg, "Missing argument %d");
+        defDevSendData(0, false);
+        retval=1;
+    }
+    char firstChar = toupper(arglist[arg][0]); // Just use 1st char
+    if ( (firstChar == '0') || (firstChar=='N') || (firstChar=='F') )
+    {
+        *result=false;
+
+    }  else if ( (firstChar == '1') || (firstChar=='Y') || (firstChar=='T') )
+    {
+        *result=true;
+
+    }  else 
+        sprintf(DataPacket.value, "%s:%s %s", msg, "Unknown boolean value for argument ", arg);
+        defDevSendData(0, false);
+        retval= 2;
+    return(retval);
+}
+
 
 /**
  * @brief Determine if we have a specific command
