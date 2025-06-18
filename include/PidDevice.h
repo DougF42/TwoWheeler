@@ -17,7 +17,7 @@
 
 class PidDevice : public DefDevice
 {
-    private:
+    public:
         PID *pid;
         char *name;
 
@@ -30,7 +30,7 @@ class PidDevice : public DefDevice
         double kd;
         bool enableReportFlag;
 
-    public:
+    
         PidDevice(Node *_node, const char * _name, MotorControl_config_t *cfg);
         ~PidDevice();
 

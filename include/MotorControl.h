@@ -27,10 +27,6 @@
 #include "QuadDecoder.h"
 #include "driver/ledc.h"
 
-// #define USE_PID
-
-
-
 // - - - - - - - - - - - - - - - - - - - - - - - - -
 // This class links the LN298 driver, the QUAD position decoder,
 //    and the PID motor adjustment/feedback
@@ -38,25 +34,30 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - -
 class MotorControl: public DefDevice
 {
-    private:
+    public:
         // These are used by PID
         double input_val;   // the actual speed (mm/sec)
         double output_val;  // PWM percentage to set the motor(0..100)
         double setpoint;    // The target string (mm/sec)
+        bool   enableReportFlag;
 
         QuadDecoder *quadDecoder; // The quadrature decoder class instance
         LN298     *ln298;     // The ln298 instance
         PidDevice *piddev;    // The PID controler instance
 
-    public:
+    
         MotorControl( Node *_node, const char * Name);
         ~MotorControl();
+
         void setup(MotorControl_config_t *cfg, const char *prefix);
         ProcessStatus  DoPeriodic() override;
         ProcessStatus  ExecuteCommand() override;
+        ProcessStatus cmdSetSpeed(int argCnt, char **argv);
+        ProcessStatus cmdRpt(int argCnt, char **argv);
 
         // Operations - make it go
         void setSpeed(dist_t ratemm_sec);
         void setDrift();
         void setStop(int stopRate);  // rate is 0..100%
+
 };

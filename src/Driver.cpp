@@ -98,26 +98,27 @@ ProcessStatus  Driver::ExecuteCommand ()
     if (status != NOT_HANDLED) return(status);
 
     status=FAIL_NODATA;
+    scanParam();
     char *cmdPtr = CommandPacket.command;
-    char *paramPtr = CommandPacket.params;    
-  //  Serial.printf("---- cmd is  '%s' \n", cmdPtr);
-  //  Serial.printf("      Param = %s\n", paramPtr);
 
-    if (strncmp(cmdPtr, "DMOV",4) == 0)
+    if (strncmp(cmdPtr, "MOVE",4) == 0)
     {  // Move  at a given speed and rate of rotation
-        status=cmdMOV(paramPtr);
+        status=cmdMOV(argCount, arglist);
         
     }  else if (strncmp(cmdPtr, "STOP",4) == 0)
     { // Stop all motion
-        status=cmdSTOP(paramPtr);
+        status=cmdSTOP(argCount ,arglist);
 
     } else if (strncmp(cmdPtr,"SPED",4) == 0)
     {  // Set speed
-        status = cmdSPEED(paramPtr);
+        status = cmdSPEED(argCount ,arglist);
 
     } else if (strncmp(cmdPtr,"ROTA",4 ) == 0)
     {  // Set rotation rate
-        status = cmdROTATION(paramPtr);
+        status = cmdROTATION(argCount ,arglist);
+    } else if (strncmp(cmdPtr, "DRFT", 4) == 0)
+    {
+        status = cmdDrift(argCount, arglist);
     }
     // Serial.print("STATUS:  "); Serial.println(status);
     return(status);
@@ -155,15 +156,13 @@ void Driver::setMotion(int speed, int rotation)
 
     if ((tmpSpeed != mySpeed) || (tmpRotate != myDirect))
     {
-        Serial.println("*** In SetMotion: Setting new motor speeds");
+        //Serial.println("*** In SetMotion: Setting new motor speeds");
         mySpeed = tmpSpeed;  // TODO: Convert +/-2048 to mm/second
         myDirect = tmpRotate;  // TODO: Convert +/-2048 to mm/second
         leftMtr  -> setSpeed(m1);
         rightMtr -> setSpeed(m2);
     }
-    // Report current speed and rotation rate
-    DataPacket.timestamp = millis();
-    sprintf(DataPacket.value, "*** In SetMotion: Speed|%d| dir|%d| m1|%f| M2|%f", mySpeed, myDirect, m1, m2);
+
 }
 
 /**
@@ -174,24 +173,25 @@ void Driver::setMotion(int speed, int rotation)
  *  If no turnRate, assume straight ahead
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdMOV(char *pParams)
+ProcessStatus Driver::cmdMOV(int argcnt, char *argv[])
 {
+    ProcessStatus retVal = SUCCESS_NODATA;
     int tmpval = 0;
     char *pSpd = nullptr;
     char *pRot = nullptr;
 
-
     Serial.println("See cmdMOV");
-    ProcessStatus result = SUCCESS_DATA;
-    pSpd = strtok(pParams, COMMAND_WHITE_SPACE); // 1st argument - speed
-    if (pSpd != nullptr)
-    {   // We have a speed...
+    ProcessStatus result = SUCCESS_NODATA;
+
+   if (argcnt==2)
+    {   // We have two args - speed and turnrate
         errno = 0;
-        tmpval = strtol(pSpd, nullptr, 10);
+        tmpval = strtol(argv[0], nullptr, 10);  // speed
         if (errno != 0)
         { // bad value (overflow/underflow)
             result = FAIL_DATA;
             sprintf(DataPacket.value, "speed parameter is not a valid value");
+            retVal = FAIL_DATA;
             goto endCmdMOV;
         }
         else
@@ -199,26 +199,29 @@ ProcessStatus Driver::cmdMOV(char *pParams)
             mySpeed = tmpval;
         }
 
-        char *pRot = strtok(nullptr,COMMAND_WHITE_SPACE); // 2nd argument is optional (direction)
-        if (pRot != nullptr)
-        { // if we have one, it must be valid...
-            errno = 0;
-            tmpval = strtol(pRot, nullptr, 10);
-            if (errno != 0)
-            {
-                result = FAIL_DATA;                
-                sprintf(DataPacket.value, "speed parameter is not a valid value");
-                goto endCmdMOV;
-            }
-            myDirect = tmpval;
 
-        }  else
-        { // No direction, must be straight ahead
-            myDirect = 0;
+        errno = 0;
+        tmpval = strtol(argv[1], nullptr, 10); // rotation rate
+        if (errno != 0)
+        {
+            result = FAIL_DATA;
+            sprintf(DataPacket.value, "speed parameter is not a valid value");
+            retVal = FAIL_DATA;
+            goto endCmdMOV;
+        }
+        else
+        {
+            myDirect = tmpval;
         }
     }
+
     // Using actual values, set the motors and report settings
     setMotion(mySpeed, myDirect);
+
+    // Report current speed and rotation rate
+    DataPacket.timestamp = millis();
+    sprintf(DataPacket.value, "*** In SetMotion: Speed|%d| dir|%d| m1|%f| M2|%f",
+             mySpeed, myDirect, leftMtr->GetRate(), rightMtr->GetRate());
 
 endCmdMOV:
     return (result);
@@ -232,11 +235,12 @@ endCmdMOV:
  *
  * @return ProcessStatus
  */
-ProcessStatus Driver::cmdSTOP(char *pParams)
+ProcessStatus Driver::cmdSTOP(int argcnt, char *argv[])
 {
-    // TODO:
-    Serial.println("See cmdSTOP - not implemented");
-    return (NOT_HANDLED);
+    ProcessStatus retVal = SUCCESS_NODATA;
+    Serial.println("See cmdSTOP");
+    setMotion(0,0);
+    return (retVal);
 }
 
 
@@ -244,26 +248,40 @@ ProcessStatus Driver::cmdSTOP(char *pParams)
  * @brief SMAC command handler - set speed
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdSPEED(char *pParams)
+ProcessStatus Driver::cmdSPEED(int argcnt, char *argv[])
 {
-    ProcessStatus result;
-    Serial.printf("*** IN cmdSPEED. Parameters string is '%s'\n", pParams);
-    char *pSpd;
-    int tmpval;
+    ProcessStatus retVal=SUCCESS_NODATA;   
     errno = 0;
-    tmpval = strtol(pParams, nullptr,10);
-    if (errno != 0)
-    { // bad value (overflow/underflow)
-        Serial.printf("ERROR: INVALID SPEED VALUE: %d", tmpval);
-        result = FAIL_DATA;
+    double tmpSpd;
+
+    if (argcnt == 1)
+    {
+        if (0 != getDouble(0, &tmpSpd, "Speed value:"))
+        {
+            retVal = FAIL_DATA;
+            goto cmdSPEEDend;
+        }
+        else
+        {
+            setMotion(tmpSpd, myDirect);
+        }
+    }
+    else if (argcnt != 0)
+    {
+        sprintf(DataPacket.value, "too many arguments");
+        retVal=FAIL_DATA;
         goto cmdSPEEDend;
-    } else {
-        setMotion(tmpval, myDirect);
-        result = SUCCESS_DATA;
+    }
+
+    if (retVal == SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value, "SPED|%f", mySpeed);
+        retVal = SUCCESS_DATA;
     }
 
 cmdSPEEDend:
-    return (result);
+    defDevSendData(0, false);
+    return (retVal);
 }
 
 /**
@@ -271,30 +289,58 @@ cmdSPEEDend:
  * 
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdROTATION(char *pParams)
+ProcessStatus Driver::cmdROTATION(int argcnt, char *argv[])
 {
-    ProcessStatus result = SUCCESS_DATA;
+    ProcessStatus retVal = SUCCESS_DATA;
 
     char *pRot;
-    int tmpval;
-    pRot = strtok(pParams, COMMAND_WHITE_SPACE); // 1st argument - speed
+    double tmpRot;
     errno = 0;
-    if (pRot != nullptr)
+
+    if (argcnt == 1)
     {
-        tmpval = strtol(pRot, nullptr, 10);
-        if (errno != 0)
-        { // bad value (overflow/underflow)
-            result = FAIL_DATA;
-            sprintf(DataPacket.value, "rotation rate parameter is not a valid value");
-            goto cmdSPEEDend;
-        }
-        else
+        if (0 != getDouble( 0, &tmpRot, "Rotation:"))
         {
-            setMotion(mySpeed, tmpval);
-            result=SUCCESS_DATA;
+            retVal - FAIL_DATA;
+            goto cmdROTATIONend;
+
+        } else {
+            setMotion(mySpeed, tmpRot);
+        }
+        if (errno != 0)
+        { //to many arguments
+            retVal = FAIL_DATA;
+            sprintf(DataPacket.value, "Too many arguments");
+            goto cmdROTATIONend;
         }
     }
 
-cmdSPEEDend:
-    return(result);
+    if (retVal==SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value,"ROTA|%d", myDirect);
+        retVal=SUCCESS_DATA;
+    }
+
+cmdROTATIONend:
+    defDevSendData(0,false);
+    return(retVal);
+}
+
+
+/**
+ * @brief disable PID and LN298 drivers
+ *   FORMAT:    DRFT   (no arguments)
+ * @param argcnt
+ * @param argv 
+ * @return ProcessStatus 
+ */
+ProcessStatus Driver::cmdDrift(int argcnt, char *argv[])
+{
+    ProcessStatus retVal = SUCCESS_NODATA;
+    // PID to manunal
+    leftMtr ->setDrift();
+    rightMtr->setDrift();
+    sprintf(DataPacket.value, "DRFT|OK");
+    retVal = SUCCESS_DATA;
+    return(retVal);
 }

@@ -15,6 +15,7 @@
 MotorControl::MotorControl( Node *_node, const char * InName) : DefDevice(_node, InName)
 {
     piddev = nullptr;
+    enableReportFlag=false;
  }
 
 
@@ -77,20 +78,58 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
     if (retVal != NOT_HANDLED)
         return (retVal);
 
+    scanParam();
     if (isCommand("MSPD"))
     { // Set motor speed
-        // TODO:
-        retVal = SUCCESS_DATA;
+        retVal=cmdSetSpeed(argCount, arglist);
+        
     } else if (isCommand("REPT"))
     { // Enable/disable report
-        // TODO:
-        retVal=SUCCESS_DATA;
+        retVal=cmdRpt(argCount, arglist);        
     } else {
         // Unrecognized command
         retVal=NOT_HANDLED;
     }
+    defDevSendData(0, false);
     return(retVal);
  }
+
+ ProcessStatus MotorControl::cmdSetSpeed(int argCnt, char **argv)
+ {
+    // TODO:
+    return(NOT_HANDLED);
+ }
+
+
+ ProcessStatus MotorControl::cmdRpt(int argCnt, char **argv)
+ {
+     ProcessStatus retVal = SUCCESS_NODATA;
+     bool tmpVal;
+     if (argCnt == 1)
+     {
+         if (0 != getBool(0, &tmpVal, "Boolean enable/disable flag: "))
+         {
+             retVal = FAIL_DATA;
+         } else {
+            enableReportFlag = tmpVal;
+         }
+     }
+     else if (argCnt != 0)
+     {
+         sprintf(DataPacket.value, "wrong number of arguments");
+         retVal = FAIL_DATA;
+     }
+ 
+
+    if (retVal == SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value, "REPT|%s", enableReportFlag);
+        retVal=SUCCESS_DATA;
+    }
+    defDevSendData(0, false);
+    return(retVal);
+ }
+
 
 /**
  * @brief loop - call periodically to send status info

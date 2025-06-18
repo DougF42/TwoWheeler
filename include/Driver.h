@@ -30,14 +30,17 @@ private:
     int nextMotorIdx;
     int mySpeed;
     int myDirect;
-    
-    // COMMAND SET: 
-    ProcessStatus cmdMOV(char *paramPtr);   // FWD  <speed> <dir> (if no dir, then straight ahead)
-    ProcessStatus cmdSTOP(char *paramPtr);  // Stop - setting stop rate.
-    ProcessStatus cmdSPEED(char *paramPtr); // Set speed (used by joystick)
-    ProcessStatus cmdROTATION(char *paramPtr);  // Set rotation rate (used by joystick)
+        
     MotorControl  *leftMtr;
     MotorControl  *rightMtr;
+    
+    // COMMAND SET: 
+    ProcessStatus cmdMOV(int argcnt, char *argv[]);   // FWD  <speed> <dir> (if no dir, then straight ahead)
+    ProcessStatus cmdSTOP(int argcnt, char *argv[]);  // Stop - setting stop rate.
+    ProcessStatus cmdSPEED(int argcnt, char *argv[]); // Set speed (used by joystick)
+    ProcessStatus cmdROTATION(int argcnt, char *argv[]);  // Set rotation rate (used by joystick)
+    ProcessStatus cmdDrift(int argcnt, char *argv[]);   // disable drivers
+
 
 public:
     Driver( Node *_node, const char * name);

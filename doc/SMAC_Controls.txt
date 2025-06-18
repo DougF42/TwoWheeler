@@ -47,6 +47,8 @@ SMAC commands handled by the DEVICE
 //  SRAT|<rate> Set Rate                     : Set the periodic process rate for this device in procs per hour
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+TWO WHEELER SPECIFIC COMMANDS
+- - - - - - - - - - - - - - - - - - - 
 Commands for the ln298 device
     MPWM     <pulseDidth>                     ; set the pulse width for this motor (0...+/- 100 pcnt)
     EABL     <bool>                           ; enable the Driver
@@ -67,7 +69,7 @@ Commands for the QUAD device
    REPT  <bool>                              ; enable status reports
 
 Commands for the Driver device:
-   MOVE   <speed>   <rotRate>                ; set for given speed/rotation rate
+   MOVE  <speed>   <rotRate>                ; set for given speed/rotation rate
    SPED <speed>     (from joystick)          ; set the speed (command from joystick - 0 +/- 2048)
    ROTA <rotRate>   (from joystick)          ; set the rotation rate (command from joystick - 0 +/-2048)
    STOP                                      ; stop all motion
