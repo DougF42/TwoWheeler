@@ -93,6 +93,7 @@ void setup()
   // Load the Relayer Module's MAC Address from non-volatile memory
   Serial.print("Loading Relayer MAC Address ...");
   MCUPreferences.begin("RelayerMAC", false);
+
   if (not MCUPreferences.isKey("RelayerMAC"))
   {
     // NOTHING IN Prefrences - use default
@@ -105,13 +106,15 @@ void setup()
     Serial.println(" From DEFAULT");
 
   }  else  {
+
     MCUPreferences.getBytes("RelayerMAC", RelayerMAC, sizeof(RelayerMAC));
     Serial.print("FROM FLASH");
   }
   MCUPreferences.end      ();
   Serial.printf(" Relayer addr: %02x:%02X:%02X:%02X:%02X:%02X\n\r", 
-    RelayerMAC[0],RelayerMAC[0], RelayerMAC[1],RelayerMAC[2],
-RelayerMAC[3], RelayerMAC[4], RelayerMAC[5]);
+    RelayerMAC[0],RelayerMAC[1], RelayerMAC[2],
+    RelayerMAC[3],RelayerMAC[4], RelayerMAC[5]);
+
 // Init Command buffer (a circular FIFO buffer)
   CommandBuffer = new RingBuffer (FIFO);
 
