@@ -91,12 +91,28 @@ void setup()
 
 
   // Load the Relayer Module's MAC Address from non-volatile memory
-  Serial.println ("Loading Relayer MAC Address ...");
-  MCUPreferences.begin    ("RelayerMAC", false);
-  MCUPreferences.getBytes ("RelayerMAC", RelayerMAC, sizeof(RelayerMAC));
-  MCUPreferences.end      ();
+  Serial.print("Loading Relayer MAC Address ...");
+  MCUPreferences.begin("RelayerMAC", false);
+  if (not MCUPreferences.isKey("RelayerMAC"))
+  {
+    // NOTHING IN Prefrences - use default
+    RelayerMAC[0] = 0xE4;
+    RelayerMAC[1] = 0x65;
+    RelayerMAC[2] = 0xb8;
+    RelayerMAC[3] = 0x58;
+    RelayerMAC[4] = 0x62;
+    RelayerMAC[5] = 0x78;
+    Serial.println(" From DEFAULT");
 
-  // Init Command buffer (a circular FIFO buffer)
+  }  else  {
+    MCUPreferences.getBytes("RelayerMAC", RelayerMAC, sizeof(RelayerMAC));
+    Serial.print("FROM FLASH");
+  }
+  MCUPreferences.end      ();
+  Serial.printf(" Relayer addr: %02x:%02X:%02X:%02X:%02X:%02X\n\r", 
+    RelayerMAC[0],RelayerMAC[0], RelayerMAC[1],RelayerMAC[2],
+RelayerMAC[3], RelayerMAC[4], RelayerMAC[5]);
+// Init Command buffer (a circular FIFO buffer)
   CommandBuffer = new RingBuffer (FIFO);
 
   Serial.println("Starting the Node ...");
