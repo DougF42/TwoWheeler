@@ -121,14 +121,20 @@ ProcessStatus LN298::ExecuteCommand()
     if (isCommand("SPWM"))
     { // set pulse width (autmatically enables driver)
         getInt32(0, &val, "Error: Pulse width from 0 to +/- 100");
-        if ((val < 100) && (val > 100))
+        if ((val < -100) || (val > 100))
         {
             sprintf(DataPacket.value, "ERROR: Value must be 0 +/- 100");
             retVal = FAIL_DATA;
         }
-        setPulseWidth((int)val);
-    }
-    else if (isCommand("ENAB"))
+        else
+        { if (!setPulseWidth((int)val))
+            {
+                sprintf(DataPacket.value, "ERROR: motor is not enabled");
+                retVal = FAIL_DATA;
+            }
+        }
+
+    } else if (isCommand("ENAB"))
     { // Enable
         enable();
     }
@@ -136,8 +142,7 @@ ProcessStatus LN298::ExecuteCommand()
     else if (isCommand("DISA"))
     { // Disable
         disable();
-      // TODO:
-    
+
     } else {
         sprintf(DataPacket.value, "ERROR: Invalid argument");
         retVal = FAIL_DATA;
@@ -145,10 +150,11 @@ ProcessStatus LN298::ExecuteCommand()
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK|%d|%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus=MOTOR_DIS)?"DIS":"ENA");
+        sprintf(DataPacket.value, "OK|%d|%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus = MOTOR_DIS) ? "DIS" : "ENA");
         retVal = SUCCESS_DATA;
     }
-     defDevSendData(0, false);
+
+    defDevSendData(0, false);
     return (retVal);
 }
 
@@ -171,23 +177,24 @@ ProcessStatus LN298::ExecuteCommand()
  *       percents for motor in reverse).
  * 
  * @param pcnt  percentage - 0 thru + or - 100
- * 
+ * @return true normally, false if the motorStatus is disabled
  */
-void LN298::setPulseWidth(int pcnt)
+bool LN298::setPulseWidth(int pcnt)
 {
-    // if (motorStatus == MOTOR_DIS) return;
+    if (motorStatus == MOTOR_DIS) 
+    {
+        return(false);
+    }
     uint32_t duty;
     if (pcnt >  100) pcnt =  100;
     if (pcnt < -100) pcnt = -100;
     duty = map(abs(pcnt), 0, 100, 0, ((1<<LEDC_DUTY_RES)-1) );
     lastPcnt= pcnt;
-    // Serial.printf("setPulseWidth Channel %d Pcnt=%d Duty=%d",(int)led_channel,  pcnt, duty);
-    Serial.print("setPUlseWidth: Channel="); Serial.print((int)led_channel);
-    Serial.print(" PCNT="); Serial.print(lastPcnt); Serial.print(" DUTY=");Serial.println(duty);
     setDirection(pcnt);
 
     ESP_ERROR_CHECK( ledc_set_duty(LEDC_MODE, led_channel, duty) );
     ledc_update_duty(LEDC_MODE, led_channel);
+    return(true);
 }; 
 
 
