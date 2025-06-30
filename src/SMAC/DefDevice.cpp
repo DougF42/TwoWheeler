@@ -32,10 +32,12 @@ DefDevice::~DefDevice()
  */
 int DefDevice::scanParam()
 {
+    argCount=0;
     char *aPtr = strtok(CommandPacket.params, "|");
-    while (aPtr!=nullptr)
+    while ( (aPtr!=nullptr) && ( *aPtr != '\0') )
     {
         arglist[argCount++] = aPtr;
+        aPtr = strtok(nullptr, "|");
     }
     return(argCount);
 }
@@ -131,13 +133,13 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
  */
 int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
 {
-    if (arg > argCount)
+    if ((arg > argCount) || (arg<0))
     {
         // Missing argumen t
-        sprintf(DataPacket.value, "%s:Missing argument no %d", msg, arg);
+        sprintf(DataPacket.value, "%s:Invalid or Missing argument no %d", msg, arg);
         return (1);
     }
-
+    Serial.printf("getInt32: argument is %s\r\n", arglist[arg]);
     for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))

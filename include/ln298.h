@@ -35,7 +35,6 @@ class LN298 : public DefDevice
         void setDirection(int pcnt);   // use the sign of pcnt to set direction
         enum  MotorStatus {MOTOR_DIS, MOTOR_IDLE, MOTOR_FWD, MOTOR_REV, MOTOR_STOP} motorStatus;
         int lastPcnt;
-        bool enableReport; // Periodicallyy send current percentage and enable state
         
     public:
         LN298( Node *_node, const char * Name);

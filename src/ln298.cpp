@@ -26,7 +26,6 @@ LN298::LN298(Node *_node, const char * Name) : DefDevice(_node, Name)
 {
     lastPcnt = 0;
     motorStatus=MOTOR_DIS;
-    enableReport=false;
     return;
 }
 
@@ -98,6 +97,7 @@ void LN298::setupLN298(MotorControl_config_t *cfg)
         .flags= 0,
     } ;
     ESP_ERROR_CHECK(ledc_channel_config( &chnl_config));
+    periodicEnabled=false;
 }
 
 /**
@@ -115,7 +115,7 @@ ProcessStatus LN298::ExecuteCommand()
     if (retVal != NOT_HANDLED)
         return (retVal);
 
-    long int val = 0;
+    int32_t val = 0;
     scanParam();
 
     if (isCommand("SPWM"))
@@ -130,32 +130,23 @@ ProcessStatus LN298::ExecuteCommand()
     }
     else if (isCommand("ENAB"))
     { // Enable
+        enable();
     }
+
     else if (isCommand("DISA"))
     { // Disable
-    } else if (isCommand("REPT"))
-    {  // report enable/disable
-        if ((arglist[0][0] == 'Y') || (arglist[0][0] == 'y'))
-        {
-            setReportStatus(true);
-            retVal = SUCCESS_NODATA;
-        }
-        else if ((arglist[0][0] == 'N') || (arglist[0][0] == 'n'))
-        {
-            setReportStatus(false);
-            retVal = SUCCESS_NODATA;
-        }
-        else
-        {
-            sprintf(DataPacket.value, "ERROR: Invalid argument");
-            retVal = FAIL_DATA;
-        }
+        disable();
+      // TODO:
+    
+    } else {
+        sprintf(DataPacket.value, "ERROR: Invalid argument");
+        retVal = FAIL_DATA;
+    }
 
-        if (retVal == SUCCESS_NODATA)
-        {
-            sprintf(DataPacket.value,"OK");
-            retVal = SUCCESS_DATA;
-        }
+    if (retVal == SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value, "OK|%d|%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus=MOTOR_DIS)?"DIS":"ENA");
+        retVal = SUCCESS_DATA;
     }
     return (retVal);
 }
@@ -174,17 +165,6 @@ ProcessStatus LN298::ExecuteCommand()
         sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, "ENA", lastPcnt);
      }
          return (SUCCESS_DATA);
- }
-
- /**
-  * @brief Enable or disable reporting
-  * 
-  * @param enaFlag 
-  */
- void LN298::setReportStatus(bool enaFlag)
- {
-    enableReport = enaFlag;
-    return;
  }
 
 /**

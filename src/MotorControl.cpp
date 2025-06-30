@@ -54,8 +54,7 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     sprintf(name, "%s%s", prefix,"PID");
     piddev = new PidDevice(myNode, name, cfg);
     myNode->AddDevice(piddev);
-
- 
+    periodicEnabled=false;
 }
 
 template <typename A>

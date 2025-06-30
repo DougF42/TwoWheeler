@@ -21,6 +21,8 @@ PidDevice::PidDevice(Node *_node, const char *_name, MotorControl_config_t *cfg)
                                                 //   (overload for specifying proportional mode)
     pid = new PID(&input, &output, &setPoint,  // links the PID to the Input, Output, and setpoint
         cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
+        
+    periodicEnabled=false;
 }
 
 

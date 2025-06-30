@@ -159,7 +159,7 @@ void setup()
           .kd = 0,
       };
 
-  myDriver = new Driver(ThisNode, "RightMtr");
+  myDriver = new Driver(ThisNode, "Driver");
   myDriver->setup(&left_mtr_cfg, &right_mtr_cfg);
   ThisNode->AddDevice(myDriver);
 
@@ -188,7 +188,7 @@ void setup()
   // Relayer responded, All good, Go green
   Serial.println ("Relayer responded to PING");
   STATUS_LED_GOOD;
-
+  Serial.println("INJECTING COMMANDS TO BLOCK REPORTS");
   Serial.println ("Node running ...");
 }
 
