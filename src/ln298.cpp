@@ -148,6 +148,7 @@ ProcessStatus LN298::ExecuteCommand()
         sprintf(DataPacket.value, "OK|%d|%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus=MOTOR_DIS)?"DIS":"ENA");
         retVal = SUCCESS_DATA;
     }
+     defDevSendData(0, false);
     return (retVal);
 }
 
@@ -158,34 +159,36 @@ ProcessStatus LN298::ExecuteCommand()
  */
  ProcessStatus LN298::DoPeriodic()
  {
-     if (motorStatus == MOTOR_DIS)
-     {
-        sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, "DIS", lastPcnt);
-     } else {
-        sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, "ENA", lastPcnt);
-     }
-         return (SUCCESS_DATA);
+        sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
+        return (SUCCESS_DATA);
  }
 
 /**
  * @brief Set the pulse width
- *   This is the main control for this motor, expressed as a percentage (0..+-100)
- *  the timer is 13 bits precision( 0..8192). Direction is set based on the sign of
- *  the percentage. (Negative percents for motor in reverse).
+ *   This is the main control for this motor, expressed as a percentage (0..+/-100)
+ *   The PWM timer is 13 bits precision( 0..8192). 
+ *   Direction is set based on the sign of the percentage. (Negative 
+ *       percents for motor in reverse).
  * 
  * @param pcnt  percentage - 0 thru + or - 100
  * 
  */
 void LN298::setPulseWidth(int pcnt)
 {
-    if (motorStatus == MOTOR_DIS) return;
+    // if (motorStatus == MOTOR_DIS) return;
     uint32_t duty;
-    Serial.printf("setPulseWidth Channel %d Arg=%d  ",(int)led_channel,  pcnt);
+    if (pcnt >  100) pcnt =  100;
+    if (pcnt < -100) pcnt = -100;
+    duty = map(abs(pcnt), 0, 100, 0, ((1<<LEDC_DUTY_RES)-1) );
+    lastPcnt= pcnt;
+    // Serial.printf("setPulseWidth Channel %d Pcnt=%d Duty=%d",(int)led_channel,  pcnt, duty);
+    Serial.print("setPUlseWidth: Channel="); Serial.print((int)led_channel);
+    Serial.print(" PCNT="); Serial.print(lastPcnt); Serial.print(" DUTY=");Serial.println(duty);
     setDirection(pcnt);
+
     ESP_ERROR_CHECK( ledc_set_duty(LEDC_MODE, led_channel, duty) );
     ledc_update_duty(LEDC_MODE, led_channel);
-    lastPcnt = duty;
-}; // Set the pulse width (0..100)
+}; 
 
 
 /**

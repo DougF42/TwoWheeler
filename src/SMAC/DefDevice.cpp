@@ -150,6 +150,7 @@ int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
     }
 
     *result = strtol(arglist[arg], nullptr, 10);
+    Serial.printf("getInt32: Result is %d\n", *result);
     return(0);
 }
 
