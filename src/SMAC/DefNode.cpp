@@ -33,6 +33,8 @@ int DefNode::findDevId(const char *devName)
 
     return(-1);
 }
+
+
 /** = = = = = = = = = = = = = = = = = = = = = = =
  * Execute a command that is generated internally
  *   Node->Execute is tried first, if not then 
@@ -78,7 +80,14 @@ void DefNode::execute_local(const char *commandString)
         CommandPacket.params[0] = 0;
 
     // Execute the command
+    Serial.print("...local command: "); Serial.println(CommandPacket.command );
     pStatus = ExecuteCommand(); // this should execute 'node' level commands
+
+    if ((pStatus == SUCCESS_DATA) || (pStatus == FAIL_DATA))
+    {
+        Serial.printf("LOCAL RESP: %s\r\n", DataPacket.value);
+    }
+
     if (pStatus == NOT_HANDLED)
     {
         //=================================================
@@ -101,6 +110,7 @@ void DefNode::execute_local(const char *commandString)
             pStatus = FAIL_DATA;
         }
         else
+
             pStatus = devices[devIdx]->ExecuteCommand();
     }
 
@@ -111,4 +121,27 @@ void DefNode::execute_local(const char *commandString)
         memcpy(DataPacket.deviceID, commandString, ID_SIZE);
         sprintf(buf, "XX|%s|%s\n", DataPacket.deviceID, DataPacket.value );
     }
+}
+
+/**
+ * @brief: execute_local - this is a 'front-end' to the execute_local(command).
+ * 
+ * The device name is looked up (and the devid) prepended to the command, completing
+ * a normal SMAC command. The 'execute_loacal(commandString) method is then invoked
+ * 
+ * @param devName - the name of the device.
+ * @param commandString - An SMAC command of the form 'cccc|params' (no node!)
+ * 
+ */
+void DefNode::execute_local(const char *devNAME, const char *commandString)
+{
+    int devID = findDevId(devNAME);
+    if ( devID<0 ) return;  // not found
+
+    char *cmd;
+    cmd = (char *) malloc(strlen(commandString+5));
+    sprintf(cmd, "%02X|%s", devID, commandString);
+    execute_local(cmd);
+    return;
+
 }

@@ -11,5 +11,6 @@ class DefNode: public Node
     DefNode (const char *inName, int inNodeID);
     ~DefNode();
     void execute_local(const char *string);
+    void execute_local(const char *devNAME, const char *commandString);
     int findDevId(const char *devName);
 };

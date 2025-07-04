@@ -106,6 +106,7 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
     {
         // Missing argumen t
         sprintf(DataPacket.value, "%s:Missing argument no %d",msg, arg );
+        Serial.printf("For %s: Missing argument %d - argcount is %d\r\n", msg, arg, argCount);
         return(1);
     }
 
@@ -114,6 +115,7 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
         if (!isDigit(*ptr))
         {
             sprintf(DataPacket.value, "%s:argument %d is not an unsigned int\n", msg, arg);
+            Serial.printf("For %s: Bad integer value for argument %d: '%s'\r\n", msg, arg, arglist[arg]);
             return (2);
         }
     }

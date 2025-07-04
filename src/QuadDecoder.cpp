@@ -19,6 +19,8 @@
 
 
 // - - - - - - - STATIC DEFS - - - - - - - - - - -
+bool QuadDecoder::isrAlreadyInstalled=false;  // a static definition
+
 /**
  * @brief This keeps track of motor positions
  * 
@@ -41,12 +43,10 @@ typedef struct
     
     time_t  last_update_time;           // The last time we updated the speed
 } Quad_t;
-
-static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - should be in DRAM )
+static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static but not const - should be in DRAM )
 
 // For the quad array, what is the next available position?
 static std::atomic_uint8_t nextQuadId=0;
-
 
 QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, InName)
 {
@@ -77,6 +77,7 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
         Serial.println("*** ERROR! TOO MANY QUADS - quadIdx not assigned!");
         return;
     }
+    Serial.printf("*** QUAD ASSIGNED TO index %d\n\r", quadIdx);
     quad_pin_a =  cfg->dir_pin_a;
     quad_pin_b =  cfg->dir_pin_b;
 
@@ -96,11 +97,15 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
 #endif
     };
 ESP_ERROR_CHECK(gpio_config(&pGpioConfig));
-ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE  ));
+Serial.printf("Installed quad i/o. about to install interrupt ISR\n\r");
+if (! isrAlreadyInstalled)
+{
+    isrAlreadyInstalled=true;
+    ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE  ));
+}
 ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, ISR_handler, this));
 ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_b, ISR_handler, this));
-
-Serial.printf("Quad defined using index %d\r\n", quadIdx);
+Serial.printf("... Quad ISR handlers added\r\n");
 
 // NOW SET UP THE SPEED CHECK TIMER
 esp_timer_create_args_t speed_timer_args = 
@@ -108,16 +113,18 @@ esp_timer_create_args_t speed_timer_args =
     .callback = &update_speed_ISR,    //!< Callback function to execute when timer expires
     .arg =this,                       //!< Argument to pass to callback
     .dispatch_method=ESP_TIMER_TASK,  //!< Dispatch callback from task or ISR; if not specified, esp_timer task
-    //                                !< is used; for ISR to work, also set Kconfig option
-    //                                !< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
+                                      //!< is used; for ISR to work, also set Kconfig option
+                                      //!< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
     .name="SpeedTimer",               //!< Timer name, used in esp_timer_dump() function
     .skip_unhandled_events = true     //!< Setting to skip unhandled events in light sleep for periodic timers
 };
 
 ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimer));
+Serial.printf("... Speed timer installed\n\r");
 setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
+Serial.printf("... Interval is %d\n\r", SPEED_CHECK_INTERVAL_mSec);
 resetPos();
-
+periodicEnabled=false;
 return;
 }
 
@@ -133,7 +140,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 {  
     // Who am I?
     QuadDecoder *me = (QuadDecoder *)arg;     // point to my QuadDecoder
-    me->pulseCount++;   // STATISTICS...
+    me->pulseCount = me->pulseCount+1;   // STATISTICS...
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
 
     // save the current state of the pins
@@ -219,7 +226,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 void QuadDecoder::update_speed_ISR(void *arg)
 {
     QuadDecoder *me=(QuadDecoder *)arg;
-    me->speedUpdateCount++;
+    me->speedUpdateCount = me->speedUpdateCount;
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
     qptr->speed = (qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
     qptr->last_update_time = esp_timer_get_time();
@@ -243,7 +250,7 @@ ProcessStatus QuadDecoder::DoPeriodic()
 
     //sprintf(DataPacket.value, "QUAD %f, %llu", qptr->speed, qptr->position);
     sprintf(DataPacket.value, "XQUD spd=%f, pos=%llu, ISR=%u SPD=%u", 
-        spd,pos,pulseCount, speedUpdateCount);
+        spd,pos, pulseCount, speedUpdateCount);
     defDevSendData(millis(), false);
     return (SUCCESS_DATA);
 }
@@ -272,12 +279,12 @@ ProcessStatus QuadDecoder::ExecuteCommand()
         retVal = cmdQSET();
 
     } else if (isCommand("QRST"))
-    {
+    {  // Reset position
         resetPos();
         retVal=SUCCESS_NODATA;
 
     } else if (isCommand("QSCK"))
-    {
+    {  // Set the speed Check Interval
         retVal = cmdSetSpeedCheckInterval();        
     }
 
@@ -287,61 +294,65 @@ ProcessStatus QuadDecoder::ExecuteCommand()
 
 /**
  * @brief Decode the command to Set the Wheel diameter and pulses per rev
- *    format:   QSET|<wheelDia>|<PulsePerRev>   -set these params
- *    format:   QSET                            -- just report params
+ *    format:   QSET|<pulseCnt>|<wheelDia>   -set these params
+ *    format:   QSET                         - just report params
  * 
  * @return - we always return the current parameters
  */
 ProcessStatus QuadDecoder::cmdQSET()
 {
-    ProcessStatus res=SUCCESS_NODATA;
+    ProcessStatus res = SUCCESS_NODATA;
 
     if (argCount == 2)
     {
-        double wheel;
-        uint32_t pulses;
-        if (0 != getDouble(0, &wheel, "Wheel Diameter: "))
+        double wheel;       // temporary wheel diameter
+        uint32_t pulses;   // temporary number of pulses
+        if (argCount == 2)
         {
-            res = FAIL_DATA;
-
-        } else if (0 != getUint32(1, &pulses, "Pulse Count: "))
+            if (0 != getDouble(0, &wheel, "Wheel Diameter: ") )
+            {
+                //sprintf(DataPacket.value, "Error - bad Wheel Dia");
+                res = FAIL_DATA;
+            }
+            else if (0 != getUint32(1, &pulses, "Pulse Count: "))
+            {
+                //sprintf(DataPacket.value, "Error - bad pulse count");
+                res = FAIL_DATA;
+            }
+            else
+            {
+                setQuadParams(wheel, pulses);
+                res = SUCCESS_NODATA;
+            }
+        }
+        else if (argCount != 0)
         {
-
+            sprintf(DataPacket.value, "ERRR| wrong number of arguments");
             res = FAIL_DATA;
         }
-        else
-        {
-            setQuadParams(wheel, pulses);
-            res = SUCCESS_NODATA;
-        }
-        
-    } else if (argCount != 0)  {
-        sprintf(DataPacket.value, "ERRR| wrong number of arguments");
-        res = FAIL_DATA;
     }
 
     if (res == SUCCESS_NODATA)
     {
         // Show the current parameters
-        sprintf(DataPacket.value, "QPARM|%f|%d", getPosition(), pulsesPerRev / 4);
+        sprintf(DataPacket.value, "QPARM|%f|%d", wheelDiameter, pulsesPerRev / 4);
         res = SUCCESS_DATA;
     }
 
-    defDevSendData( 0L,false);
+    defDevSendData(0L, false);
     return (res);
 }
-
 
 /**
  * @brief Set the actual wheel diameter and number of pulses
  * 
- * @param wheel 
- * @param pulses 
+ * @param wheel - wheel diameter 
+ * @param pulses - number of holes (or pulses) per revolution
  */
 void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
 {
-    wheelDiameter = wheel * 4;
-    pulsesPerRev = pulses;
+    wheelDiameter = wheel;      
+    pulsesPerRev = pulses * 4;  // This is, after all, a QUAD decoder!
     convertPulsesToDist = ((M_PI * wheelDiameter) / pulsesPerRev);
 }
 
@@ -380,7 +391,7 @@ void QuadDecoder::resetPos()
     quads[quadIdx].speed = 0.0;
 
     interrupts();
-    setSpeedCheckInterval(speedCheckIntervaluSec);
+    setSpeedCheckInterval(speedCheckIntervaluSec/1000);
 }
 
 
@@ -403,7 +414,7 @@ int32_t QuadDecoder::getSpeed()
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
  * @brief Decode the command to Get/Set the speed check interval
- * 
+ *      Format:  QSCK <msecs>
  * @return ProcessStatus 
  */
 ProcessStatus QuadDecoder::cmdSetSpeedCheckInterval()
@@ -416,18 +427,18 @@ ProcessStatus QuadDecoder::cmdSetSpeedCheckInterval()
          if (0 != getLLint(0, &interv, "Error in speed check interval ") )
             retVal=FAIL_DATA;
             else
-            speedCheckIntervaluSec = interv;
+            speedCheckIntervaluSec = interv*1000;
 
     } else if (argCount != 0)
     { 
         sprintf(DataPacket.value, "ERR: Wrong number of arguments");
         retVal = FAIL_DATA;
-    }
+    } 
 
     // Echo the result - or report the current
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "Interval: %LLD", speedCheckIntervaluSec);
+        sprintf(DataPacket.value, "Interval: %LLD", speedCheckIntervaluSec/1000);
         retVal = SUCCESS_DATA;
     }
 
@@ -447,7 +458,11 @@ void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
     speedCheckIntervaluSec = rateMsec * 1000;
     // Stop the timer, restart with new period
     esp_timer_stop(spdUpdateTimer);
+    
+    // Enable with new paramers
     ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimer, speedCheckIntervaluSec));
+    Serial.printf("In setSpeedCheckInterval - speed requested %llu msecs or %llu nSecs\r\n ", 
+        rateMsec, speedCheckIntervaluSec);
 }
 
 

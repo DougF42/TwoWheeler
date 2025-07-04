@@ -55,7 +55,7 @@ class QuadDecoder: public DefDevice
         
     private:
         uint8_t quadIdx; // Which motor is assigned to me?
-        QueueHandle_t queue;  // keep track of quad events
+        // QueueHandle_t queue;  // keep track of quad events
         gpio_num_t quad_pin_a;
         gpio_num_t quad_pin_b;
 
@@ -65,13 +65,14 @@ class QuadDecoder: public DefDevice
         time_t speedCheckIntervaluSec;  // Config: Min rate we store speed (uSeconds) values.
         dist_t convertPulsesToDist;    // Calculated: the factor to convert ticks into mm. 
 
+        static bool isrAlreadyInstalled; // Internal flag
         static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler for quad inputs
 
         // Speed updates - these are done periodically via a 'high-resolution' timer.
         static void update_speed_ISR(void *arg);  // update the speed (called from timer);
         esp_timer_handle_t spdUpdateTimer;        // the timer for driving the speed checker
 
-    uint32_t pulseCount;  // A simple statistic...
-    uint32_t speedUpdateCount; 
+    volatile uint32_t pulseCount;  // A simple statistic...
+    volatile uint32_t speedUpdateCount; 
 
 };

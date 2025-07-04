@@ -101,6 +101,7 @@ ProcessStatus PidDevice::ExecuteCommand()
     return (retVal); // for now...
 }
 
+
 /**
  * @brief Get or Set the PID parameters
  * Format:   SPID|<kp>|<ki>|<kd>

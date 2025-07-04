@@ -29,6 +29,7 @@ Driver::Driver(Node *myNode, const char *_name) : DefDevice(myNode, _name)
     myDirect=0; 
     // SetID(devid);  // TBD: Do I need this?
     Serial.print(" ");
+    periodicEnabled=false; // Start with NO periodic reports
 }
 
 
@@ -37,6 +38,7 @@ Driver::~Driver()
 {
 
 }
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 /**
  * @brief Set up the left and right motors.
@@ -69,31 +71,29 @@ ProcessStatus Driver::DoPeriodic()
     return(SUCCESS_NODATA);
 }
 
-
-  // If your child Device class needs to handle custom commands, then override this method:
-  //
-  // The global <CommandPacket> will have the command definition.
-  // First call this base class method to handle the built-in Device commands:
-  //
-  //   Device::ExecuteCommand ();
-  //
-  // If this call returns NOT_HANDLED, then your child class should handle the command.
-  //
-  // If your ExecuteCommand() method has data to return, it should populate the
-  // global <DataPacket> and return an appropriate ProcessStatus.
-  //
-  // When populating the global <DataPacket>, value strings that start with a dash or a digit
-  // will be interpreted by the Interface as periodic process data, say from a sensor reading.
-  //
-  // Commands recognized by the driver:
-  //   QUAD  <pulsesPerRev>, <circum>, <units>   // configure the Quadrature encodere.
-  //   PID   <Kp>,<Kd>,<Ki>                      // configure the PID controler.
-  //   SPD   <rate>      // +/- 2048  heading change in mm per Millisecond. May be negative.
-  //   ROT <degrees>      // +/- 2048 degrees per Millisecond. Negative is right, positive is left
-  //   stop (int stopRate); // 0..100 0 means drift, 100 means emergency stop, otherwise percentage
-  //
-
-  //       
+// If your child Device class needs to handle custom commands, then override this method:
+//
+// The global <CommandPacket> will have the command definition.
+// First call this base class method to handle the built-in Device commands:
+//
+//   Device::ExecuteCommand ();
+//
+// If this call returns NOT_HANDLED, then your child class should handle the command.
+//
+// If your ExecuteCommand() method has data to return, it should populate the
+// global <DataPacket> and return an appropriate ProcessStatus.
+//
+// When populating the global <DataPacket>, value strings that start with a dash or a digit
+// will be interpreted by the Interface as periodic process data, say from a sensor reading.
+//
+// Commands recognized by the driver:
+//   QUAD  <pulsesPerRev>, <circum>, <units>   // configure the Quadrature encodere.
+//   PID   <Kp>,<Kd>,<Ki>                      // configure the PID controler.
+//   SPD   <rate>      // +/- 2048  heading change in mm per Millisecond. May be negative.
+//   ROT <degrees>      // +/- 2048 degrees per Millisecond. Negative is right, positive is left
+//   stop (int stopRate); // 0..100 0 means drift, 100 means emergency stop, otherwise percentage
+//
+//
 ProcessStatus  Driver::ExecuteCommand ()
 {
     ProcessStatus status;
@@ -126,7 +126,6 @@ ProcessStatus  Driver::ExecuteCommand ()
     // Serial.print("STATUS:  "); Serial.println(status);
     return(status);
 }
-
 
 
 /**

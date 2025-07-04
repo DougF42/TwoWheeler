@@ -64,7 +64,7 @@ DPacket      DataPacket;
 CPacket      CommandPacket;
 char         DataString[MAX_MESSAGE_LENGTH];
 
-Node         *ThisNode;  // The Node for this example
+DefNode      *ThisNode;  // The Node for this example
 Driver       *myDriver;
 
 //--- Declarations ----------------------------------------
@@ -188,9 +188,7 @@ void setup()
   // Relayer responded, All good, Go green
   Serial.println ("Relayer responded to PING");
   STATUS_LED_GOOD;
-  Serial.println("INJECTING COMMANDS TO BLOCK REPORTS");
   Serial.println ("Node running ...");
-
 }
 
 
