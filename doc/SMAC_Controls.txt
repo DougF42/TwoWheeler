@@ -50,9 +50,9 @@ SMAC commands handled by the DEVICE
 TWO WHEELER SPECIFIC COMMANDS
 - - - - - - - - - - - - - - - - - - - 
 Commands for the ln298 device
-    MPWM     <pulseDidth>                     ; set the pulse width for this motor (0...+/- 100 pcnt)
-    EABL     <bool>                           ; enable the Driver
-    REPT     <bool>                           ; enable status reports
+    SPWM     <pulseDidth>                     ; set the pulse width for this motor (0...+/- 100 pcnt)
+    ENAB                                      ; Enable the Driver
+    DISA                                      ; Disable the Driver
 
 Commands for the MOTORControl device
    MSPD  <speed>                              ; Set motor speed - 0 +/- 2047.
@@ -65,8 +65,9 @@ Commands for the PID device
    REPT  <bool>                              ; enable status reports
 
 Commands for the QUAD device
-   QMSP  <pulsesPerRev> <circum_mm>   Set parameters for quadrature decoder.
-   REPT  <bool>                              ; enable status reports
+   QSET  <pulsesPerRev> <circum_mm>          ; Set parameters for quadrature decoder.
+   QRST                                      ; reset position to '0.0'
+   QSCK                                      ; report current speed
 
 Commands for the Driver device:
    MOVE  <speed>   <rotRate>                ; set for given speed/rotation rate

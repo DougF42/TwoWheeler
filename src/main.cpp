@@ -44,7 +44,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include "common.h"
-#include "Node.h"
+#include "DefNode.h"
 #include "Driver.h"
 
 //--- Globals ---------------------------------------------
@@ -127,7 +127,7 @@ void setup()
   // Node ID's cannot be duplicated in your SMAC System.
   // --- Do not use the same ID for other Nodes ---
   //=======================================================
-  ThisNode = new Node("TwoWheeler", 1);
+  ThisNode = new DefNode("TwoWheeler", 1);
 
 
   //=======================================================
@@ -190,6 +190,7 @@ void setup()
   STATUS_LED_GOOD;
   Serial.println("INJECTING COMMANDS TO BLOCK REPORTS");
   Serial.println ("Node running ...");
+
 }
 
 

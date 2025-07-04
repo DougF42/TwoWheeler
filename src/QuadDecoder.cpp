@@ -48,10 +48,10 @@ static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static not const - s
 static std::atomic_uint8_t nextQuadId=0;
 
 
-
 QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, InName)
 {
-    reportEnableFlag = false;
+    pulseCount=0;
+    speedUpdateCount=0;
     return;
 }
 
@@ -94,7 +94,7 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
 #if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
         .hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE; /*!< GPIO hysteresis: hysteresis filter on slope input    */
 #endif
-};
+    };
 ESP_ERROR_CHECK(gpio_config(&pGpioConfig));
 ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE  ));
 ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, ISR_handler, this));
@@ -133,6 +133,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 {  
     // Who am I?
     QuadDecoder *me = (QuadDecoder *)arg;     // point to my QuadDecoder
+    me->pulseCount++;   // STATISTICS...
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
 
     // save the current state of the pins
@@ -218,6 +219,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 void QuadDecoder::update_speed_ISR(void *arg)
 {
     QuadDecoder *me=(QuadDecoder *)arg;
+    me->speedUpdateCount++;
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
     qptr->speed = (qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
     qptr->last_update_time = esp_timer_get_time();
@@ -233,16 +235,16 @@ void QuadDecoder::update_speed_ISR(void *arg)
  */
 ProcessStatus QuadDecoder::DoPeriodic()
 {
-    if (! reportEnableFlag) return(FAIL_NODATA);  // no reports
-
     Quad_t *qptr = &(quads[quadIdx]); // Point to my quad entry
     noInterrupts();
     dist_t pos= qptr->absPosition;
     dist_t spd=qptr->speed;
     interrupts();
 
-    sprintf(DataPacket.value, "QUAD,%f, %ld", qptr->speed, qptr->position);
-    DataPacket.timestamp = millis();
+    //sprintf(DataPacket.value, "QUAD %f, %llu", qptr->speed, qptr->position);
+    sprintf(DataPacket.value, "XQUD spd=%f, pos=%llu, ISR=%u SPD=%u", 
+        spd,pos,pulseCount, speedUpdateCount);
+    defDevSendData(millis(), false);
     return (SUCCESS_DATA);
 }
 
@@ -257,24 +259,23 @@ ProcessStatus QuadDecoder::DoPeriodic()
  */
 ProcessStatus QuadDecoder::ExecuteCommand()
 {
-    ProcessStatus retVal = SUCCESS_DATA;
+    ProcessStatus retVal = NOT_HANDLED;
     dist_t wheelDia;
     uint32_t pulseCnt;
     retVal = Device::ExecuteCommand();
     if (retVal != NOT_HANDLED )  return(retVal);
 
     scanParam();
+
     if (isCommand("QSET")) 
     {   // set wheel dia and pulses. 
         retVal = cmdQSET();
-    }
-    else if (isCommand("QRPT"))
-    {   // enable reporting position
-        retVal = cmdQRPT();
+
     } else if (isCommand("QRST"))
     {
         resetPos();
-        retVal = SUCCESS_NODATA;
+        retVal=SUCCESS_NODATA;
+
     } else if (isCommand("QSCK"))
     {
         retVal = cmdSetSpeedCheckInterval();        
@@ -344,39 +345,8 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
     convertPulsesToDist = ((M_PI * wheelDiameter) / pulsesPerRev);
 }
 
-/**
- * @brief decode and implement command to Enable/disable report
- *   Format:   QRPT|on  (turn on reports)
- *             QRPT|off   (turn off reports)
- * @return ProcessStatus
- */
-ProcessStatus QuadDecoder::cmdQRPT()
-{
-    ProcessStatus retVal=SUCCESS_NODATA;
-    scanParam();
-    if (argCount==1)
-    {   // Set the 
-        if (0==strcasecmp(arglist[0], "YES"))
-            reportEnableFlag=true;
-        else if (0==strcasecmp(arglist[0], "NO"))
-            reportEnableFlag=false;
-        else
-        {
-            sprintf(DataPacket.value, "ERROR in QRPT command: DataPacket.value must be YES or NO");
-            retVal=FAIL_DATA;
-        }
-    }
 
-    if (retVal != FAIL_DATA)
-    {
-        sprintf(DataPacket.value, "Reporting is %s", (reportEnableFlag)? "YES":"NO");
-    }
-    defDevSendData(0, false);
-    return (retVal);
-}
-
-// - - - - - - - - - - - - - - - - - --
-/**
+/** - - - - - - - - - - - - - - - - - --
  * @brief Get the current Position
  *     Position is in terms of 'ticks' of the quad encoder
  * we convert it here into the units of choice
@@ -393,6 +363,7 @@ dist_t QuadDecoder::getPosition()
     return (result);
 }
 
+
 // - - - - - - - - - - - - - - - - - - - - - -
 // Reset the position (and quad decoder logic)
 //   (This simply sets the 'QuadInitState', the
@@ -403,14 +374,15 @@ void QuadDecoder::resetPos()
     noInterrupts();
 
     quads[quadIdx].last_state = QuadInitState;
-    quads[quadIdx].position = 0;
-    quads[quadIdx].absPosition = 0;
+    quads[quadIdx].position = 0L;
+    quads[quadIdx].absPosition = 0L;
     quads[quadIdx].last_update_time = esp_timer_get_time();
-    quads[quadIdx].speed = 0;
+    quads[quadIdx].speed = 0.0;
 
-        interrupts();
-    setSpeedCheckInterval(speedCheckIntervaluSec * 1000);
+    interrupts();
+    setSpeedCheckInterval(speedCheckIntervaluSec);
 }
+
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
@@ -427,6 +399,7 @@ int32_t QuadDecoder::getSpeed()
     return (curSpeed);
 }
 
+
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
  * @brief Decode the command to Get/Set the speed check interval
@@ -442,19 +415,28 @@ ProcessStatus QuadDecoder::cmdSetSpeedCheckInterval()
     {
          if (0 != getLLint(0, &interv, "Error in speed check interval ") )
             retVal=FAIL_DATA;
+            else
+            speedCheckIntervaluSec = interv;
 
-    } if (argCount!=0)
-    {
+    } else if (argCount != 0)
+    { 
         sprintf(DataPacket.value, "ERR: Wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
+    // Echo the result - or report the current
     if (retVal == SUCCESS_NODATA)
-        defDevSendData(0, false);
+    {
+        sprintf(DataPacket.value, "Interval: %LLD", speedCheckIntervaluSec);
+        retVal = SUCCESS_DATA;
+    }
+
+    defDevSendData(0,false);
     return(retVal);
 }
-// - - - - - - - - - - - - - - - - - - - - - --
-/**
+
+
+/** - - - - - - - - - - - - - - - - - - - - - --
  * @brief How often do we update the current speed?
  *
  * @param rate - The minimum time interval between speed checks(millisecs)
@@ -468,8 +450,8 @@ void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
     ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimer, speedCheckIntervaluSec));
 }
 
-// - - - - - - - - - - - - - - - - - - - - - --
-/**
+
+/**  - - - - - - - - - - - - - - - - - - - - - --
  * @brief Set the parameters to convert the Quad Encoder ticks to a distance
  *     This generates the 'convertTickToDist' factor.
  * @param tickPerRev   - how many ticks (or marks) per revolution on one channel.
@@ -482,7 +464,8 @@ void QuadDecoder::calibrate(pulse_t tickPerRev, dist_t diameter)
     convertPulsesToDist = (wheelDiameter * M_PI) / (pulsesPerRev);
 }
 
-/**
+
+/** - - - - - - - - - - - - - - - - - - - - - --
  * @brief Get the current configuration
  *     We store the requested values in the memory pointed to
  * by each of tthe arguments.

@@ -45,7 +45,6 @@ class QuadDecoder: public DefDevice
         ProcessStatus  DoPeriodic() override;              // Override this method to periodically send reports
         ProcessStatus  ExecuteCommand () override;         // Override this method to handle custom commands
         ProcessStatus cmdQSET();
-        ProcessStatus cmdQRPT();
         ProcessStatus cmdSetSpeedCheckInterval();
 
 
@@ -66,13 +65,13 @@ class QuadDecoder: public DefDevice
         time_t speedCheckIntervaluSec;  // Config: Min rate we store speed (uSeconds) values.
         dist_t convertPulsesToDist;    // Calculated: the factor to convert ticks into mm. 
 
-        bool  reportEnableFlag;         // How often to output position, speed. (0 if no report)
-
         static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler for quad inputs
 
         // Speed updates - these are done periodically via a 'high-resolution' timer.
         static void update_speed_ISR(void *arg);  // update the speed (called from timer);
         esp_timer_handle_t spdUpdateTimer;        // the timer for driving the speed checker
 
+    uint32_t pulseCount;  // A simple statistic...
+    uint32_t speedUpdateCount; 
 
 };
