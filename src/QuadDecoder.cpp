@@ -11,8 +11,9 @@
 #include "config.h"
 #include "QuadDecoder.h" 
 #include <atomic>
+
 // For logging
-#define DEBUG_QUAD 1
+//#define DEBUG_QUAD 1
 #ifdef DEBUG_QUAD
 #include "esp_log.h"
 // esp_log_level_set( TAG, ESP_LOG_VERBOSE);
@@ -45,11 +46,8 @@ bool QuadDecoder::isrAlreadyInstalled=false;  // a static definition
 typedef struct
 {
     QuadDecoder::QUAD_STATE_t last_state;   // state of the decoder (set by ISR)
-    pulse_t position;    // change in Current position (in pulses) since last speed check.
+    pulse_t absPosition;    // change in Current position (in pulses)
     dist_t  speed;        // how fast am I going?
-    dist_t  absPosition; // my absolute position (in pulses)
-    
-    time_t  last_update_time;           // The last time we updated the speed
 } Quad_t;
 static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static but not const - should be in DRAM )
 
@@ -71,6 +69,8 @@ QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, In
 {
     pulseCount=0;
     speedUpdateCount=0;
+    last_position=0;
+    last_update_time=esp_timer_get_time();
     #ifdef DEBUG_QUAD
      esp_log_level_set( TAG, ESP_LOG_VERBOSE);
     #endif
@@ -136,7 +136,7 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
     // NOW SET UP THE SPEED CHECK TIMER
     esp_timer_create_args_t speed_timer_args =
         {
-            .callback = &update_speed_ISR,     //!< Callback function to execute when timer expires
+            .callback = &update_speed_CB,     //!< Callback function to execute when timer expires
             .arg = this,                       //!< Argument to pass to callback
             .dispatch_method = ESP_TIMER_TASK, //!< Dispatch callback from task or ISR; if not specified, esp_timer task
                                                //!< is used; for ISR to work, also set Kconfig option
@@ -214,19 +214,16 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     {
     case (QuadInitState):
         // Initialize the QUAD decoder
-        qptr->position = 0;
         qptr->last_state = newState;
         break;
 
     case (AonBoff):
         if (newState == AonBon)
         {
-            qptr->position++;
             qptr->absPosition++;
             qptr->last_state = newState;
         } else if (newState == AoffBoff)
         {
-            qptr->position--;
             qptr->absPosition--;
             qptr->last_state = newState;
         }        
@@ -235,12 +232,10 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     case (AonBon):
         if (newState == AoffBon)
         {
-            qptr->position++;
             qptr->absPosition++;
             qptr->last_state = newState;
          } else if (newState == AonBoff)
          {
-            qptr->position--;
             qptr->absPosition--;
             qptr->last_state = newState;
         }
@@ -249,12 +244,10 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     case (AoffBon):
         if (newState == AoffBoff)
         {
-            qptr->position ++;
             qptr->absPosition++;
             qptr->last_state = newState;
         } else if (newState == AonBon)
         {
-            qptr->position --;
             qptr->absPosition--;
             qptr->last_state = newState;
         }
@@ -263,13 +256,11 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     case (AoffBoff):
         if (newState == AonBoff)
         {
-            qptr->position++;
             qptr->absPosition++;
             qptr->last_state = newState;
         }
         else if (newState == AoffBon)
         {
-            qptr->position++;
             qptr->absPosition--;
             qptr->last_state = newState;
             break;
@@ -297,16 +288,22 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
  * @param arg - points to the 'quadDecoder' instance
  *   that this was called from.
  */
-void QuadDecoder::update_speed_ISR(void *arg)
+void QuadDecoder::update_speed_CB(void *arg)
 {
     QuadDecoder *me=(QuadDecoder *)arg;    
-    me->speedUpdateCount = me->speedUpdateCount+1;  // statistics...
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
+    me->speedUpdateCount = me->speedUpdateCount+1;  // statistics..
+    pulse_t cur_pos;
+
     portENTER_CRITICAL_ISR(&my_mutex);
-    qptr->speed = (qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
-    qptr->last_update_time = esp_timer_get_time();
-    qptr->position = 0;
+    cur_pos=qptr->absPosition;
     portEXIT_CRITICAL_ISR(&my_mutex);
+
+    qptr->speed          = ((double)cur_pos) / ((double)(esp_timer_get_time() - me->last_update_time));
+    me->speed *= me->convertPulsesToDist;
+    me->last_update_time = esp_timer_get_time();
+    me->last_position    = cur_pos;
+ 
     return;
 }
 
@@ -321,12 +318,10 @@ ProcessStatus QuadDecoder::DoPeriodic()
     Quad_t *qptr = &(quads[quadIdx]); // Point to my quad entry
     portENTER_CRITICAL(&my_mutex);
     dist_t pos= qptr->absPosition;
-    dist_t spd=qptr->speed;
     portEXIT_CRITICAL(&my_mutex);
 
-    //sprintf(DataPacket.value, "QUAD %f, %llu", qptr->speed, qptr->position);
     sprintf(DataPacket.value, "XQUD spd=%f, absPos=%f, ISR=%lu SPD=%lu", 
-        spd,getPosition(), pulseCount, speedUpdateCount);
+            speed, getPosition(), pulseCount, speedUpdateCount);
     defDevSendData(millis(), false);
     return (SUCCESS_DATA);
 }
@@ -419,6 +414,7 @@ ProcessStatus QuadDecoder::cmdQSET()
     return (res);
 }
 
+
 /**
  * @brief Set the actual wheel diameter and number of pulses
  * 
@@ -443,12 +439,13 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
  */
 dist_t QuadDecoder::getPosition()
 {
-    double result;
+    pulse_t position;
+
     portENTER_CRITICAL(&my_mutex); // thread safe - get position
-    dist_t position = quads[quadIdx].absPosition;
+    position = quads[quadIdx].absPosition;
     portEXIT_CRITICAL(&my_mutex);
-    result = position * convertPulsesToDist;
-    return (result);
+
+    return( position * convertPulsesToDist );
 }
 
 
@@ -462,9 +459,9 @@ void QuadDecoder::resetPos()
      portENTER_CRITICAL(&my_mutex);
 
     quads[quadIdx].last_state = QuadInitState;
-    quads[quadIdx].position = 0L;
+    last_position = 0L;
     quads[quadIdx].absPosition = 0L;
-    quads[quadIdx].last_update_time = esp_timer_get_time();
+    last_update_time = esp_timer_get_time();
     quads[quadIdx].speed = 0.0;
 
      portEXIT_CRITICAL(&my_mutex);

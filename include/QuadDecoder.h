@@ -70,8 +70,11 @@ class QuadDecoder: public DefDevice
         static void IRAM_ATTR ISR_handler(void *arg); // Interrupt handler for quad inputs
 
         // Speed updates - these are done periodically via a 'high-resolution' timer.
-        static void update_speed_ISR(void *arg);  // update the speed (called from timer);
-        esp_timer_handle_t spdUpdateTimer;        // the timer for driving the speed checker
+        static void        update_speed_CB(void *arg); // Callback to update the speed (called from timer);
+        esp_timer_handle_t spdUpdateTimer;             // the timer for driving the speed checker
+        pulse_t            last_position;              // Position when we last updated our speed  
+        time_t             last_update_time;           // The time when we last updated the speed
+        dist_t             speed;                      // How fast (at last update time?). Actual units!
 
     volatile uint32_t pulseCount;  // A simple statistic...
     volatile uint32_t speedUpdateCount; 
