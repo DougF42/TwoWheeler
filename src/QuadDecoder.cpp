@@ -11,8 +11,14 @@
 #include "config.h"
 #include "QuadDecoder.h" 
 #include <atomic>
-
-
+// For logging
+#define DEBUG_QUAD 1
+#ifdef DEBUG_QUAD
+#include "esp_log.h"
+// esp_log_level_set( TAG, ESP_LOG_VERBOSE);
+// ESP_DRAM_LOGE(TAG,"format", vars);
+static const char *TAG="QuadDecoder:";
+#endif
 
 // This MUST be kept as small as possible - it determines
 // the size of a structure that is stored in DRAM for the
@@ -39,9 +45,9 @@ bool QuadDecoder::isrAlreadyInstalled=false;  // a static definition
 typedef struct
 {
     QuadDecoder::QUAD_STATE_t last_state;   // state of the decoder (set by ISR)
-    pulse_t position;    // change in Current position since last speed check.  (ISR increments this...)
+    pulse_t position;    // change in Current position (in pulses) since last speed check.
     dist_t  speed;        // how fast am I going?
-    dist_t  absPosition; // my absolute position
+    dist_t  absPosition; // my absolute position (in pulses)
     
     time_t  last_update_time;           // The last time we updated the speed
 } Quad_t;
@@ -65,6 +71,9 @@ QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, In
 {
     pulseCount=0;
     speedUpdateCount=0;
+    #ifdef DEBUG_QUAD
+     esp_log_level_set( TAG, ESP_LOG_VERBOSE);
+    #endif
     return;
 }
 
@@ -149,6 +158,36 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
     return;
     }
 
+const char *QuadDecoder::translate(QUAD_STATE_t state)
+{
+    const char *res = nullptr;
+    switch (state)
+    {
+    case AoffBoff:
+        res = "AoffBoff";
+        break;
+
+    case AoffBon:
+        res = "AoffBon";
+        break;
+
+    case AonBoff:
+        res = "AonBoff";
+        break;
+
+    case AonBon:
+        res = "AonBon";
+        break;
+
+        case QuadInitState:
+        res = "QuadInitState ";
+        break;
+
+    default:
+        res = "UNKN STATE";
+    }
+    return (res);
+}
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
@@ -168,6 +207,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     int pina=gpio_get_level(me->quad_pin_a); // get the current value of pinA
     int pinb=gpio_get_level(me->quad_pin_b); // get the current value of pinB
     QUAD_STATE_t newState = (QUAD_STATE_t) ((pina<<1) | pinb); // combine pina+pinb to get state
+
     portENTER_CRITICAL_ISR(&my_mutex);
     // DECODE the quad state, update our position
     switch (qptr->last_state)
@@ -182,10 +222,12 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
         if (newState == AonBon)
         {
             qptr->position++;
+            qptr->absPosition++;
             qptr->last_state = newState;
         } else if (newState == AoffBoff)
         {
             qptr->position--;
+            qptr->absPosition--;
             qptr->last_state = newState;
         }        
         break;
@@ -194,10 +236,12 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
         if (newState == AoffBon)
         {
             qptr->position++;
+            qptr->absPosition++;
             qptr->last_state = newState;
          } else if (newState == AonBoff)
          {
             qptr->position--;
+            qptr->absPosition--;
             qptr->last_state = newState;
         }
         break;
@@ -206,10 +250,12 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
         if (newState == AoffBoff)
         {
             qptr->position ++;
+            qptr->absPosition++;
             qptr->last_state = newState;
         } else if (newState == AonBon)
         {
             qptr->position --;
+            qptr->absPosition--;
             qptr->last_state = newState;
         }
         break;
@@ -218,11 +264,13 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
         if (newState == AonBoff)
         {
             qptr->position++;
+            qptr->absPosition++;
             qptr->last_state = newState;
         }
         else if (newState == AoffBon)
         {
             qptr->position++;
+            qptr->absPosition--;
             qptr->last_state = newState;
             break;
         }
@@ -252,7 +300,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 void QuadDecoder::update_speed_ISR(void *arg)
 {
     QuadDecoder *me=(QuadDecoder *)arg;    
-    me->speedUpdateCount = me->speedUpdateCount;  // statistics...
+    me->speedUpdateCount = me->speedUpdateCount+1;  // statistics...
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
     portENTER_CRITICAL_ISR(&my_mutex);
     qptr->speed = (qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
@@ -277,8 +325,8 @@ ProcessStatus QuadDecoder::DoPeriodic()
     portEXIT_CRITICAL(&my_mutex);
 
     //sprintf(DataPacket.value, "QUAD %f, %llu", qptr->speed, qptr->position);
-    sprintf(DataPacket.value, "XQUD spd=%f, pos=%llu, ISR=%u SPD=%u", 
-        spd,pos, pulseCount, speedUpdateCount);
+    sprintf(DataPacket.value, "XQUD spd=%f, absPos=%f, ISR=%lu SPD=%lu", 
+        spd,getPosition(), pulseCount, speedUpdateCount);
     defDevSendData(millis(), false);
     return (SUCCESS_DATA);
 }
@@ -322,8 +370,10 @@ ProcessStatus QuadDecoder::ExecuteCommand()
 
 /**
  * @brief Decode the command to Set the Wheel diameter and pulses per rev
- *    format:   QSET|<pulseCnt>|<wheelDia>   -set these params
+ *    format:   QSET|<wheelDia>|<pulseCnt>   -set these params
  *    format:   QSET                         - just report params
+ * 
+ *  NOTE: Whatever units wheelDia are in, thats the units used to report distance!
  * 
  * @return - we always return the current parameters
  */
@@ -339,12 +389,10 @@ ProcessStatus QuadDecoder::cmdQSET()
         {
             if (0 != getDouble(0, &wheel, "Wheel Diameter: ") )
             {
-                //sprintf(DataPacket.value, "Error - bad Wheel Dia");
                 res = FAIL_DATA;
             }
             else if (0 != getUint32(1, &pulses, "Pulse Count: "))
             {
-                //sprintf(DataPacket.value, "Error - bad pulse count");
                 res = FAIL_DATA;
             }
             else
@@ -363,7 +411,7 @@ ProcessStatus QuadDecoder::cmdQSET()
     if (res == SUCCESS_NODATA)
     {
         // Show the current parameters
-        sprintf(DataPacket.value, "QPARM|%f|%d", wheelDiameter, pulsesPerRev / 4);
+        sprintf(DataPacket.value, "QSET|%f|%d", wheelDiameter, pulsesPerRev / 4);
         res = SUCCESS_DATA;
     }
 
@@ -374,7 +422,7 @@ ProcessStatus QuadDecoder::cmdQSET()
 /**
  * @brief Set the actual wheel diameter and number of pulses
  * 
- * @param wheel - wheel diameter 
+ * @param wheel - wheel diameter.
  * @param pulses - number of holes (or pulses) per revolution
  */
 void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
@@ -382,6 +430,7 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
     wheelDiameter = wheel;      
     pulsesPerRev = pulses * 4;  // This is, after all, a QUAD decoder!
     convertPulsesToDist = ((M_PI * wheelDiameter) / pulsesPerRev);
+    Serial.print("CONVERT_PULSES factor = "); Serial.println(convertPulsesToDist);
 }
 
 
@@ -396,7 +445,7 @@ dist_t QuadDecoder::getPosition()
 {
     double result;
     portENTER_CRITICAL(&my_mutex); // thread safe - get position
-    dist_t position = quads[quadIdx].position;
+    dist_t position = quads[quadIdx].absPosition;
     portEXIT_CRITICAL(&my_mutex);
     result = position * convertPulsesToDist;
     return (result);

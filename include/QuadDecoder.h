@@ -54,7 +54,7 @@ class QuadDecoder: public DefDevice
         void getCalibration(pulse_t *pulsesPerRev, dist_t *diameter);
         
     private:
-    
+        const char *translate(QUAD_STATE_t state); // for debugging
         uint8_t quadIdx; // Which motor is assigned to me?
         // QueueHandle_t queue;  // keep track of quad events
         gpio_num_t quad_pin_a;
