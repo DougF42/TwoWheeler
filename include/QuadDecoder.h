@@ -28,7 +28,7 @@
 #include <driver/gpio.h>
 #include "esp_timer.h"
 #include "sdkconfig.h"
-
+// #include ""
 class QuadDecoder: public DefDevice
 {
     public:
@@ -54,6 +54,7 @@ class QuadDecoder: public DefDevice
         void getCalibration(pulse_t *pulsesPerRev, dist_t *diameter);
         
     private:
+    
         uint8_t quadIdx; // Which motor is assigned to me?
         // QueueHandle_t queue;  // keep track of quad events
         gpio_num_t quad_pin_a;

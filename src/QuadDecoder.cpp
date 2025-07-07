@@ -12,6 +12,8 @@
 #include "QuadDecoder.h" 
 #include <atomic>
 
+
+
 // This MUST be kept as small as possible - it determines
 // the size of a structure that is stored in DRAM for the
 // ISR routines will work properly.
@@ -48,6 +50,17 @@ static DRAM_ATTR Quad_t quads[MAX_NO_OF_QUAD_DECODERS]; // (static but not const
 // For the quad array, what is the next available position?
 static std::atomic_uint8_t nextQuadId=0;
 
+ // To avoid problems with overlaping interrupts and 
+ //   mainline code... This is used by portEnter/Exit Critical section
+ //  to control access to the QUADS structure.
+ // NOTE: We expect only one thread to access a given instance of
+ //   the decoder at a time.
+ static portMUX_TYPE my_mutex= portMUX_INITIALIZER_UNLOCKED;
+
+
+/** - - - - - - - 
+ *  Initialize
+ */
 QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, InName)
 {
     pulseCount=0;
@@ -70,7 +83,7 @@ QuadDecoder::~QuadDecoder()
  */
 void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
 {
-    //  Sanity checks
+    //  Sanity checks, assign quad index number
     int quadIdx = nextQuadId++;
     if (quadIdx > MAX_NO_OF_QUAD_DECODERS)
     {
@@ -78,12 +91,14 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
         return;
     }
     Serial.printf("*** QUAD ASSIGNED TO index %d\n\r", quadIdx);
-    quad_pin_a =  cfg->dir_pin_a;
-    quad_pin_b =  cfg->dir_pin_b;
+    quad_pin_a = cfg->quad_pin_a;
+    quad_pin_b = cfg->quad_pin_b;
 
+    // Set default pulse count and wheel diam
     calibrate(QUAD_PULSES_PER_REV, WHEEL_DIAM_MM);
     quads[quadIdx].last_state = QuadInitState;
 
+    // - - - - - -
     // CONFIGURE QUAD PINS FOR INPUT WITH INTERRUPT
     gpio_config_t pGpioConfig =
     {
@@ -96,37 +111,43 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
         .hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE; /*!< GPIO hysteresis: hysteresis filter on slope input    */
 #endif
     };
-ESP_ERROR_CHECK(gpio_config(&pGpioConfig));
-Serial.printf("Installed quad i/o. about to install interrupt ISR\n\r");
-if (! isrAlreadyInstalled)
-{
-    isrAlreadyInstalled=true;
-    ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE  ));
-}
-ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, ISR_handler, this));
-ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_b, ISR_handler, this));
-Serial.printf("... Quad ISR handlers added\r\n");
+    ESP_ERROR_CHECK(gpio_config(&pGpioConfig));
+    Serial.printf("Installed quad i/o. about to install interrupt ISR\n\r");
+    if (!isrAlreadyInstalled)
+    {
+        isrAlreadyInstalled = true;
+        ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE));
+        Serial.println("GPIO ISR Service installed ");
+    }
+    ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, ISR_handler, this));
+    ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_b, ISR_handler, this));
+    Serial.printf("... Quad ISR handlers added\r\n");
 
-// NOW SET UP THE SPEED CHECK TIMER
-esp_timer_create_args_t speed_timer_args = 
-{
-    .callback = &update_speed_ISR,    //!< Callback function to execute when timer expires
-    .arg =this,                       //!< Argument to pass to callback
-    .dispatch_method=ESP_TIMER_TASK,  //!< Dispatch callback from task or ISR; if not specified, esp_timer task
-                                      //!< is used; for ISR to work, also set Kconfig option
-                                      //!< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
-    .name="SpeedTimer",               //!< Timer name, used in esp_timer_dump() function
-    .skip_unhandled_events = true     //!< Setting to skip unhandled events in light sleep for periodic timers
-};
+    // - - - - - - - - - - 
+    // NOW SET UP THE SPEED CHECK TIMER
+    esp_timer_create_args_t speed_timer_args =
+        {
+            .callback = &update_speed_ISR,     //!< Callback function to execute when timer expires
+            .arg = this,                       //!< Argument to pass to callback
+            .dispatch_method = ESP_TIMER_TASK, //!< Dispatch callback from task or ISR; if not specified, esp_timer task
+                                               //!< is used; for ISR to work, also set Kconfig option
+                                               //!< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
+            .name = "SpeedTimer",              //!< Timer name, used in esp_timer_dump() function
+            .skip_unhandled_events = true      //!< Setting to skip unhandled events in light sleep for periodic timers
+        };
 
-ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimer));
-Serial.printf("... Speed timer installed\n\r");
-setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
-Serial.printf("... Interval is %d\n\r", SPEED_CHECK_INTERVAL_mSec);
-resetPos();
-periodicEnabled=false;
-return;
-}
+    ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimer));
+    Serial.printf("... Speed timer created\n\r");
+
+    setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
+    Serial.printf("... Interval is %d (mseconds)n\r", SPEED_CHECK_INTERVAL_mSec);
+    resetPos();
+    periodicEnabled = false;  // Default is no report.
+
+    // DEBUG 
+    gpio_dump_io_configuration(stdout, (1ull << quad_pin_a) | (1ull << quad_pin_b));
+    return;
+    }
 
 
 // - - - - - - - - - - - - - - - - - - - - - --
@@ -147,7 +168,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     int pina=gpio_get_level(me->quad_pin_a); // get the current value of pinA
     int pinb=gpio_get_level(me->quad_pin_b); // get the current value of pinB
     QUAD_STATE_t newState = (QUAD_STATE_t) ((pina<<1) | pinb); // combine pina+pinb to get state
-    
+    portENTER_CRITICAL_ISR(&my_mutex);
     // DECODE the quad state, update our position
     switch (qptr->last_state)
     {
@@ -206,6 +227,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
             break;
         }
     }
+    portEXIT_CRITICAL_ISR(&my_mutex);
 }
 
 
@@ -220,17 +242,23 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
  * The resulting speed is in 'pulses' (not scaled
  * to physical units)
  * 
+ * NOTE: Contrary to the name, this is NOT called as
+ *       an ISR server - it is called from the high-priority
+ *       timer task.
+ * 
  * @param arg - points to the 'quadDecoder' instance
  *   that this was called from.
  */
 void QuadDecoder::update_speed_ISR(void *arg)
 {
-    QuadDecoder *me=(QuadDecoder *)arg;
-    me->speedUpdateCount = me->speedUpdateCount;
+    QuadDecoder *me=(QuadDecoder *)arg;    
+    me->speedUpdateCount = me->speedUpdateCount;  // statistics...
     Quad_t *qptr = &(quads[me->quadIdx]); // Point to my quad entry
+    portENTER_CRITICAL_ISR(&my_mutex);
     qptr->speed = (qptr->position) / (esp_timer_get_time() - qptr->last_update_time);
     qptr->last_update_time = esp_timer_get_time();
     qptr->position = 0;
+    portEXIT_CRITICAL_ISR(&my_mutex);
     return;
 }
 
@@ -243,10 +271,10 @@ void QuadDecoder::update_speed_ISR(void *arg)
 ProcessStatus QuadDecoder::DoPeriodic()
 {
     Quad_t *qptr = &(quads[quadIdx]); // Point to my quad entry
-    noInterrupts();
+    portENTER_CRITICAL(&my_mutex);
     dist_t pos= qptr->absPosition;
     dist_t spd=qptr->speed;
-    interrupts();
+    portEXIT_CRITICAL(&my_mutex);
 
     //sprintf(DataPacket.value, "QUAD %f, %llu", qptr->speed, qptr->position);
     sprintf(DataPacket.value, "XQUD spd=%f, pos=%llu, ISR=%u SPD=%u", 
@@ -367,9 +395,9 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
 dist_t QuadDecoder::getPosition()
 {
     double result;
-    noInterrupts(); // thread safe - get position
+    portENTER_CRITICAL(&my_mutex); // thread safe - get position
     dist_t position = quads[quadIdx].position;
-    interrupts();
+    portEXIT_CRITICAL(&my_mutex);
     result = position * convertPulsesToDist;
     return (result);
 }
@@ -382,7 +410,7 @@ dist_t QuadDecoder::getPosition()
 //
 void QuadDecoder::resetPos()
 {
-    noInterrupts();
+     portENTER_CRITICAL(&my_mutex);
 
     quads[quadIdx].last_state = QuadInitState;
     quads[quadIdx].position = 0L;
@@ -390,7 +418,7 @@ void QuadDecoder::resetPos()
     quads[quadIdx].last_update_time = esp_timer_get_time();
     quads[quadIdx].speed = 0.0;
 
-    interrupts();
+     portEXIT_CRITICAL(&my_mutex);
     setSpeedCheckInterval(speedCheckIntervaluSec/1000);
 }
 
@@ -403,9 +431,9 @@ void QuadDecoder::resetPos()
  */
 int32_t QuadDecoder::getSpeed()
 {
-    noInterrupts();
+    portENTER_CRITICAL(&my_mutex);
     double curSpeed = quads[quadIdx].speed;
-    interrupts();
+    portEXIT_CRITICAL(&my_mutex);
     curSpeed = curSpeed * (wheelDiameter / pulsesPerRev);
     return (curSpeed);
 }
@@ -427,7 +455,7 @@ ProcessStatus QuadDecoder::cmdSetSpeedCheckInterval()
          if (0 != getLLint(0, &interv, "Error in speed check interval ") )
             retVal=FAIL_DATA;
             else
-            speedCheckIntervaluSec = interv*1000;
+            setSpeedCheckInterval(interv);
 
     } else if (argCount != 0)
     { 
@@ -461,8 +489,6 @@ void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
     
     // Enable with new paramers
     ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimer, speedCheckIntervaluSec));
-    Serial.printf("In setSpeedCheckInterval - speed requested %llu msecs or %llu nSecs\r\n ", 
-        rateMsec, speedCheckIntervaluSec);
 }
 
 
