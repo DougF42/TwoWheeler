@@ -42,10 +42,11 @@ class LN298 : public DefDevice
         ~LN298();
         ProcessStatus  ExecuteCommand () override;
         ProcessStatus  DoPeriodic()  override;
+        ProcessStatus  setPulseWidthCommand();
         void setReportStatus(bool enaFlag);
         bool setPulseWidth(int pcnt); // Set the pulse width (0..100)
-        void enable();
-        void disable();
-        void hardStop();
+        ProcessStatus enable(bool isRemoteCmd=false);
+        ProcessStatus disable(bool isRemoteCmd=false);
+        ProcessStatus hardStop(bool isRemoteCmd=false);
 
 };

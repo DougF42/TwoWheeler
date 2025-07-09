@@ -96,6 +96,10 @@ ProcessStatus PidDevice::ExecuteCommand()
     else if (isCommand("REPT"))
     {
         retVal = cmdSetRept();
+    } else 
+    {
+        sprintf(DataPacket.value, "EROR|PID|Unknown command");
+        retVal = FAIL_DATA;
     }
 
     return (retVal); // for now...

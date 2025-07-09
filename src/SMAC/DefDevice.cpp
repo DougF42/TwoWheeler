@@ -67,12 +67,53 @@ void DefDevice::defDevSendData(time_t timeStamp, bool sendNowFlag)
     if (sendNowFlag)     myNode->SendDataPacket();
 }
 
+/**
+ * @brief Get a 8bit unsigned integer
+ * 
+ * @param arg 
+ * @param result 
+ * @param msg 
+ * @return int 
+ */
+int DefDevice::getUInt8(int arg, uint8_t *result, const char *msg)
+{
+
+   if (arg > argCount)
+    {
+        // Missing argument
+        sprintf(DataPacket.value, "%s:Missing argument no %d", msg, arg);
+        return (1);
+    }
+
+    // Must  be positive digits
+    for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
+    {
+        if (!isDigit(*ptr))
+        {
+            sprintf(DataPacket.value, "%s:argument %d is not an unsigned int\n", msg, arg);
+            return (2);
+        }
+
+    }
+
+    long long tmpRes;
+    tmpRes = strtoll(arglist[arg], nullptr, 10);
+    if (tmpRes > (1L<<16) )
+    {
+        sprintf(DataPacket.value, "%s|Aregument out of range");
+        return(3);
+    }
+
+    *result = (uint8_t)tmpRes;
+    return (0); // OKAY
+}
+
 int DefDevice::getLLint(int arg, long long *result, const char *msg)
 {
     if (arg > argCount)
     {
         // Missing argumen t
-        sprintf(DataPacket.value, "%s:Missing argument no %d", msg, arg);
+        sprintf(DataPacket.value, "%s|Missing argument no %d", msg, arg);
         return (1);
     }
 
@@ -80,7 +121,7 @@ int DefDevice::getLLint(int arg, long long *result, const char *msg)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "%s:argument %d is not an unsigned int\n", msg, arg);
+            sprintf(DataPacket.value, "%s|argument %d is not an unsigned int\n", msg, arg);
             return (2);
         }
     }
@@ -106,7 +147,7 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
     {
         // Missing argumen t
         sprintf(DataPacket.value, "%s:Missing argument no %d",msg, arg );
-        Serial.printf("For %s: Missing argument %d - argcount is %d\r\n", msg, arg, argCount);
+        Serial.printf("%s|Missing argument %d - argcount is %d\r\n", msg, arg, argCount);
         return(1);
     }
 
@@ -115,7 +156,7 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
         if (!isDigit(*ptr))
         {
             sprintf(DataPacket.value, "%s:argument %d is not an unsigned int\n", msg, arg);
-            Serial.printf("For %s: Bad integer value for argument %d: '%s'\r\n", msg, arg, arglist[arg]);
+            Serial.printf("%s|Bad integer value for argument %d: '%s'\r\n", msg, arg, arglist[arg]);
             return (2);
         }
     }
@@ -135,10 +176,10 @@ int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
  */
 int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
 {
-    if ((arg > argCount) || (arg<0))
+    if ((arg >= argCount) || (arg<0))
     {
         // Missing argumen t
-        sprintf(DataPacket.value, "%s:Invalid or Missing argument no %d", msg, arg);
+        sprintf(DataPacket.value, "%s|Invalid or Missing argument no %d", msg, arg);
         return (1);
     }
     Serial.printf("getInt32: argument is %s\r\n", arglist[arg]);
@@ -146,13 +187,13 @@ int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
         {
-            sprintf(DataPacket.value, "%s:Argument %d is not a int\n", msg, arg);
+            sprintf(DataPacket.value, "%s|Argument %d is not a int\n", msg, arg);
             return (2);
         }
     }
 
     *result = strtol(arglist[arg], nullptr, 10);
-    Serial.printf("getInt32: Result is %d\n", *result);
+    // Serial.printf("%s|Result is %d\n",msg,  *result);
     return(0);
 }
 
@@ -214,7 +255,7 @@ int DefDevice::getBool(int arg, bool *result, const char *msg)
         *result=true;
 
     }  else 
-        sprintf(DataPacket.value, "%s:%s %s", msg, "Unknown boolean value for argument ", arg);
+        sprintf(DataPacket.value, "%s|%s %s", msg, "Unknown boolean value for argument ", arg);
         defDevSendData(0, false);
         retval= 2;
     return(retval);

@@ -46,7 +46,9 @@
 #include "common.h"
 #include "DefNode.h"
 #include "Driver.h"
+#include "INA3221Device.h"
 
+// #define USE_INA3221
 //--- Globals ---------------------------------------------
 
 bool         Debugging = true;  // ((( Set to false for production builds )))
@@ -66,6 +68,9 @@ char         DataString[MAX_MESSAGE_LENGTH];
 
 DefNode      *ThisNode;  // The Node for this example
 Driver       *myDriver;
+#ifdef USE_INA3221
+INA3221Device      *myIna3221Device;
+#endif
 
 //--- Declarations ----------------------------------------
 
@@ -159,10 +164,18 @@ void setup()
           .kd = 0,
       };
 
+  // CREATE DRIVER device
   myDriver = new Driver(ThisNode, "Driver");
   myDriver->setup(&left_mtr_cfg, &right_mtr_cfg);
   ThisNode->AddDevice(myDriver);
 
+
+  #ifdef USE_INA3221
+  // CREATE Power Monitor device
+    myIna3221Device = new INA3221Device(ThisNode, "Power");
+    myIna3221Device->setup(); // use default i2c device id=40
+    ThisNode->AddDevice(myIna3221Device);
+  #endif
 
   // PING the Relayer once per second until it responds with PONG
   Serial.println ("PINGing Relayer ...");
@@ -184,6 +197,7 @@ void setup()
     // Check for Set MAC Tool
     Serial_CheckInput ();
   }
+
 
   // Relayer responded, All good, Go green
   Serial.println ("Relayer responded to PING");

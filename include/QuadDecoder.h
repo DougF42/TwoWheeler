@@ -10,12 +10,16 @@
  * Listen to - and decode - a quad decoder
  * 
  * This sets up an interrupt handler that responds
- * to all phase_a and phase_b transitions, and updates
- * our idea of position (TBD: and speed?) accordingly.
+ * to all phase_a and phase_b transitions and updates
+ * the our position accordingly.
+ * 
+ * This action is protected by Critical sections controlled
+ * by the 
  * 
  * A periodic 'high resolution timer' is also implemented
  * which will update our speed (based on the change of 
  * position in the interval since the previous call).
+ * 
  * 
  * 
  * Note: Units are in MM.
@@ -28,6 +32,11 @@
 #include <driver/gpio.h>
 #include "esp_timer.h"
 #include "sdkconfig.h"
+#include "atomic"
+
+
+
+
 // #include ""
 class QuadDecoder: public DefDevice
 {
@@ -53,12 +62,26 @@ class QuadDecoder: public DefDevice
         void calibrate (pulse_t pulsesPerRev, dist_t diameter);  
         void getCalibration(pulse_t *pulsesPerRev, dist_t *diameter);
         
+        /**
+         * @brief This structure contains the variables needed by
+         * the ISR routines.
+         * We keep them separate so that the compiler will ONLY
+         * keep these into DRAM when running the ISR (and not the
+         * whole class)
+         */
+        typedef struct
+        {
+            const char *name;                     // For debug output
+            QuadDecoder::QUAD_STATE_t last_state; // state of the decoder (set by ISR)
+            pulse_t absPosition;                  // change in Current position (in pulses)
+            gpio_num_t quad_pin_a;                // the 'a' pin for this quad
+            gpio_num_t quad_pin_b;                // the 'b' pin for this quad
+            volatile int32_t pulseCount;  // A simple statistic...
+        } Quad_t;
+
     private:
-        const char *translate(QUAD_STATE_t state); // for debugging
-        uint8_t quadIdx; // Which motor is assigned to me?
-        // QueueHandle_t queue;  // keep track of quad events
-        gpio_num_t quad_pin_a;
-        gpio_num_t quad_pin_b;
+       // int quadIdx; // Which motor is assigned to me?
+       Quad_t *quadPtr;  // Which 'quad' entry is assigned to me?
 
         // Robot Characteristics (Configuration, one-time calculations)
         pulse_t pulsesPerRev;           // 
@@ -74,9 +97,8 @@ class QuadDecoder: public DefDevice
         esp_timer_handle_t spdUpdateTimer;             // the timer for driving the speed checker
         pulse_t            last_position;              // Position when we last updated our speed  
         time_t             last_update_time;           // The time when we last updated the speed
-        dist_t             speed;                      // How fast (at last update time?). Actual units!
-
-    volatile uint32_t pulseCount;  // A simple statistic...
+        dist_t             last_speed;                 // How fast (at last update time?). pulses per millisec.
+        static int nextQuadIdx;
     volatile uint32_t speedUpdateCount; 
 
 };

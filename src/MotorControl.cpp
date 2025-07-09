@@ -15,7 +15,6 @@
 MotorControl::MotorControl( Node *_node, const char * InName) : DefDevice(_node, InName)
 {
     piddev = nullptr;
-    enableReportFlag=false;
  }
 
 
@@ -70,64 +69,37 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
  *  REPT <Y|N>   - enable periodic reports
  * @return ProcessStatus 
  */
- ProcessStatus  MotorControl::ExecuteCommand()
- {
-    ProcessStatus retVal = SUCCESS_DATA;
+ProcessStatus MotorControl::ExecuteCommand()
+{
+    ProcessStatus retVal;
     retVal = Device::ExecuteCommand();
-    if (retVal != NOT_HANDLED)
-        return (retVal);
-
-    scanParam();
-    if (isCommand("MSPD"))
-    { // Set motor speed
-        retVal=cmdSetSpeed(argCount, arglist);
+    if (retVal == NOT_HANDLED)
+    {
+        scanParam();
+        if (isCommand("MSPD"))
+        { // Set motor speed
+            retVal = cmdSetSpeed(argCount, arglist);
+        }
         
-    } else if (isCommand("REPT"))
-    { // Enable/disable report
-        retVal=cmdRpt(argCount, arglist);        
-    } else {
-        // Unrecognized command
-        retVal=NOT_HANDLED;
+        else
+        {
+            sprintf(DataPacket.value, "EROR|MotorControl|Unknown command");
+            retVal = FAIL_DATA;
+        }
     }
-    defDevSendData(0, false);
-    return(retVal);
- }
+        defDevSendData(0, false);
+        return (retVal);
+}
 
+/**
+ * @brief Set the overall ground speed of the robot
+ */
  ProcessStatus MotorControl::cmdSetSpeed(int argCnt, char **argv)
  {
     // TODO:
     return(NOT_HANDLED);
  }
 
-
- ProcessStatus MotorControl::cmdRpt(int argCnt, char **argv)
- {
-     ProcessStatus retVal = SUCCESS_NODATA;
-     bool tmpVal;
-     if (argCnt == 1)
-     {
-         if (0 != getBool(0, &tmpVal, "Boolean enable/disable flag: "))
-         {
-             retVal = FAIL_DATA;
-         } else {
-            enableReportFlag = tmpVal;
-         }
-     }
-     else if (argCnt != 0)
-     {
-         sprintf(DataPacket.value, "wrong number of arguments");
-         retVal = FAIL_DATA;
-     }
- 
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        sprintf(DataPacket.value, "REPT|%s", enableReportFlag);
-        retVal=SUCCESS_DATA;
-    }
-    defDevSendData(0, false);
-    return(retVal);
- }
 
 
 /**

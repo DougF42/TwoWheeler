@@ -110,42 +110,32 @@ void LN298::setupLN298(MotorControl_config_t *cfg)
  */
 ProcessStatus LN298::ExecuteCommand()
 {
+
     ProcessStatus retVal = SUCCESS_NODATA;
     retVal = Device::ExecuteCommand();
-    if (retVal != NOT_HANDLED)
-        return (retVal);
+    if (retVal == NOT_HANDLED)
+    {
 
-    int32_t val = 0;
-    scanParam();
+        scanParam();
 
-    if (isCommand("SPWM"))
-    { // set pulse width (autmatically enables driver)
-        getInt32(0, &val, "Error: Pulse width from 0 to +/- 100");
-        if ((val < -100) || (val > 100))
-        {
-            sprintf(DataPacket.value, "ERROR: Value must be 0 +/- 100");
-            retVal = FAIL_DATA;
+        if (isCommand("SPWM"))
+        { 
+            retVal=setPulseWidthCommand();
+        }
+        else if (isCommand("ENAB"))
+        { // Enable
+            retVal =enable(true);
+        }
+
+        else if (isCommand("DISA"))
+        { // Disable
+            retVal =disable(true);
         }
         else
-        { if (!setPulseWidth((int)val))
-            {
-                sprintf(DataPacket.value, "ERROR: motor is not enabled");
-                retVal = FAIL_DATA;
-            }
+        {
+            sprintf(DataPacket.value, "EROR|LN298|Unknown command");
+            retVal = FAIL_DATA;
         }
-
-    } else if (isCommand("ENAB"))
-    { // Enable
-        enable();
-    }
-
-    else if (isCommand("DISA"))
-    { // Disable
-        disable();
-
-    } else {
-        sprintf(DataPacket.value, "ERROR: Invalid argument");
-        retVal = FAIL_DATA;
     }
 
     if (retVal == SUCCESS_NODATA)
@@ -154,7 +144,6 @@ ProcessStatus LN298::ExecuteCommand()
         retVal = SUCCESS_DATA;
     }
 
-    defDevSendData(0, false);
     return (retVal);
 }
 
@@ -168,6 +157,41 @@ ProcessStatus LN298::ExecuteCommand()
         sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
         return (SUCCESS_DATA);
  }
+
+/**
+ * @brief process the SPWM  (set pulse width) command
+ *   Format: SPWM <pulseWidt>
+ *      <pulseWidth> is percentage -
+ *                   positive for forward, negative is reverse
+ */
+ProcessStatus LN298::setPulseWidthCommand()
+{
+    ProcessStatus retVal = SUCCESS_NODATA;
+    int32_t val = 0;
+    // set pulse width (autmatically enables driver)
+    getInt32(0, &val, GetName());
+
+    if ((val < -100) || (val > 100))
+    {
+        sprintf(DataPacket.value, "EROR|SPWM|%s|Value must be 0 +/- 100", GetName());
+        retVal = FAIL_DATA;
+    } else {
+        if (!setPulseWidth((int)val))
+        {
+            sprintf(DataPacket.value, "EROR|SPWM|%s is not enabled", GetName());
+            retVal = FAIL_DATA;
+        }
+
+        sprintf(DataPacket.value, "OK|SPWM|Pulse width is %d", lastPcnt);
+        retVal = SUCCESS_DATA;
+    }
+
+    if ((retVal==SUCCESS_DATA) || (retVal == FAIL_DATA))
+    {
+        defDevSendData(0, false);
+    }
+    return (retVal);
+}
 
 /**
  * @brief Set the pulse width
@@ -205,15 +229,17 @@ bool LN298::setPulseWidth(int pcnt)
  */
 void LN298::setDirection(int pcnt)
 {
+    ProcessStatus retVal=SUCCESS_NODATA;
+
     if (motorStatus == MOTOR_DIS) return;
     if (pcnt>=0)
     {  // forward
-        Serial.printf("Set Motor %d direction FORWARD\r\n", (int)led_channel);
+        // Serial.printf("Set Motor %d direction FORWARD\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, true);
         gpio_set_level(dir_pin_b,false);
         motorStatus = MOTOR_FWD;
     } else { // reverse
-        Serial.printf("Set Motor %d direction REVERSE\r\n", (int)led_channel);
+        // Serial.printf("Set Motor %d direction REVERSE\r\n", (int)led_channel);
         gpio_set_level(dir_pin_a, false);
         gpio_set_level(dir_pin_b,true);
         motorStatus = MOTOR_REV;
@@ -222,28 +248,54 @@ void LN298::setDirection(int pcnt)
 
 /**
  * @brief Disable the motor driver
- * 
+ * @param isRemoteCmd - if true, then we send an 'ok' message via SMAC.
  */
-void LN298::disable()
+ProcessStatus LN298::disable(bool isRemoteCmd)
 {
+    ProcessStatus retVal = SUCCESS_NODATA;
+
     setPulseWidth(0);
     gpio_set_level(dir_pin_a, false);
     gpio_set_level(dir_pin_b, false);
     gpio_set_level(ena_pin, false);
     motorStatus=MOTOR_DIS;
     ledc_stop(LEDC_MODE, led_channel, 0 );
+    if (isRemoteCmd)
+    {
+        sprintf(DataPacket.value, "OK|DISA|%s Disabled", GetName());
+        retVal=SUCCESS_DATA;
+        defDevSendData(0, false);
+    }
+    return(retVal);
 }
 
 /**
  * @brief Enable the motor driver
  * 
+ * @param isRemoteCmd  if true, then a response message is sent via SMAC.
  */
-void LN298::enable()
+ProcessStatus LN298::enable(bool isRemoteCmd)
 {
-    if (motorStatus != MOTOR_DIS) return;
+    ProcessStatus retVal=SUCCESS_NODATA;
+    if (motorStatus != MOTOR_DIS)
+    {
+        if (isRemoteCmd)
+        {
+            sprintf(DataPacket.value, "ERR|ENAB|%s not enabled", GetName());
+            defDevSendData(0, false);
+            retVal=FAIL_DATA;
+        }
+    } 
 
     gpio_set_level(ena_pin, true);
     setPulseWidth( 0);
     motorStatus = MOTOR_IDLE;
-    return;
+    if (isRemoteCmd)
+    {
+        sprintf(DataPacket.value, "OK|ENAB|%s motor enabled", GetName());
+            defDevSendData(0, false);
+            retVal=SUCCESS_DATA;
+    }
+
+    return(retVal);
 }

@@ -52,6 +52,7 @@ void Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right
     leftMtr  = new MotorControl( myNode, "leftMotor");
     leftMtr->setup(left_cfg, "left_");
     myNode->AddDevice(leftMtr);
+    
     rightMtr = new MotorControl( myNode, "rightMotor");
     rightMtr->setup(right_cfg, "right_");
     myNode->AddDevice(rightMtr);
@@ -122,6 +123,10 @@ ProcessStatus  Driver::ExecuteCommand ()
     } else if (strncmp(cmdPtr, "DRFT", 4) == 0)
     {
         status = cmdDrift(argCount, arglist);
+    } else {
+        sprintf(DataPacket.value, "EROR|Driver|Unknown command");
+        defDevSendData(0, false);
+        status = FAIL_DATA;
     }
     // Serial.print("STATUS:  "); Serial.println(status);
     return(status);

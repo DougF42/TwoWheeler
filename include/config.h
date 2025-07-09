@@ -23,7 +23,7 @@
 // For consistency, time is time_t (long long )
 //     from _timeval.h (ESP32 idf?)
 // DISTANCE:
-typedef uint32_t pulse_t;
+typedef int32_t pulse_t;
 typedef double  dist_t;
 
 // Robot Dimensions (in mm)
@@ -64,10 +64,10 @@ typedef double  dist_t;
 
 // Speed Sensors 
 #define QUAD_PULSES_PER_REV   600
-#define SPEED_CHECK_INTERVAL_mSec 5
-#define MOTOR_1_QUAD_A  GPIO_NUM_36
-#define MOTOR_1_QUAD_B  GPIO_NUM_39
-#define MOTOR_2_QUAD_A  GPIO_NUM_35
+#define SPEED_CHECK_INTERVAL_mSec 5000
+#define MOTOR_1_QUAD_A  GPIO_NUM_23
+#define MOTOR_1_QUAD_B  GPIO_NUM_19
+#define MOTOR_2_QUAD_A  GPIO_NUM_18
 #define MOTOR_2_QUAD_B  GPIO_NUM_34
 
 

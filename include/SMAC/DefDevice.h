@@ -29,6 +29,7 @@ class DefDevice : public Device
         Node *myNode;
         void  defDevSendData(time_t timeStamp, bool sendNowFlag=false);
         int   scanParam();  // scan the parameter list
+        int   getUInt8(int arg, uint8_t *result, const char *msg);
         int   getLLint(int arg, long long  *result, const char *msg);
         int   getUint32(int arg, uint32_t *result, const char *msg);
         int   getInt32(int arg,  int32_t *result, const char *msg);

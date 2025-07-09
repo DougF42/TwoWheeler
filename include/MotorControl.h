@@ -39,7 +39,6 @@ class MotorControl: public DefDevice
         double input_val;   // the actual speed (mm/sec)
         double output_val;  // PWM percentage to set the motor(0..100)
         double setpoint;    // The target string (mm/sec)
-        bool   enableReportFlag;
 
         QuadDecoder *quadDecoder; // The quadrature decoder class instance
         LN298     *ln298;     // The ln298 instance
@@ -53,7 +52,6 @@ class MotorControl: public DefDevice
         ProcessStatus  DoPeriodic() override;
         ProcessStatus  ExecuteCommand() override;
         ProcessStatus cmdSetSpeed(int argCnt, char **argv);
-        ProcessStatus cmdRpt(int argCnt, char **argv);
 
         // Operations - make it go
         void setSpeed(dist_t ratemm_sec);
