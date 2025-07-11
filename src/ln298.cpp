@@ -181,15 +181,15 @@ ProcessStatus LN298::setPulseWidthCommand()
             sprintf(DataPacket.value, "EROR|SPWM|%s is not enabled", GetName());
             retVal = FAIL_DATA;
         }
+    }
 
+    if (retVal==SUCCESS_NODATA)
+    {
         sprintf(DataPacket.value, "OK|SPWM|Pulse width is %d", lastPcnt);
         retVal = SUCCESS_DATA;
     }
 
-    if ((retVal==SUCCESS_DATA) || (retVal == FAIL_DATA))
-    {
-        defDevSendData(0, false);
-    }
+    defDevSendData(0, false);
     return (retVal);
 }
 
@@ -276,26 +276,17 @@ ProcessStatus LN298::disable(bool isRemoteCmd)
  */
 ProcessStatus LN298::enable(bool isRemoteCmd)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
-    if (motorStatus != MOTOR_DIS)
-    {
-        if (isRemoteCmd)
-        {
-            sprintf(DataPacket.value, "ERR|ENAB|%s not enabled", GetName());
-            defDevSendData(0, false);
-            retVal=FAIL_DATA;
-        }
-    } 
+    ProcessStatus retVal = SUCCESS_NODATA;
 
     gpio_set_level(ena_pin, true);
-    setPulseWidth( 0);
+    setPulseWidth(0);
     motorStatus = MOTOR_IDLE;
+
     if (isRemoteCmd)
     {
-        sprintf(DataPacket.value, "OK|ENAB|%s motor enabled", GetName());
-            defDevSendData(0, false);
-            retVal=SUCCESS_DATA;
+        sprintf(DataPacket.value, "OK|ENAB|%s enabled", GetName());
+        defDevSendData(0, false);
+        retVal = SUCCESS_DATA;
     }
-
-    return(retVal);
+    return (retVal);
 }

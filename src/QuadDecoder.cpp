@@ -10,6 +10,16 @@
  */
 #include "config.h"
 #include "QuadDecoder.h" 
+#include "esp_log.h"
+// This defines a pin that we pull high upon entetring the ISR, and
+// set low when we exit. This can be used as a time index (trigger)
+// on an oscilliscope, and to determine how long the ISR is taking.
+#define USE_TRACKER_PIN GPIO_NUM_13
+
+// For testing, it may be convenient to suppress the clock timer
+// which controls our speed update check routine
+// This is UNDEFINED to suppress the speed check.
+#define USE_SPEED_CHECK
 
 // For logging
 #define DEBUG_QUAD 1
@@ -61,6 +71,26 @@ QuadDecoder::~QuadDecoder()
     return;
 }
 
+/**
+ * INTERNAL ONLY!
+ * 
+ * ESP32 has a doumented bug that mulitple edge interrupts
+ * dont work right.  Sooo... We look at the current value,
+ * and set either a positive or negetive level, whichever
+ * will happen next.
+ * This is one of the suggested work-arounds
+ */
+static void setInterruptMode(gpio_num_t pinNo)
+{
+    bool state=gpio_get_level(pinNo);
+    if (state)
+    {
+        gpio_set_intr_type(pinNo, GPIO_INTR_LOW_LEVEL);
+    } else {
+        gpio_set_intr_type(pinNo, GPIO_INTR_HIGH_LEVEL);
+    }
+    return;
+}
 
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
@@ -102,17 +132,18 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
 #endif
     };
     ESP_ERROR_CHECK(gpio_config(&pGpioConfig));
-    Serial.printf("Installed quad i/o. about to install interrupt ISR\n");
+    Serial.printf("Installed quad i/o. about to install interrupt ISR\n\r");
     if (!isrAlreadyInstalled)
     {
         isrAlreadyInstalled = true;
         ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_EDGE));
-        Serial.println("GPIO ISR Service installed\n");
+        Serial.println("GPIO ISR Service installed");
     }
     ESP_ERROR_CHECK(gpio_isr_handler_add(quadPtr->quad_pin_a, ISR_handler, quadPtr));
     ESP_ERROR_CHECK(gpio_isr_handler_add(quadPtr->quad_pin_b, ISR_handler, quadPtr));
-    Serial.printf("... Quad ISR handlers added\n");
+    Serial.println("... Quad ISR handlers added");
 
+    #ifdef USE_SPEED_CHECK
     // - - - - - - - - - - 
     // NOW SET UP THE SPEED CHECK TIMER)
     esp_timer_create_args_t speed_timer_args =
@@ -127,16 +158,32 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
         };
 
     ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimer));
-    Serial.printf("... Speed timer created\n\r");
+    Serial.print("... Speed timer created");
 
     setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
-    Serial.printf("... Interval is %d (mseconds)n\r", SPEED_CHECK_INTERVAL_mSec);
+    Serial.printf("... Interval is %d (mseconds)\n\r", SPEED_CHECK_INTERVAL_mSec);
+    #endif
     resetPos();
     periodicEnabled = false;  // Default is no report.
 
-    // DEBUG
-#ifdef DEBUG_QUAD
-    ESP_LOGE(TAG, "config for %s:\n", quadPtr->name);
+
+
+#ifdef USE_TRACKER_PIN
+    gpio_config_t pTrackerCfg =
+    {.pin_bit_mask = (1ull << USE_TRACKER_PIN),
+     .mode = GPIO_MODE_OUTPUT,              /*!< GPIO mode: set input/output mode  */
+     .pull_up_en = GPIO_PULLUP_DISABLE,     /*!< GPIO pull-up                    */
+     .pull_down_en = GPIO_PULLDOWN_DISABLE, /*!< GPIO pull-down                 */
+     .intr_type = GPIO_INTR_DISABLE,        /*!< GPIO interrupt type                */
+#if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
+     .hys_ctrl_mode = GPIO_HYS_SOFT_DISABLE; /*!< GPIO hysteresis: hysteresis filter on slope input    */
+#endif
+    }
+    ;
+    ESP_ERROR_CHECK(gpio_config(&pTrackerCfg));
+    ESP_ERROR_CHECK(gpio_set_level(USE_TRACKER_PIN, 1)); //set high    
+    gpio_dump_io_configuration(stdout, pTrackerCfg.pin_bit_mask | pGpioConfig.pin_bit_mask);
+#else
     gpio_dump_io_configuration(stdout, pGpioConfig.pin_bit_mask);
 #endif
     return;
@@ -150,31 +197,61 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
  * 
  */
 void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
-{  
+{
+    static time_t initial_time = 0;
+    initial_time=esp_timer_get_time();
+
+#ifdef USE_TRACKER_PIN
+    gpio_set_level(USE_TRACKER_PIN, 0);
+#endif
+
     Quad_t *qptr = (Quad_t *)arg;     // point to my QuadDecoder    
     
-
     // save the current state of the pins
-    int pina=gpio_get_level(qptr->quad_pin_a); // get the current value of pinA
-    int pinb=gpio_get_level(qptr->quad_pin_b); // get the current value of pinB
-    if ((pina !=0) && (pina!=1))
-    {
-        ESP_DRAM_LOGE(TAG, "Bad level on pina: %d", pina);
-    }
-    if ((pinb !=0) && (pinb!=1))
-    {
-        ESP_DRAM_LOGE(TAG, "Bad level on pinb: %d", pinb);
-    }
+    int pina;
+    //pina=gpio_get_level(qptr->quad_pin_a); // get the current value of pinA
+    pina=0;   //TEST
+
+    int pinb;
+    // pinb=gpio_get_level(qptr->quad_pin_b); // get the current value of pinB
+    pinb=0;
+
     QUAD_STATE_t newState = (QUAD_STATE_t) ((pina<<1) | pinb); // combine pina+pinb to get state
 
-    portENTER_CRITICAL_ISR(&quad_ctrl_mutex);
+    //portENTER_CRITICAL_ISR(&quad_ctrl_mutex);
     qptr->pulseCount= qptr->pulseCount+1L; // statistics...
-    // DECODE the quad state, update our position
+
+    // DECODE the quad state, update our position and state
     switch (qptr->last_state)
     {
     case (QuadInitState):
         // Initialize the QUAD decoder
         qptr->last_state = newState;
+        break;
+ 
+    case (AoffBoff):
+        if (newState == AonBoff)
+        {
+            qptr->absPosition++;
+            qptr->last_state = newState;
+        }
+        else if (newState == AoffBon)
+        {
+            qptr->absPosition--;
+            qptr->last_state = newState;
+            break;
+        }
+
+    case (AoffBon):
+        if (newState == AoffBoff)
+        {
+            qptr->absPosition++;
+            qptr->last_state = newState;
+        } else if (newState == AonBon)
+        {
+            qptr->absPosition--;
+            qptr->last_state = newState;
+        }
         break;
 
     case (AonBoff):
@@ -201,35 +278,19 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
         }
         break;
 
-    case (AoffBon):
-        if (newState == AoffBoff)
-        {
-            qptr->absPosition++;
-            qptr->last_state = newState;
-        } else if (newState == AonBon)
-        {
-            qptr->absPosition--;
-            qptr->last_state = newState;
-        }
-        break;
-
-    case (AoffBoff):
-        if (newState == AonBoff)
-        {
-            qptr->absPosition++;
-            qptr->last_state = newState;
-        }
-        else if (newState == AoffBon)
-        {
-            qptr->absPosition--;
-            qptr->last_state = newState;
-            break;
-        }
     }
-    portEXIT_CRITICAL_ISR(&quad_ctrl_mutex);
-  return;
-}
 
+    // portEXIT_CRITICAL_ISR(&quad_ctrl_mutex);
+    time_t time_now = esp_timer_get_time();
+    time_t diff     = time_now - initial_time;
+    ESP_DRAM_LOGE(TAG, "end: %llu start %llu  Elapsed:%llu", initial_time, time_now, diff);
+    //  setInterruptMode(qptr->quad_pin_a);
+    //  setInterruptMode(qptr->quad_pin_b);
+#ifdef USE_TRACKER_PIN
+    gpio_set_level(USE_TRACKER_PIN, 1);
+#endif
+    return;
+}
 
 /**
  * @brief Re-calculate the speed
@@ -242,8 +303,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
  * The resulting speed is in 'pulses' (not scaled
  * to physical units)
  * 
- * NOTE: Contrary to the name, this is NOT called as
- *       an ISR server - it is called from the high-priority
+ * NOTE: This is called from the high-priority
  *       timer task.
  * 
  * @param arg - points to the 'quadDecoder' instance
@@ -251,35 +311,29 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
  */
 void QuadDecoder::update_speed_CB(void *arg)
 {
-    return; // ignore me
     QuadDecoder *me=(QuadDecoder *)arg;    
     me->speedUpdateCount = me->speedUpdateCount+1;  // statistics..
     
     pulse_t cur_pos;
-    portENTER_CRITICAL_ISR(&quad_ctrl_mutex);
-    cur_pos=me->quadPtr->absPosition;
-    portEXIT_CRITICAL_ISR(&quad_ctrl_mutex);
-    
-    dist_t delta_pos = (double) (cur_pos - me->last_position);
-    if (delta_pos < 5)
-    {
-        me->last_speed = 0;
-        me->last_update_time = esp_timer_get_time();
-        me->last_position = cur_pos;
-       // ESP_LOGE(TAG, "updateSpeed: Delta position is 0");
+    time_t cur_time = esp_timer_get_time();
 
-    } else {
-        time_t elapsed = (esp_timer_get_time() - me->last_update_time);
-        me->last_speed = delta_pos / (double)elapsed;
-        me->last_update_time = esp_timer_get_time();
-        me->last_position = cur_pos;
-        #ifdef DEBUG_QUAD
-        double cur_speed = me->last_speed; // needed because last_speed is atomic
-        //ESP_LOGE(TAG,"updateSpeed: cur_pos=%d delta_pos=%8.4f  elapsed=%lld speed=%8.4f",
-        //    cur_pos, delta_pos, elapsed, cur_speed);
-    #endif
+    // portENTER_CRITICAL_ISR(&quad_ctrl_mutex);
+    cur_pos=me->quadPtr->absPosition;
+    // portEXIT_CRITICAL_ISR(&quad_ctrl_mutex);
+    
+    pulse_t delta_pos = (double) (cur_pos - me->last_position);
+    time_t elapsed = cur_time - me->last_update_time;
+
+    //Serial.print("**UDATESPEED: elapsed(msec) = "); Serial.print(elapsed/1000);
+    //Serial.print("   DeltaPos=");                Serial.println(delta_pos);
+    if (labs(delta_pos) < 1)
+    {
+        me->last_speed = 0;       
+    } else {       
+        me->last_speed =  (((double)delta_pos) * me->convertPulsesToDist)/ ((double)elapsed*1000.0);
     }
-   
+    me->last_position = cur_pos;
+    me->last_update_time = cur_time;
     return;
 }
 
@@ -351,6 +405,8 @@ ProcessStatus QuadDecoder::ExecuteCommand()
 /**
  * @brief Decode the command to Set the Wheel diameter and pulses per rev
  *    format:   QSET|<wheelDia>|<pulseCnt>   -set these params
+ *          wheel dia in mm
+ *          pulsecnt    - how many pulse holes in 1 full turn?
  *    format:   QSET                         - just report params
  * 
  *  NOTE: Whatever units wheelDia are in, thats the units used to report distance!
@@ -403,7 +459,7 @@ ProcessStatus QuadDecoder::cmdQSET()
 /**
  * @brief Set the actual wheel diameter and number of pulses
  * 
- * @param wheel - wheel diameter.
+ * @param wheel - wheel diameter (in mm)
  * @param pulses - number of holes (or pulses) per revolution
  */
 void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
@@ -416,7 +472,7 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
 
 
 /** - - - - - - - - - - - - - - - - - --
- * @brief Get the current Position
+ * @brief Get the current Position (mm)
  *     Position is in terms of 'ticks' of the quad encoder
  * we convert it here into the units of choice
  *
@@ -425,7 +481,6 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
 dist_t QuadDecoder::getPosition()
 {
     pulse_t position;
-
     portENTER_CRITICAL(&quad_ctrl_mutex); // thread safe - get position
     position = quadPtr->absPosition;
     portEXIT_CRITICAL(&quad_ctrl_mutex);
@@ -516,6 +571,9 @@ ProcessStatus QuadDecoder::cmdSetSpeedCheckInterval()
  */
 void QuadDecoder::setSpeedCheckInterval(time_t rateMsec)
 {
+#ifndef USE_SPEED_CHECK
+    return;
+#endif
     // Note:  The internal clock is in microseconds
     speedCheckIntervaluSec = rateMsec * 1000;
 

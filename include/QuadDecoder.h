@@ -41,8 +41,11 @@
 class QuadDecoder: public DefDevice
 {
     public:
-        // The order corresponds to binary state assuming a is bit 1, b is bit 0
-        typedef enum { AoffBoff=0, AoffBon=1, AonBoff=2,  AonBon=3, QuadInitState=4} QUAD_STATE_t;
+        // DONT CHANGE THE assignments!!!
+        //     The assignments corresponds to binary state of the 
+        //         inputs, assuming a is bit 1, b is bit 0
+        // 
+        typedef enum { AoffBoff=0, AoffBon=1,  AonBoff=2, AonBon=3,  QuadInitState=4} QUAD_STATE_t;
 
         QuadDecoder(Node *_node, const char * InName);
         ~QuadDecoder();
@@ -99,6 +102,6 @@ class QuadDecoder: public DefDevice
         time_t             last_update_time;           // The time when we last updated the speed
         dist_t             last_speed;                 // How fast (at last update time?). pulses per millisec.
         static int nextQuadIdx;
-    volatile uint32_t speedUpdateCount; 
+        volatile uint32_t speedUpdateCount; 
 
 };

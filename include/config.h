@@ -43,32 +43,32 @@ typedef double  dist_t;
 #define SMAC_NODENAME "TWOWHEEL"
 #define SMAC_NODENO   0
 
-//#define BUILT_IN_LED_PIN ( (gpio_num_t)2 )
-#define BUILT_IN_LED_PIN  LED_PIN
-
 #define LCD_PULSE_FREQ  5000
 #define LCD_RES_BITS      13
 // from ledc_timer_t
 #define LCD_TIMER_NO      LEDC_TIMER_0
 
 
-// Pins for DC motor 1
-#define MOTOR_1_EN      GPIO_NUM_14
-#define MOTOR_1_DRIVE_A GPIO_NUM_27
-#define MOTOR_1_DRIVE_B GPIO_NUM_26
+// Pins for DC motor 1 (right)
+#define MOTOR_1_EN      GPIO_NUM_18
+#define MOTOR_1_DRIVE_A GPIO_NUM_9
+#define MOTOR_1_DRIVE_B GPIO_NUM_8
 
-// Pins for DC motor 2
-#define MOTOR_2_EN      GPIO_NUM_32
-#define MOTOR_2_DRIVE_A GPIO_NUM_25
-#define MOTOR_2_DRIVE_B GPIO_NUM_33
+// Pins for DC motor 2 (left)
+#define MOTOR_2_EN      GPIO_NUM_15
+#define MOTOR_2_DRIVE_A GPIO_NUM_16
+#define MOTOR_2_DRIVE_B GPIO_NUM_17
 
-// Speed Sensors 
+// Motor 1 Encoder
+#define MOTOR_1_QUAD_A  GPIO_NUM_4
+#define MOTOR_1_QUAD_B  GPIO_NUM_5
+// Motor 2 Encoder
+#define MOTOR_2_QUAD_A  GPIO_NUM_6
+#define MOTOR_2_QUAD_B  GPIO_NUM_7
+
+// Default scaling for quad
 #define QUAD_PULSES_PER_REV   600
 #define SPEED_CHECK_INTERVAL_mSec 5000
-#define MOTOR_1_QUAD_A  GPIO_NUM_23
-#define MOTOR_1_QUAD_B  GPIO_NUM_19
-#define MOTOR_2_QUAD_A  GPIO_NUM_18
-#define MOTOR_2_QUAD_B  GPIO_NUM_34
 
 
 // * * * * * * * 
