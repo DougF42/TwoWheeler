@@ -13,7 +13,6 @@
  */
 #include "config.h"
 #include "Driver.h"
-#include "QuadDecoder.h"
 #include "stdlib.h"
 
 // What we consider delimiters for commands 

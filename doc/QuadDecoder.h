@@ -41,12 +41,6 @@
 class QuadDecoder: public DefDevice
 {
     public:
-        // DONT CHANGE THE assignments!!!
-        //     The assignments corresponds to binary state of the 
-        //         inputs, assuming a is bit 1, b is bit 0
-        // 
-        typedef enum { AoffBoff=0, AoffBon=1,  AonBoff=2, AonBon=3,  QuadInitState=4} QUAD_STATE_t;
-
         QuadDecoder(Node *_node, const char * InName);
         ~QuadDecoder();
         void setupQuad(MotorControl_config_t *cfg);
@@ -58,7 +52,6 @@ class QuadDecoder: public DefDevice
         ProcessStatus  ExecuteCommand () override;         // Override this method to handle custom commands
         ProcessStatus cmdQSET();
         ProcessStatus cmdSetSpeedCheckInterval();
-
 
         // virtual ProcessStatus  DoImmediate() override;  // Override this method for processing your device continuously
         void setSpeedCheckInterval(time_t rate=SPEED_CHECK_INTERVAL_mSec);
@@ -75,7 +68,7 @@ class QuadDecoder: public DefDevice
         typedef struct
         {
             const char *name;                     // For debug output
-            QuadDecoder::QUAD_STATE_t last_state; // state of the decoder (set by ISR)
+             last_state; // state of the decoder (set by ISR)
             pulse_t absPosition;                  // change in Current position (in pulses)
             gpio_num_t quad_pin_a;                // the 'a' pin for this quad
             gpio_num_t quad_pin_b;                // the 'b' pin for this quad

@@ -30,6 +30,15 @@ static const char *TAG="*QuadDecoder*";
 // ESP_DRAM_LOGE(TAG,"format", vars);
 #endif
 
+// DONT CHANGE THE assignments!!!
+//     The assignments corresponds to binary state of the
+//         inputs, assuming a is bit 1, b is bit 0
+//
+#define AoffBoff 0
+#define AoffBon 1
+#define AonBoff 2
+#define AonBon 3
+
 // - - - - - - - STATIC DEFS - - - - - - - - - - -
 bool QuadDecoder::isrAlreadyInstalled=false;
 
@@ -48,8 +57,9 @@ int QuadDecoder::nextQuadIdx = 0;
 //
 static portMUX_TYPE quad_ctrl_mutex = portMUX_INITIALIZER_UNLOCKED;
 
-/** - - - - - - - 
+/** = = = = = = = = = = = = = = =
  *  Initialize
+ * = = = = = = = = = = = = = = =
  */
 QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, InName)
 {
@@ -65,37 +75,22 @@ QuadDecoder::QuadDecoder(Node *_node, const char * InName) : DefDevice(_node, In
 }
 
 
-// Never happens on the ESP32
+/** = = = = = = = = = = = = = = =
+ *  Desructor - never happens on ESP32
+ * = = = = = = = = = = = = = = =
+ */
 QuadDecoder::~QuadDecoder()
 {
     return;
 }
 
-/**
- * INTERNAL ONLY!
- * 
- * ESP32 has a doumented bug that mulitple edge interrupts
- * dont work right.  Sooo... We look at the current value,
- * and set either a positive or negetive level, whichever
- * will happen next.
- * This is one of the suggested work-arounds
- */
-static void setInterruptMode(gpio_num_t pinNo)
-{
-    bool state=gpio_get_level(pinNo);
-    if (state)
-    {
-        gpio_set_intr_type(pinNo, GPIO_INTR_LOW_LEVEL);
-    } else {
-        gpio_set_intr_type(pinNo, GPIO_INTR_HIGH_LEVEL);
-    }
-    return;
-}
 
-// - - - - - - - - - - - - - - - - - - - - - --
-/**
- * @brief Set parameters for this Quad decoder
+/** = = = = = = = = = = = = = = =
+ * @brief Set up the fast timer
+ *     This triggers our periodic 
+ * update of the speed and position
  * 
+ * = = = = = = = = = = = = = = = 
  */
 void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
 {
@@ -112,7 +107,7 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
     quadPtr->name = strdup(GetName());
     quadPtr->quad_pin_a = cfg->quad_pin_a;
     quadPtr->quad_pin_b = cfg->quad_pin_b;
-    quadPtr->last_state = QuadInitState;
+    quadPtr->last_state = AoffBoff;
     quadPtr->pulseCount = 0;
 
     // Set default pulse count and wheel diam
@@ -189,12 +184,12 @@ void QuadDecoder::setupQuad(MotorControl_config_t *cfg)
     return;
     }
 
-// - - - - - - - - - - - - - - - - - - - - - --
-/**
+/** = = = = = = = = = = = = = = =
  * @brief ISR routine - update our position when a pulse happens
  *
  * @param arg - points to the current quads structure
  * 
+ * = = = = = = = = = = = = = = =
  */
 void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
 {
@@ -208,15 +203,10 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     Quad_t *qptr = (Quad_t *)arg;     // point to my QuadDecoder    
     
     // save the current state of the pins
-    int pina;
-    //pina=gpio_get_level(qptr->quad_pin_a); // get the current value of pinA
-    pina=0;   //TEST
-
-    int pinb;
-    // pinb=gpio_get_level(qptr->quad_pin_b); // get the current value of pinB
-    pinb=0;
-
-    QUAD_STATE_t newState = (QUAD_STATE_t) ((pina<<1) | pinb); // combine pina+pinb to get state
+    int pina, pinb;
+    pina=gpio_get_level(qptr->quad_pin_a); // get the current value of pinA    
+    pinb=gpio_get_level(qptr->quad_pin_b); // get the current value of pinB
+    uint8_t newState = ((pina<<1) | pinb); // combine pina+pinb to get state
 
     //portENTER_CRITICAL_ISR(&quad_ctrl_mutex);
     qptr->pulseCount= qptr->pulseCount+1L; // statistics...
@@ -224,11 +214,6 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     // DECODE the quad state, update our position and state
     switch (qptr->last_state)
     {
-    case (QuadInitState):
-        // Initialize the QUAD decoder
-        qptr->last_state = newState;
-        break;
- 
     case (AoffBoff):
         if (newState == AonBoff)
         {
@@ -281,18 +266,20 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
     }
 
     // portEXIT_CRITICAL_ISR(&quad_ctrl_mutex);
+    // How long was the interrupt?  Only here for testing!
+    #ifdef NONONO
     time_t time_now = esp_timer_get_time();
     time_t diff     = time_now - initial_time;
     ESP_DRAM_LOGE(TAG, "end: %llu start %llu  Elapsed:%llu", initial_time, time_now, diff);
-    //  setInterruptMode(qptr->quad_pin_a);
-    //  setInterruptMode(qptr->quad_pin_b);
+    #endif
+
 #ifdef USE_TRACKER_PIN
     gpio_set_level(USE_TRACKER_PIN, 1);
 #endif
     return;
 }
 
-/**
+/** = = = = = = = = = = = = = = =
  * @brief Re-calculate the speed
  * 
  *    Driven from speed_timer (as a task dispatch?),
@@ -308,6 +295,7 @@ void IRAM_ATTR QuadDecoder::ISR_handler(void *arg)
  * 
  * @param arg - points to the 'quadDecoder' instance
  *   that this was called from.
+ * = = = = = = = = = = = = = = =
  */
 void QuadDecoder::update_speed_CB(void *arg)
 {
@@ -337,11 +325,11 @@ void QuadDecoder::update_speed_CB(void *arg)
     return;
 }
 
-
-/**
+/** = = = = = = = = = = = = = = =
  * @brief Run this periodically...
  * 
- * Output the current position and speed for this motor
+ * Output the current position
+ * = = = = = = = = = = = = = = =
  */
 ProcessStatus QuadDecoder::DoPeriodic()
 {
@@ -354,21 +342,19 @@ ProcessStatus QuadDecoder::DoPeriodic()
     portEXIT_CRITICAL(&quad_ctrl_mutex);
 
     dist_t tmpSpeed=last_speed; 
-
-    sprintf(DataPacket.value, "XQUD spd=%8.4f, absPos=%ld, ISR count=%lu SPD count=%lu", 
-            tmpSpeed, pos, count, speedUpdateCount);
+    sprintf(DataPacket.value, "QUAD absPos=%ld, ISR count=%lu", pos, count);
     defDevSendData(millis(), false);
     return (SUCCESS_DATA);
 }
 
-
-/**
+/** = = = = = = = = = = = = = = =
  * @brief Decode commands for the QUAD decoder
  * 
  * Commands:
  *      QSET- set <wheel diameter> and <number of pulses per rotation>
  *  QSTA <ON..OFF>     enable/disable report
  * @return ProcessStatus 
+ * = = = = = = = = = = = = = = =
  */
 ProcessStatus QuadDecoder::ExecuteCommand()
 {
@@ -401,8 +387,7 @@ ProcessStatus QuadDecoder::ExecuteCommand()
     return (retVal);
 }
 
-
-/**
+/** = = = = = = = = = = = = = = =
  * @brief Decode the command to Set the Wheel diameter and pulses per rev
  *    format:   QSET|<wheelDia>|<pulseCnt>   -set these params
  *          wheel dia in mm
@@ -412,6 +397,7 @@ ProcessStatus QuadDecoder::ExecuteCommand()
  *  NOTE: Whatever units wheelDia are in, thats the units used to report distance!
  * 
  * @return - we always return the current parameters
+ * = = = = = = = = = = = = = = =
  */
 ProcessStatus QuadDecoder::cmdQSET()
 {
@@ -455,12 +441,12 @@ ProcessStatus QuadDecoder::cmdQSET()
     return (res);
 }
 
-
-/**
+/** = = = = = = = = = = = = = = =
  * @brief Set the actual wheel diameter and number of pulses
  * 
  * @param wheel - wheel diameter (in mm)
  * @param pulses - number of holes (or pulses) per revolution
+ * = = = = = = = = = = = = = = =
  */
 void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
 {
@@ -470,13 +456,13 @@ void QuadDecoder::setQuadParams(dist_t wheel, uint32_t pulses)
     Serial.print("CONVERT_PULSES factor = "); Serial.println(convertPulsesToDist);
 }
 
-
-/** - - - - - - - - - - - - - - - - - --
+/** = = = = = = = = = = = = = = =
  * @brief Get the current Position (mm)
  *     Position is in terms of 'ticks' of the quad encoder
  * we convert it here into the units of choice
  *
  * @return current position
+ * = = = = = = = = = = = = = = =
  */
 dist_t QuadDecoder::getPosition()
 {
@@ -488,19 +474,17 @@ dist_t QuadDecoder::getPosition()
     return( position * convertPulsesToDist );
 }
 
-
-// - - - - - - - - - - - - - - - - - - - - - -
-// Reset the position (and quad decoder logic)
-//   (This simply sets the 'QuadInitState', the
-// actual reset happens on the next pulse inside the ISR.
-//
+/** = = = = = = = = = = = = = = =
+ * Reset the position (and quad decoder logic)
+ *   (This simply sets the 'QuadInitState', the
+ * actual reset happens on the next pulse inside the ISR.
+ * = = = = = = = = = = = = = = =
+ */
 void QuadDecoder::resetPos()
 {
      //portENTER_CRITICAL(&quad_ctrl_mutex);    
-    delay(100);
 
-    last_position = 0L;
-
+    myQuadPtr->resetPosition();
     portENTER_CRITICAL(&quad_ctrl_mutex); 
     quadPtr->last_state = QuadInitState;
     quadPtr->absPosition = 0L;
@@ -514,7 +498,10 @@ void QuadDecoder::resetPos()
     setSpeedCheckInterval(speedCheckIntervaluSec/1000);
 }
 
-
+/** = = = = = = = = = = = = = = =
+ *  Desructor - never happens on ESP32
+ * = = = = = = = = = = = = = = =
+ */
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
  * @brief Get the average speed since last call.
@@ -527,7 +514,10 @@ int32_t QuadDecoder::getSpeed()
     return (curSpeed);
 }
 
-
+/** = = = = = = = = = = = = = = =
+ *  Desructor - never happens on ESP32
+ * = = = = = = = = = = = = = = =
+ */
 // - - - - - - - - - - - - - - - - - - - - - --
 /**
  * @brief Decode the command to Get/Set the speed check interval

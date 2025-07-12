@@ -36,9 +36,16 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     // Create and add the quadrature decoder driver
     strcpy(name, prefix);
     strcpy(name+strlen(name), "QUAD");
-    quadDecoder    = new QuadDecoder(myNode, name);
-    quadDecoder->setupQuad(cfg);
-    myNode->AddDevice(quadDecoder);
+    // quadDecoder    = new QuadDecoder(myNode, name);
+    // quadDecoder->setupQuad(cfg);
+    quadReader = new QuadReader(myNode, name);
+    quadReader->setup(cfg);
+    myNode->AddDevice(quadReader);
+
+    strcpy(name, prefix);
+    strcat( name+strlen(name), "PosSpd");
+    posSpeed  = new PosSpeed(myNode, name, quadReader);
+    myNode->AddDevice(posSpeed);
 
     // Create and add the ln298 driver
     strcpy(name, prefix);
