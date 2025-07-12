@@ -10,8 +10,22 @@
  */
 #include <Arduino.h>
 #include "QuadReader.h"
+#include "esp_heap_caps.h"
+#include "esp_log.h"
+
+
+static const char *TAG="QuadReader";
+
+// IF defined, then this pin is controlled by the ISR.
+// (if not defined, then the relevant code is bypased)
+// Using an oscilliscope on this pin, we can observe 
+// important timing properties
 #define USE_TRACKER_PIN GPIO_NUM_13
 
+// This is used to detect if the ISR is nested
+volatile bool inside_isr_flag=false;
+
+// Do not alter - these defs represent phase A in bit 1,  phase B in bit 0.
 #define AoffBoff 0
 #define AoffBon  1
 #define AonBoff  2
@@ -27,6 +41,8 @@ bool QuadReader::isrAlreadyInstalled;
  */
 QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InName)
 {
+    myInfo = (quad_reader_info_t *)heap_caps_malloc(sizeof(quad_reader_info_t), MALLOC_CAP_IRAM_8BIT);
+    myInfo->curPosition = 0;
     return;
 }
 
@@ -34,92 +50,98 @@ QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InNam
  * destroy this instance
  *  = = = = = = = = = = = = = = = = = = = =
  */
- QuadReader::~QuadReader()
- {
+QuadReader::~QuadReader()
+{
     return;
- }
+}
 
- /** = = = = = = = = = = = = = = = = = = = =
-  * @brief handle the interrupt
-  *  = = = = = = = = = = = = = = = = = = = =
-  */
- void IRAM_ATTR gpio_interupt_isr(void *arg)
- {
-    int pina,pinb;
+
+/** = = = = = = = = = = = = = = = = = = = =
+ * @brief handle the interrupt
+ *  = = = = = = = = = = = = = = = = = = = =
+ */
+void IRAM_ATTR gpio_interupt_isr(void *arg)
+{
+    int pina, pinb;
     uint8_t newState;
-    QuadReader *me = (QuadReader *)arg;
+    quad_reader_info_t *me = (quad_reader_info_t *)arg;
+    if (inside_isr_flag)
+    {
+        ESP_DRAM_LOGE(TAG, "****** ISR IS NESTED!!!!");
+    };
+    inside_isr_flag=true;
 
 #ifdef USE_TRACKER_PIN
     gpio_set_level(USE_TRACKER_PIN, 0);
 #endif
 
-     pina = gpio_get_level(me->quad_pin_a); // get the current value of pinA
-     pinb = gpio_get_level(me->quad_pin_b);
-     newState = (pina << 1) | pinb;
+    pina = gpio_get_level(me->phaseApin); // get the current value of pinA
+    pinb = gpio_get_level(me->phaseBpin);
+    newState = (pina << 1) | pinb;      // the state is phaseA in bit 1, phaseB in bit0
 
-     // BEGIN CRITICAL
-     switch (me->last_state)
-     {
+    // IF a valid change occured, update the position. ignore invalid combinations
+    switch (me->lastState)
+    {
+    case (AoffBoff):
+        if (newState == AonBoff)
+        {
+            // me->curPosition += 1;
+            std::atomic_fetch_add_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        else if (newState == AoffBon)
+        {
+            std::atomic_fetch_sub_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        break;
 
-     case (AoffBoff):
-         if (newState == AonBoff)
-         {
-             me->curPosition++;
-             me->last_state = newState;
-         }
-         else if (newState == AoffBon)
-         {
-             me->curPosition--;
-             me->last_state = newState;
-             break;
-         }
+    case (AoffBon):
+        if (newState == AoffBoff)
+        {
+            std::atomic_fetch_add_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        else if (newState == AonBon)
+        {
+            std::atomic_fetch_sub_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        break;
 
-     case (AoffBon):
-         if (newState == AoffBoff)
-         {
-             me->curPosition++;
-             me->last_state = newState;
-         }
-         else if (newState == AonBon)
-         {
-             me->curPosition--;
-             me->last_state = newState;
-         }
-         break;
+    case (AonBoff):
+        if (newState == AonBon)
+        {
+            std::atomic_fetch_add_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        else if (newState == AoffBoff)
+        {
+            std::atomic_fetch_sub_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        break;
 
-     case (AonBoff):
-         if (newState == AonBon)
-         {
-             me->curPosition++;
-             me->last_state = newState;
-         }
-         else if (newState == AoffBoff)
-         {
-             me->curPosition--;
-             me->last_state = newState;
-         }
-         break;
-
-     case (AonBon):
-         if (newState == AoffBon)
-         {
-             me->curPosition++;
-             me->last_state = newState;
-         }
-         else if (newState == AonBoff)
-         {
-             me->curPosition--;
-             me->last_state = newState;
-         }
-         break;
-     }
-     // END CRITICAL SECTION
+    case (AonBon):
+        if (newState == AoffBon)
+        {
+            std::atomic_fetch_add_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        else if (newState == AonBoff)
+        {
+            std::atomic_fetch_sub_explicit(&me->curPosition, 1, std::memory_order_relaxed);
+            me->lastState = newState;
+        }
+        break;
+    }
 
 #ifdef USE_TRACKER_PIN
      gpio_set_level(USE_TRACKER_PIN, 1);
 #endif
+    inside_isr_flag=false;
+}
 
- }
 
  /** = = = = = = = = = = = = = = = = = = = =
   * @brief configure and start listening to this quad
@@ -131,15 +153,16 @@ QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InNam
   */
  bool QuadReader::setup(MotorControl_config_t *cfg)
  {
-     quad_pin_a = cfg->quad_pin_a;
-     quad_pin_b = cfg->quad_pin_b;
-     last_state = AoffBoff;
+     myInfo->phaseApin = cfg->quad_pin_a;
+     myInfo->phaseBpin = cfg->quad_pin_b;
+     myInfo->curPosition   = 0L;
+     myInfo->lastState = AoffBoff;
 
      // - - - - - -
      // CONFIGURE QUAD PINS FOR INPUT WITH INTERRUPT
      gpio_config_t pGpioConfig =
          {
-             .pin_bit_mask = (1ull << quad_pin_a) | (1ull << quad_pin_b),
+             .pin_bit_mask = (1ull << myInfo->phaseApin) | (1ull << myInfo->phaseBpin),
              .mode = GPIO_MODE_INPUT,               /*!< GPIO mode: set input/output mode  */
              .pull_up_en = GPIO_PULLUP_ENABLE,      /*!< GPIO pull-up                    */
              .pull_down_en = GPIO_PULLDOWN_DISABLE, /*!< GPIO pull-down                 */
@@ -156,8 +179,8 @@ QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InNam
          ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_EDGE));
          Serial.println("GPIO ISR Service installed");
      }
-     ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_a, gpio_interupt_isr, this));
-     ESP_ERROR_CHECK(gpio_isr_handler_add(quad_pin_b, gpio_interupt_isr, this));
+     ESP_ERROR_CHECK(gpio_isr_handler_add(myInfo->phaseApin, gpio_interupt_isr, myInfo) );
+     ESP_ERROR_CHECK(gpio_isr_handler_add(myInfo->phaseBpin, gpio_interupt_isr, myInfo) );
      Serial.println("... Quad ISR handlers added");
 
 #ifdef USE_TRACKER_PIN
@@ -181,14 +204,16 @@ QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InNam
      return (true);
  }
 
+
  /** = = = = = = = = = = = = = = = = = = = =
-  * @brief: If enabled, print the current pulse count
+  * @brief: If enabled, print the current pulse count and state
   *  = = = = = = = = = = = = = = = = = = = =
   */
  ProcessStatus QuadReader::DoPeriodic()
  {
-
-    sprintf(DataPacket.value, "QPOS|%lld", curPosition);
+    pulse_t pos   = std::atomic_load_explicit(&myInfo->curPosition, std::memory_order_relaxed);
+    uint8_t state = std::atomic_load_explicit(&myInfo->lastState,   std::memory_order_relaxed);
+    sprintf(DataPacket.value, "QPOS|%ld|%u", pos, state);
     return(SUCCESS_DATA);
  }
 
@@ -198,8 +223,8 @@ QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InNam
   */
  pulse_t QuadReader::getPosition()
  {
-     // TODO: LOCKS?
-     return (curPosition);
+     pulse_t pos = std::atomic_load_explicit(&myInfo->curPosition, std::memory_order_relaxed);
+     return ( pos );
  }
 
  /** = = = = = = = = = = = = = = = = = = = =
@@ -208,7 +233,7 @@ QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InNam
   */
  void QuadReader::resetPosition()
  {
-     curPosition = 0;
+     std::atomic_store_explicit(&myInfo->curPosition, 0, std::memory_order_relaxed);
  }
 
  /** = = = = = = = = = = = = = = = = = = = =

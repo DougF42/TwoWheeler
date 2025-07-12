@@ -15,7 +15,17 @@
 #include <driver/gpio.h>
 #include "esp_timer.h"
 #include "sdkconfig.h"
-#include "atomic"
+#include <atomic>
+
+// We define this separatly so that it
+// can be placed in IRAM for fast
+// handling by the ISR routine
+typedef struct { 
+    std::atomic_char16_t   curPosition;    // current motor position. NOTE: Must match pos_t!!!
+    std::atomic_uint8_t    lastState;   // Last state of the quadtrature encoding
+    gpio_num_t phaseApin;   // pin number for phase A
+    gpio_num_t phaseBpin;   // pin number for phase B
+} quad_reader_info_t;
 
 class QuadReader: public DefDevice
 {
@@ -33,9 +43,7 @@ public:
 
 protected:
     static bool isrAlreadyInstalled; // Internal flag
-    uint8_t last_state;            // state of the decoder (set by ISR)
-    pulse_t curPosition;                // change in Current position (in pulses)
-    gpio_num_t quad_pin_a;              // the 'a' pin for this quad
-    gpio_num_t quad_pin_b;              // the 'b' pin for this quad
+    quad_reader_info_t *myInfo;   // Point to my info 
+
     friend void gpio_interupt_isr(void *arg);
 };
