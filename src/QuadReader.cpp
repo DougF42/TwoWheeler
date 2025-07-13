@@ -33,7 +33,7 @@ volatile bool inside_isr_flag=false;
 
 //  = = = = = = = = = = = = = = = = = = = =
 // Static definitions
-bool QuadReader::isrAlreadyInstalled;
+bool QuadReader::isrAlreadyInstalled=false;
 
 /** = = = = = = = = = = = = = = = = = = = =
  * Initialize a new instance of the class
@@ -41,8 +41,13 @@ bool QuadReader::isrAlreadyInstalled;
  */
 QuadReader::QuadReader(Node *_node, const char *InName) : DefDevice(_node, InName)
 {
-    myInfo = (quad_reader_info_t *)heap_caps_malloc(sizeof(quad_reader_info_t), MALLOC_CAP_IRAM_8BIT);
-    myInfo->curPosition = 0;
+    //myInfo = (quad_reader_info_t *)heap_caps_malloc(sizeof(quad_reader_info_t), MALLOC_CAP_IRAM_8BIT);
+    myInfo = (quad_reader_info_t *)malloc(sizeof(quad_reader_info_t));
+    myInfo->phaseApin   = GPIO_NUM_MAX;
+    myInfo->phaseBpin   = GPIO_NUM_MAX;
+    myInfo->curPosition = 0L;
+    myInfo->lastState   = 0;
+    periodicEnabled = false;
     return;
 }
 
@@ -177,11 +182,11 @@ void IRAM_ATTR gpio_interupt_isr(void *arg)
      {
          isrAlreadyInstalled = true; // force the handler into IRAM
          ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_EDGE));
-         Serial.println("GPIO ISR Service installed");
+         ESP_LOGE(TAG, "GPIO ISR Service installed");
      }
      ESP_ERROR_CHECK(gpio_isr_handler_add(myInfo->phaseApin, gpio_interupt_isr, myInfo) );
      ESP_ERROR_CHECK(gpio_isr_handler_add(myInfo->phaseBpin, gpio_interupt_isr, myInfo) );
-     Serial.println("... Quad ISR handlers added");
+     ESP_LOGE(TAG, "... Quad ISR handlers added");
 
 #ifdef USE_TRACKER_PIN
      gpio_config_t pTrackerCfg =
@@ -201,6 +206,7 @@ void IRAM_ATTR gpio_interupt_isr(void *arg)
 #else
      gpio_dump_io_configuration(stdout, pGpioConfig.pin_bit_mask);
 #endif // End of USE_TRACKER_PIN
+    ESP_LOGE(TAG, "Setup for %s Complete", name);
      return (true);
  }
 

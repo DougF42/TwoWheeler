@@ -58,6 +58,7 @@ bool PosSpeed::setup(MotorControl_config_t *cfg)
 
     resetPos();
     periodicEnabled = false; // Default is no report.
+    Serial.print("Setup for "); Serial.print(name); Serial.println(" finished");
     return(true);
 }
 

@@ -50,8 +50,8 @@ typedef double  dist_t;
 
 
 // Pins for DC motor 1 (right)
-#define MOTOR_1_EN      GPIO_NUM_18
-#define MOTOR_1_DRIVE_A GPIO_NUM_9
+#define MOTOR_1_EN      GPIO_NUM_9
+#define MOTOR_1_DRIVE_A GPIO_NUM_18
 #define MOTOR_1_DRIVE_B GPIO_NUM_8
 
 // Pins for DC motor 2 (left)
