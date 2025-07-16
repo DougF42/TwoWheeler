@@ -24,8 +24,7 @@
 #include "DefDevice.h"
 #include "PidDevice.h"
 #include "ln298.h"
-#include "QuadReader.h"
-#include "PosSpeed.h"
+#include "QuadDecoder.h"
 #include "driver/ledc.h"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -41,8 +40,7 @@ class MotorControl: public DefDevice
         double output_val;  // PWM percentage to set the motor(0..100)
         double setpoint;    // The target string (mm/sec)
 
-        QuadReader *quadReader;
-        PosSpeed   *posSpeed;
+        QuadDecoder *myQuadDecoder;
         LN298     *ln298;     // The ln298 instance
         PidDevice *piddev;    // The PID controler instance
 
