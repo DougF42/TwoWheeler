@@ -10,7 +10,10 @@
  */
 #include "QuadDecoder.h"
 #include <math.h>
+#include "esp_err.h"
+#include "esp_log_buffer.h"
 
+static const char *TAG="QuadDecoder";
 /**
  * @brief Construct a new Quad Decoder object
  * 
@@ -19,13 +22,13 @@
  */
 QuadDecoder::QuadDecoder(Node *_node, const char *InName): DefDevice(_node, InName)
 {
-    myEncoder = new ESP32Encoder;
+    myEncoder      = new ESP32Encoder;
     spdUpdateTimerhandle=nullptr;
-    pulsesPerRev = QUAD_PULSES_PER_REV;
-    wheelDiam = WHEEL_DIAM_MM;
-    last_position = 0;
+    last_position  = 0;
     last_timecheck = 0;
     last_speed = 0;
+    setPhysParams(QUAD_PULSES_PER_REV, WHEEL_DIAM_MM);
+    currentSpdCheckRate = SPEED_CHECK_INTERVAL_mSec;
 }
 
 
@@ -87,12 +90,15 @@ void QuadDecoder::update_speed_cb(void *arg)
     pulse_t pos_diff;
     time_t  now  = esp_timer_get_time();
     time_t  elapsed;
-
-    pos_diff = me->myEncoder->getCount() - me->last_position;
+    pulse_t pos_now = me->myEncoder->getCount();
+    pos_diff = pos_now - me->last_position;
     elapsed  = now - me->last_timecheck;
     me->last_speed = ((double)pos_diff) / (double)elapsed;
+    //ESP_LOGE(TAG, "update_speed: %ld|%ld|%ld|%lld|%f", 
+    //        pos_now, me->last_position, pos_diff, elapsed, me->last_speed);
     me->last_position = me->myEncoder->getCount();
     me->last_timecheck = now;
+
     return;
 }
 
@@ -146,7 +152,7 @@ ProcessStatus QuadDecoder::ExecuteCommand()
 ProcessStatus QuadDecoder::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_DATA;
-    // TODO:
+    sprintf(DataPacket.value, "%f|%f|%s", getPosition(), last_speed, name);
 
     return(retVal);
 }
@@ -173,7 +179,6 @@ ProcessStatus QuadDecoder::qsetCommand()
     pulse_t pulses; // temporary number of pulses
     if (argCount == 2)
     {
-
         if (0 != getInt32(1, &pulses, "Pulse Count: "))
         {
             retVal = FAIL_DATA;
@@ -200,8 +205,8 @@ ProcessStatus QuadDecoder::qsetCommand()
                 retVal = SUCCESS_NODATA;
             }
         }
-    }
-    else
+
+    } else if (argCount !=0 )
     {
         sprintf(DataPacket.value, "ERRR| wrong number of arguments");
         retVal = FAIL_DATA;
@@ -234,14 +239,16 @@ ProcessStatus QuadDecoder::qsckCommand()
         if (0 != getUint32(0, &newclkRate, "Wheel Diameter: "))
         {
             retVal = FAIL_DATA;
+        } else {
+            setSpeedCheckInterval(newclkRate);
+            retVal = SUCCESS_NODATA;
         }
-    }
-    else if (argCount != 0)
+
+    } else if (argCount != 0)
     {
         sprintf(DataPacket.value, "ERRR| wrong number of arguments");
         retVal = FAIL_DATA;
-    } else {
-        setSpeedCheckInterval(newclkRate);
+
     }
 
     if (retVal == SUCCESS_NODATA)

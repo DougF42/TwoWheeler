@@ -37,16 +37,17 @@
          * @return true    - normal startup okay
          * @return false   - error was detected
          */
-        bool INA3221Device::setup(int _i2CAddr)
+        bool INA3221Device::setup(int _Pwr_i2CAddr, TwoWire *theWire)
         {
-            i2cAddr = _i2CAddr;
+            i2cAddr = _Pwr_i2CAddr;
             periodicEnabled = true;  // Enable reporting for this module.
             SetRate(60);             // default report rate - 60 timers/hour is once per minute
             immediateEnabled = false; // Nothing to do 
+            
             // Init communications with I2C
-            if (! Adafruit_INA3221::begin(i2cAddr, &Wire) ) 
+            if (! Adafruit_INA3221::begin(i2cAddr, theWire) ) 
             {
-                Serial.println("FAiled to find INA3221 chip");
+                Serial.println("Failed to find INA3221 chip");
                 return(false);
             }
 
@@ -64,38 +65,35 @@
         // Override this method for processing your device continuously
         ProcessStatus INA3221Device::DoImmediate()
         {
-            ProcessStatus retVal = SUCCESS_DATA;
-            retVal = Device::ExecuteCommand();
-            if (retVal = NOT_HANDLED)
-            {
-                sprintf(DataPacket.value, "EROR|INA3221|Unknown Command");
-                defDevSendData(0,false);
-            }
-
+            ProcessStatus retVal = NOT_HANDLED;
             return (retVal);
         }
 
         // - - - - - - - - - - - - - - - - - - - - -
-        // Override this method for processing your device periodically
-        ProcessStatus  INA3221Device::DoPeriodic     () 
-        {            
-            float busVolt;
-            float current;
-                for (int idx=0; idx<3; idx++)
-                {
-                    busVolt = getBusVoltage(idx);
-                    current = getCurrentAmps(idx)*1000; // convert to ma
-                    sprintf(DataPacket.value, "BATV|%d|%f|V|%f|ma", idx, busVolt, current);
-                    defDevSendData(0, true);
-                }
-            return(SUCCESS_NODATA); // the 'defDevSendData' method will have sent the packet.
+        // Report the battery voltage and current readings
+        // - - - - - - - - - - - - - - - - - - - - -
+        ProcessStatus INA3221Device::DoPeriodic()
+        {
+            float busVolt[3];
+            float current[3];
+
+            for (int idx = 0; idx < 3; idx++)
+            {
+                busVolt[idx] = getBusVoltage(idx);
+                current[idx] = getCurrentAmps(idx) * 1000; // convert to ma
+            }
+
+            sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
+                    busVolt[1], current[1], busVolt[2], current[2], busVolt[3], current[3]);
+
+            return (SUCCESS_DATA);
         }
 
         /** - - - - - - - - - - - - - - - - - - - - -
          * @brief Execute commands specific to this device
-         * 
-         * 
-         * @return ProcessStatus 
+         *
+         *
+         * @return ProcessStatus
          */
         ProcessStatus INA3221Device::ExecuteCommand()
         {

@@ -44,7 +44,7 @@ class INA3221Device : public Adafruit_INA3221, public DefDevice
     public:
         INA3221Device(Node *node, const char *inName);
         ~INA3221Device();
-        bool setup(int I2CAddr=0x40); // Set up the driver, initialize I2C
+        bool setup(int I2CAddr,  TwoWire *theWire); // Set up the driver, initialize I2C
         ProcessStatus  DoImmediate    () override ;  // Override this method for processing your device continuously
         ProcessStatus  DoPeriodic     () override;  // Override this method for processing your device periodically
         ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands

@@ -68,14 +68,17 @@ typedef double  dist_t;
 
 // Default scaling for quad
 #define QUAD_PULSES_PER_REV   600
-#define SPEED_CHECK_INTERVAL_mSec 5000
+#define SPEED_CHECK_INTERVAL_mSec 500
 
 
 // * * * * * * * 
 // I2C pins... These (currently) are the
 //    default I2C pins - here for documentation purposes.
-#define I2C_SCL_PIN 22
-#define I2C_SDA_PIN 23
+#define I2C_SDA_PIN GPIO_NUM_1
+#define I2C_SCL_PIN GPIO_NUM_2
+
+#define I2C_INA3221_ADDR     0x40
+
 
 // - - - - - - - - - - - - - - - - - - - - - - - - -
 /**

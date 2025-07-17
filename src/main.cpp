@@ -44,11 +44,13 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include "common.h"
+#include "driver/gpio.h"
 #include "DefNode.h"
 #include "Driver.h"
 #include "INA3221Device.h"
 
-// #define USE_INA3221
+#define USE_INA3221
+
 //--- Globals ---------------------------------------------
 
 bool         Debugging = true;  // ((( Set to false for production builds )))
@@ -68,7 +70,9 @@ char         DataString[MAX_MESSAGE_LENGTH];
 
 DefNode      *ThisNode;  // The Node for this example
 Driver       *myDriver;
+
 #ifdef USE_INA3221
+#include "Wire.h"
 INA3221Device      *myIna3221Device;
 #endif
 
@@ -173,7 +177,8 @@ void setup()
   #ifdef USE_INA3221
   // CREATE Power Monitor device
     myIna3221Device = new INA3221Device(ThisNode, "Power");
-    myIna3221Device->setup(); // use default i2c device id=40
+    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+    myIna3221Device->setup(I2C_INA3221_ADDR, &Wire);
     ThisNode->AddDevice(myIna3221Device);
   #endif
 
