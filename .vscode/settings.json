@@ -68,7 +68,8 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "*.pcpp": "cpp"
+        "*.pcpp": "cpp",
+        "*.inc": "cpp"
     },
     "idf.port": "/dev/ttyACM0"
 }
