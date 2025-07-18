@@ -84,7 +84,7 @@
             }
 
             sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
-                    busVolt[1], current[1], busVolt[2], current[2], busVolt[3], current[3]);
+                    busVolt[0], current[0], busVolt[1], current[1], busVolt[2], current[2]);
 
             return (SUCCESS_DATA);
         }
