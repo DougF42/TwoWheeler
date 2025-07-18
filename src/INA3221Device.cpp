@@ -1,12 +1,18 @@
 /**
  * @file INA3221.cpp
  * @author Doug Fajardo
- * @brief 
- * @version 0.1
+ * @brief SMAC driver for INA3221 tripple Power monitoring device
+ * @version 1.0
  * @date 2025-07-07
  * 
- * @copyright Copyright (c) 2025
+ * Written by Doug Fajardo Jully, 2025
+ *              This code was developed as part of the SMAC project by Bill Daniels,
+ *              and all rights and copyrights are hereby conveyed to that project.
  * 
+ *              The SMAC project is Copyright 2021-2025, D+S Tech Labs, Inc.
+ *              All Rights Reserved
+ * 
+ *  See INA3221Device.h for implementation and usage notes
  */
 #include "INA3221Device.h"
 
@@ -16,7 +22,7 @@
          * @param _node 
          * @param InName 
          */
-        INA3221Device::INA3221Device(Node *node, const char * inName): DefDevice(node, inName)
+        INA3221Device::INA3221Device( const char * inName): Device(inName)
         {
 
         }
@@ -98,107 +104,8 @@
         ProcessStatus INA3221Device::ExecuteCommand()
         {
             ProcessStatus retVal = NOT_HANDLED;
-            retVal = Device::ExecuteCommand();
-            if (retVal != NOT_HANDLED)
-                return (retVal);
-
-            scanParam();
-            if (isCommand("PENA"))
-            {  // Enable one of the channels
-                retVal= enableChannelCmd();
-
-            } else if (isCommand("PDIS"))
-            {
-                // Disable one of the channels
-                retVal= disableChannelCmd();                
-
-            } else {
-                sprintf(DataPacket.value, "ERR|Unknown command for IAN3221 driver");
-                retVal=FAIL_DATA;
-            }
-
             return (retVal);
         }
 
-
-        /** - - - - - - - - - - - - - - - - - - - - -
-         * @brief Enable one of the power channels - and report the status of all
-         *   FORMAT: PENA <channel> 
-         *      (channel is 0, 1 or 2)
-         * 
-         * @return ProcessStatus 
-         */
-        ProcessStatus INA3221Device::enableChannelCmd()
-        {
-            ProcessStatus retVal=NOT_HANDLED;
-            uint8_t channel;
-            if (! getUInt8(0, &channel, "Channel number") )
-            {
-                defDevSendData(0,false);
-                retVal=FAIL_DATA;
-
-            } else  if (channel>3)
-            {
-                sprintf(DataPacket.value,"PENA|ERR|Channel must be 0, 1 or 2");
-
-                retVal=FAIL_DATA;
-
-            } else 
-            {
-                channelEnaFlag[channel]=true;
-                retVal=SUCCESS_DATA;
-            }
-        
-            if (retVal == SUCCESS_NODATA)
-            {
-                sprintf(DataPacket.value, "PENA|%d", 
-                    (channelEnaFlag[0]) ? "ENA":"DIS",
-                    (channelEnaFlag[1]) ? "ENA":"DIS",
-                    (channelEnaFlag[2]) ? "ENA":"DIS");
-                retVal=SUCCESS_DATA;
-            }
-            
-            defDevSendData(0, false);
-            return(retVal);
-        }
-        
-
-        /** - - - - - - - - - - - - - - - - - - - - -
-         * @brief  disableChannelCmd    command to disable a channel
-         *  FORMAT: PDIS <channel> 
-         *      (channel is 0, 1 or 2)
-         * @return ProcessStatus 
-         */
-        ProcessStatus INA3221Device::disableChannelCmd()
-        {
-            ProcessStatus retVal=NOT_HANDLED;
-            uint8_t channel;
-            if (! getUInt8(0, &channel, "Channel number") )
-            {
-                defDevSendData(0,false);
-                retVal = FAIL_DATA;
-
-            } else if (channel>3)
-            {
-                sprintf(DataPacket.value,"PDIS|ERR|Channel must be 0, 1 or 2");
-
-                retVal=FAIL_DATA;
-
-            } else {
-                channelEnaFlag[channel]=true;
-                retVal=SUCCESS_NODATA;
-            }
-
-            if (retVal == SUCCESS_NODATA)
-            {
-                sprintf(DataPacket.value, "PENA|%d", 
-                    (channelEnaFlag[0]) ? "ENA":"DIS",
-                    (channelEnaFlag[1]) ? "ENA":"DIS",
-                    (channelEnaFlag[2]) ? "ENA":"DIS");
-            }
-
-            defDevSendData(0, false);
-            return(retVal);
-        }
 
         

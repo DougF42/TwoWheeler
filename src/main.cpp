@@ -5,39 +5,9 @@
 //
 //       FILE : main.cpp
 //
-//    PROJECT : SMAC Framework - Example 1
 //
-//      NOTES : This is the PIO firmware for the SMAC Node of Example 1.
-//
-//              About this template:
-//              - The SMAC System uses Espressif's ESP-NOW protocol between Node Modules and the Relayer Module.
-//              - Device is the base class from which your custom Devices are derived.
-//              - This "template" creates a Node with a single Device, a LightSensor.
-//              - Node Modules first attempt to connect to the Relayer Module.
-//              - Once connected, the LightSensor Device "measures" a value and outputs a "Data String" with its value.
-//              - The above operation is performed periodically to maintain continuous data.
-//              - All Device data can be visualized with gauges and graphs using the SMAC Interface (a Chrome browser app).
-//              - The SMAC System is bidirectional. You can send commands to both Nodes and individual Devices.
-//              - Commands can be sent directly from the SMAC Interface using buttons, dials, sliders, etc.
-//              - The Node and Device base classes handle standard commands and child classes can handle custom commands.
-//
-//              Classes in this example:
-//
-//              ∙ Node   -- at least one Node is required for any SMAC system
-//              ∙ Device
-//                  │
-//                  └── LightSensor -- Demo to show how sensor data can be sent to the SMAC Interface
-//
-//  DEBUGGING : Set the global <Debugging> to true to see debugging info in Serial Monitor.
-//              Be sure to set <Debugging> to false for production builds!
-//
-//     AUTHOR : Bill Daniels
-//              Copyright 2021-2025, D+S Tech Labs, Inc.
-//              All Rights Reserved
-//
-// NOTE: Python server:   'python -m http.server
-//
-//=============================================================================
+//     AUTHOR : Doug Fajardo
+
 
 //--- Includes --------------------------------------------
 
@@ -176,7 +146,7 @@ void setup()
 
   #ifdef USE_INA3221
   // CREATE Power Monitor device
-    myIna3221Device = new INA3221Device(ThisNode, "Power");
+    myIna3221Device = new INA3221Device("Power");
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
     myIna3221Device->setup(I2C_INA3221_ADDR, &Wire);
     ThisNode->AddDevice(myIna3221Device);
