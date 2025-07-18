@@ -2,7 +2,7 @@
  * @file INA3221.cpp
  * @author Doug Fajardo
  * @brief SMAC driver for INA3221 tripple Power monitoring device
- * @version 1.0
+ * @version 1.01
  * @date 2025-07-07
  * 
  * Written by Doug Fajardo Jully, 2025
@@ -24,7 +24,8 @@
          */
         INA3221Device::INA3221Device( const char * inName): Device(inName)
         {
-
+            periodicEnabled = true;
+            //SetRate(450);    // default once every 8 seconds
         }
 
         /**  - - - - - - - - - - - - - - - - - - - -
@@ -63,7 +64,6 @@
             {
                 setShuntResistance(idx, 0.05);
             }
-
             return(true);
         }
 
@@ -104,6 +104,8 @@
         ProcessStatus INA3221Device::ExecuteCommand()
         {
             ProcessStatus retVal = NOT_HANDLED;
+            retVal = Device::ExecuteCommand();
+            // if (retVal != NOT_HANDLED )  return(retVal);
             return (retVal);
         }
 

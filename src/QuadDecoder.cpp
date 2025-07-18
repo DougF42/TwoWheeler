@@ -93,7 +93,10 @@ void QuadDecoder::update_speed_cb(void *arg)
     pulse_t pos_now = me->myEncoder->getCount();
     pos_diff = pos_now - me->last_position;
     elapsed  = now - me->last_timecheck;
-    me->last_speed = ((double)pos_diff) / (double)elapsed;
+    // me->last_speed = ((double)pos_diff) / (double)elapsed;
+    // speed in mm/millisecond
+    me->last_speed = ( ((double)pos_diff) * me->convertPosition) / ((double)elapsed);
+
     //ESP_LOGE(TAG, "update_speed: %ld|%ld|%ld|%lld|%f", 
     //        pos_now, me->last_position, pos_diff, elapsed, me->last_speed);
     me->last_position = me->myEncoder->getCount();
