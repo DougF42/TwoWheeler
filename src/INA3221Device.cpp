@@ -29,6 +29,7 @@ INA3221Device::INA3221Device(const char *inName, int _i2CAddr, TwoWire *theWire)
 {
     periodicEnabled = true;
     immediateEnabled = false;
+    // todo: Set version to 'INA3221Version'
     SetRate(60); // default rate once per minute
     setAveragingMode(INA3221_AVG_16_SAMPLES);
     i2cAddr = _i2CAddr;
@@ -93,7 +94,8 @@ void INA3221Device::readCurrentValues()
 //  NOTE: This does NOT re-read the voltage from the channel - it uses the last
 //        value read.
 //
-//     If the channel number is invalid, return 0.
+//     If the channel number is invalid, return INFINITY.
+//
 // @param chhannel number (0 thru 2)
 // @return double  - the last read current on the requested channel, or INFINITY if the
 // - - - - - - - - - - - - - - - - - - - - -
@@ -110,7 +112,8 @@ double INA3221Device::getChannelVoltage(int channel)
 //  NOTE: This does NOT re-read the voltage/Current from the channel - it uses the last
 //        value read.
 //
-//     If the channel number is invalid, return 0.
+//     If the channel number is invalid, return INFINITY.
+//
 // @param chhannel number (0 thru 2)
 // @return double  - the last read current on the requested channel, or INFINITY if the
 // - - - - - - - - - - - - - - - - - - - - -

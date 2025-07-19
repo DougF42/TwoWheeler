@@ -7,8 +7,7 @@
 //
 //
 //     AUTHOR : Doug Fajardo
-
-
+//
 //--- Includes --------------------------------------------
 
 #include <Arduino.h>

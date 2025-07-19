@@ -2,7 +2,7 @@
  * @file INA3221Device.h   for 3 channel PWR monitor breakout
  * @author Doug Fajardo
   * @brief SMAC driver for INA3221 tripple Power monitoring device
- * @version  1.01
+ * @version  2.0.0
  * @date 2025-07-07
  * 
  * Written by Doug Fajardo Jully, 2025
@@ -83,7 +83,7 @@
 #include "Device.h"
 #include "Adafruit_INA3221.h"
 #include <Wire.h>
-
+#define INA3221Version 2.0.0
 class INA3221Device : public Adafruit_INA3221, public Device
 {
     private:
