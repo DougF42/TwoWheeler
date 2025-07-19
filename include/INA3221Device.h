@@ -37,16 +37,16 @@
  *         #include "INA3221Device.h"
  *         #define I2C_INA3221_ADDR 0x40
  *          ...
- *         INA3221Device myIna3221Device = INA3221Device("Power");
- *         Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN); 
- *         myIna3221Device->setup(I2C_INA3221_ADDR, &Wire); 
- *         ThisNode->AddDevice(myIna3221Device);
+ *      Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+ *      myIna3221Device = new INA3221Device("Power", I2C_INA3221_ADDR, &Wire);
+ *      ThisNode->AddDevice(myIna3221Device);
  *          ...
  * 
  * Compilation note:
  *      There is an anoying warning from the Adafruit_INA3221 library that "legacy pcnt driver is deprecated, please migrate to use driver/pulse_cnt.h"
  * This warning can be safely ignored.
-//=============================================================================
+ *
+ *
  * @copyright Copyright (c) 2025
  * 
  * Measurements:
@@ -56,19 +56,28 @@
  *     With 13 bit ADC, the resolution is 0.4mA.
  * 
  * Pinout info at https://learn.adafruit.com/adafruit-ina3221-breakout/pinouts
- * VCC - 2.7 to 5.5 v
- * FND - common ground for power and logic
- * VPU - connect to VCC to indicate power valid.
- * SCL is I2c clock. includes 10k pullup
- * SDA is I2C Data. includes 10k pullup
- * 
- * 
+ *     VCC - 2.7 to 5.5 volts.
+ *     GND - common ground for power and logic
+ *     VPU - connect to VCC. drives the pullups for various logic pins.
+ *     SCL is I2c clock. includes 10k pullup
+ *     SDA is I2C Data. includes 10k pullup
+ *
  * I2C address on bottom - 0x40 is default, 0x41 if jumper in place.
  * 
- * We do not use any interrupt pins in this driver
+ * Future: Read status pins (available on the breakout board), possibly 
+ *         with interrupt-driven callback if voltage limits are exceeded.
  * 
  * This is a front-end to the Adafruit_INA3221 library
  *    The github location is https://github.com/adafruit/Adafruit_INA3221
+ * 
+ * Change Log:
+ *  7/18/2025 DEF Ver 1.01
+ *  7/81/2025 DEF Ver 2.00 - Refactor after review
+ *       Moved setup operations into initializer. added initStatusOk variable.
+ *       Default: periodic updates are enabled, occur once per 1minute.
+ *       Remove unneeded functions - (setup, DoImmediate, ExecuteCommand)
+ *       Add user code callable getChannelVoltage and getChannelCurrent to allow programatic access to lastr available readings.
+ *       Add user code callable readValues to allow user code to force a read of current values.
  */ 
 #pragma once
 #include "Device.h"
@@ -79,12 +88,17 @@ class INA3221Device : public Adafruit_INA3221, public Device
 {
     private:
         int i2cAddr;
-
+        float busVolt[3];
+        float current[3];
     public:
-        INA3221Device(const char *inName);
+        INA3221Device(const char *inName, int _i2CAddr, TwoWire *theWire);
         ~INA3221Device();
-        bool setup(int I2CAddr,  TwoWire *theWire); // Set up the driver, initialize I2C
-        ProcessStatus  DoImmediate    () override ;  // Override this method for processing your device continuously
+        bool initStatusOk;     // True if init was okay. false if any error
         ProcessStatus  DoPeriodic     () override;  // Override this method for processing your device periodically
-        ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
+        void readValues();
+        double getChannelVoltage(int channel);
+        double getChannelCurrent(int current);
+        void readCurrentValues();
+
 };
+

@@ -146,9 +146,8 @@ void setup()
 
   #ifdef USE_INA3221
   // CREATE Power Monitor device
-    myIna3221Device = new INA3221Device("Power");
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-    myIna3221Device->setup(I2C_INA3221_ADDR, &Wire);
+    myIna3221Device = new INA3221Device("Power", I2C_INA3221_ADDR, &Wire);
     ThisNode->AddDevice(myIna3221Device);
   #endif
 
