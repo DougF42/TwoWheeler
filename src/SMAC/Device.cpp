@@ -27,6 +27,9 @@ Device::Device (const char *inName)
   // Set the UI name for this device
   strncpy (name, inName, MAX_NAME_LENGTH-1);
   name[MAX_NAME_LENGTH-1] = 0;
+
+  // Set version
+  strcpy (version, "2025.07.21b");  // no more than 11 chars
 }
 
 //--- SetID -----------------------------------------------
@@ -84,6 +87,13 @@ void Device::SetRate (double newRate)
     newRate = 1.0;
 
   processPeriod = (unsigned long)(3600000.0/newRate + 0.5);
+}
+
+//--- GetVersion ------------------------------------------
+
+const char * Device::GetVersion ()
+{
+  return version;
 }
 
 //--- RunPeriodic -----------------------------------------
@@ -253,6 +263,13 @@ ProcessStatus Device::ExecuteCommand ()
     ltoa (GetRate(), DataPacket.value + 5, 10);
 
     nextPeriodicTime = millis();  // start new rate now
+    pStatus = SUCCESS_DATA;
+  }
+
+  //--- Get Version (GDVR) ----------------------
+  else if (strcmp (CommandPacket.command, "GDVR") == 0)
+  {
+    sprintf (DataPacket.value, "DVER=%s", version);
     pStatus = SUCCESS_DATA;
   }
 

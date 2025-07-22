@@ -25,7 +25,8 @@ COMMANDS HANDLED BY THE relayer
 //      <src>   is 'nn|dd|cccc' (node number, device number, command)
 //              if any field is all '?', that field is not used in comparison
 //      <dst>   is 'nn|dd|' (node number and device to relay this to).
-
+// GVER     Get the version of a specific device.
+//
 COMMANDS handled by the NODE:
 // SNNA|<name> Set the node name
 // GNOI        get Node info

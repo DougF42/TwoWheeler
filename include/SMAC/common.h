@@ -21,12 +21,6 @@
 
 //--- Defines ----------------------------------------------
 
-// Heartbeat inteerval
-// Send a ping if we dont send enything else within this 
-// time interval (in milliseconds). Default 30 seconds.
-// If the value is 0, then no 'keepalive' ping is sent
-#define DEFAULT_XMIT_INTERVAL_MS 30000
-
 // Built-in LED on board
 //-----------------------
 // #define USE_MONO_LED   // Use this for boards with mono color leds
@@ -52,7 +46,7 @@
 //--- Common Stuff ---
 #define SERIAL_BAUDRATE      115200
 #define SERIAL_MAX_LENGTH        80
-#define MAX_VERSION_LENGTH       22
+#define MAX_VERSION_LENGTH       12  // Suggested format: yyyy.mm.dd(a-z)
 #define MAX_NODES                20  // Maximum number of ESP-NOW peers
 #define MAX_DEVICES             100  // Maximum number of Devices that can connect to a Node
 #define ID_SIZE                   2  // Size of nodeID and deviceID

@@ -66,7 +66,7 @@
 //                  │  │   │     │
 //                  nn|dd|CCCC|params
 //
-//              ∙ This Device base class handles the following built-in Device commands:
+//              ∙ This Device base class handles the following built-in (reserved) Device commands:
 //
 //                GDNA = Get Device Name              : Returns this device's name
 //                SDNA = Set Device Name              : Sets this device's name (a User-Friendly name for the SMAC Interface)
@@ -78,6 +78,7 @@
 //                DOPP = Do Periodic Process          : Perform the periodic process one time, returns true or false
 //                GRAT = Get Rate                     : Get the current periodic process rate for this device in calls per hour:
 //                SRAT = Set Rate                     : Set the periodic process rate for this device in procs per hour
+//                GDVR = Get Device Version           : Get the current version of this Device's firmware
 //
 //              ∙ Your child Device class can override ExecuteCommand() to handle custom commands,
 //                for example, CALI for a calibrate function.
@@ -109,6 +110,7 @@ class Device
   protected:
     char           deviceID[ID_SIZE+1];                 // Assigned by the parent Node when "added" using addDevice()
     char           name[MAX_NAME_LENGTH+1] = "Device";  // Display name for the SMAC Interface
+    char           version[MAX_VERSION_LENGTH] = "";    // A version number for this Node's firmware (yyyy.mm.dd<a-z>)
     bool           immediateEnabled = true;             // true to have DoImmediate called continuously (as fast as possible)
     bool           periodicEnabled  = true;             // true to have DoPeriodic called at the process period
     unsigned long  processPeriod    = 1000L;            // milliseconds; default is 1 process per second
@@ -127,6 +129,7 @@ class Device
     bool           IsPPEnabled ();                // Is Periodic Processing enabled?
     unsigned long  GetRate     ();                // Return the periodic data rate of this Device
     void           SetRate     (double newRate);  // Set the periodic process rate (# per hour)
+    const char *   GetVersion  ();                // Return the current version of this Device
 
     ProcessStatus  RunPeriodic ();  // No need to use this method. It is called by the Node.
 

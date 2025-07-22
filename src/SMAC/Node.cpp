@@ -50,8 +50,6 @@ extern bool  WaitingForRelayer;
 
 Node::Node (const char *inName, int inNodeID)
 {
-  keepAliveInterval=DEFAULT_XMIT_INTERVAL_MS;
-  lastSendTime=millis();
   // Check name and nodeID range
   if ((strlen (inName) < 1) || (inNodeID < 0) || (inNodeID >= MAX_NODES))
   {
@@ -59,13 +57,13 @@ Node::Node (const char *inName, int inNodeID)
     return;
   }
 
-  // Set the UI name, ID and version number (compile timestamp)
+  // Set the UI name, ID and version number
   strncpy (name, inName, MAX_NAME_LENGTH-1);
   name[MAX_NAME_LENGTH-1] = 0;
 
   sprintf (nodeID, "%02d", inNodeID);
- 
-  strcpy (version, __DATE__ " " __TIME__);
+
+  strcpy (version, "2025.07.21b");  // no more than 11 chars
 
 
   //================================================
@@ -189,7 +187,6 @@ IRAM_ATTR void Node::SendDataPacket ()
   // Send Data String to Relayer
   //=============================                                                              ┌─ include string terminator
   ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) DataString, strlen(DataString) + 1);
-  lastSendTime=millis();   // reset the keep alive timer
   if (ESPNOW_Result != ESP_OK)
   {
     Serial.print   ("ERROR: Unable to send Data String: ");
@@ -208,7 +205,7 @@ IRAM_ATTR void Node::SendDataPacket ()
 //  Run:
 //
 //  This method is called continuously in the loop function
-//  of the .ino file.
+//  of the main.cpp file.
 //
 //  It calls the Run() method for all Devices
 //  and processes any Relayer/Interface commands.
@@ -217,7 +214,7 @@ IRAM_ATTR void Node::SendDataPacket ()
 void Node::Run ()
 {
   //===================================
-  //   Run all Devices
+  //  Run all Devices
   //===================================
   for (deviceIndex=0; deviceIndex<numDevices; deviceIndex++)
   {
@@ -252,19 +249,8 @@ void Node::Run ()
     }
   }
 
-    //===================================
-    // HEARTBEAT: If we havn't send any packets in a while (keepAliveInterval),
-    // then send a ping.
-    //===================================
-    if ((keepAliveInterval > 10) && ((millis() - lastSendTime) > keepAliveInterval))
-    {
-      strcpy(DataPacket.value, "PING");
-      DataPacket.timestamp = millis();
-      SendDataPacket();
-    }
-
   //===================================
-  //   Check for any commands
+  //  Check for any commands
   //===================================
   if (CommandBuffer->GetNumElements() < 1)
     return;
@@ -338,9 +324,15 @@ void Node::Run ()
     //====================================
     // Free the Popped string from buffer
     //====================================
-
-    free(commandString);
+    free (commandString);
   }
+}
+
+//--- GetVersion ------------------------------------------
+
+const char * Node::GetVersion ()
+{
+  return version;
 }
 
 //=========================================================
@@ -374,16 +366,6 @@ ProcessStatus Node::ExecuteCommand ()
     pStatus = SUCCESS_DATA;
   }
 
-  //--- Set the keep alive timeout ----------------------
-  if (strncmp(CommandPacket.command,"SKEP", COMMAND_SIZE) == 0)
-  {
-    keepAliveInterval = strtol(CommandPacket.params, nullptr, 10);
-    if (Debugging) {
-      Serial.print("New heartbeat interval is "); Serial.println(keepAliveInterval);
-    }
-    pStatus = SUCCESS_NODATA;
-  }
-
   //--- Get Node Info (GNOI) ----------------------------
   else if (strncmp (CommandPacket.command, "GNOI", COMMAND_SIZE) == 0)
   {
@@ -401,7 +383,7 @@ ProcessStatus Node::ExecuteCommand ()
     {
       sprintf (DataPacket.deviceID, "%02d", i);
       DataPacket.timestamp = millis ();
-      sprintf (DataPacket.value, "DEINFO=%s|%c|%c|%lu|", devices[i]->GetName(), devices[i]->IsIPEnabled() ? 'Y':'N', devices[i]->IsPPEnabled() ? 'Y':'N', devices[i]->GetRate());
+      sprintf (DataPacket.value, "DEINFO=%s|%s|%c|%c|%lu|", devices[i]->GetName(), devices[i]->GetVersion(), devices[i]->IsIPEnabled() ? 'Y':'N', devices[i]->IsPPEnabled() ? 'Y':'N', devices[i]->GetRate());
       SendDataPacket ();
     }
 
@@ -432,6 +414,13 @@ ProcessStatus Node::ExecuteCommand ()
     }
 
     pStatus = SUCCESS_NODATA;
+  }
+
+  //--- Get Version (GNVR) --------------------------------
+  else if (strncmp (CommandPacket.command, "GNVR", COMMAND_SIZE) == 0)
+  {
+    sprintf (DataPacket.value, "NVER=%s", version);
+    pStatus = SUCCESS_DATA;
   }
 
   //--- Reset (RSET) --------------------------------------

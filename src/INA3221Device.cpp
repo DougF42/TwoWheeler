@@ -17,6 +17,7 @@
 
 #include "INA3221Device.h"
 #include "cmath"
+#define  IAN3221Version "20250720a"
 
 // - - - - - - - - - - - - - - - - - - - - -
 // @brief Construct a new INA3221Device object
@@ -27,9 +28,11 @@
 // - - - - - - - - - - - - - - - - - - - - -
 INA3221Device::INA3221Device(const char *inName, int _i2CAddr, TwoWire *theWire) : Device(inName)
 {
+    
     periodicEnabled = true;
     immediateEnabled = false;
-    // todo: Set version to 'INA3221Version'
+    strncpy(version, IAN3221Version, MAX_VERSION_LENGTH);
+    version[MAX_VERSION_LENGTH-1]=0x00;
     SetRate(60); // default rate once per minute
     setAveragingMode(INA3221_AVG_16_SAMPLES);
     i2cAddr = _i2CAddr;
