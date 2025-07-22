@@ -11,6 +11,7 @@
  * thru the PID class is used to govern the actual 
  * power applied to each wheel.
  */
+#include "Node.h"
 #include "config.h"
 #include "Driver.h"
 #include "stdlib.h"
@@ -21,8 +22,9 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-Driver::Driver(Node *myNode, const char *_name) : DefDevice(myNode, _name)
+Driver::Driver( const char *_name, Node *_myNode) : DefDevice(_name)
 {
+    myNode = _myNode;
     nextMotorIdx=0;   
     mySpeed=0;
     myDirect=0; 
@@ -48,11 +50,11 @@ Driver::~Driver()
  */
 void Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg)
 {
-    leftMtr  = new MotorControl( myNode, "leftMotor");
+    leftMtr  = new MotorControl("leftMotor", myNode);
     leftMtr->setup(left_cfg, "left_");
     myNode->AddDevice(leftMtr);
     
-    rightMtr = new MotorControl( myNode, "rightMotor");
+    rightMtr = new MotorControl("rightMotor", myNode);
     rightMtr->setup(right_cfg, "right_");
     myNode->AddDevice(rightMtr);
     periodicEnabled = false; 
@@ -124,7 +126,6 @@ ProcessStatus  Driver::ExecuteCommand ()
         status = cmdDrift(argCount, arglist);
     } else {
         sprintf(DataPacket.value, "EROR|Driver|Unknown command");
-        defDevSendData(0, false);
         status = FAIL_DATA;
     }
     // Serial.print("STATUS:  "); Serial.println(status);
@@ -286,7 +287,6 @@ ProcessStatus Driver::cmdSPEED(int argcnt, char *argv[])
     }
 
 cmdSPEEDend:
-    defDevSendData(0, false);
     return (retVal);
 }
 
@@ -328,7 +328,6 @@ ProcessStatus Driver::cmdROTATION(int argcnt, char *argv[])
     }
 
 cmdROTATIONend:
-    defDevSendData(0,false);
     return(retVal);
 }
 

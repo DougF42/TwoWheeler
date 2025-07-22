@@ -37,7 +37,7 @@ class LN298 : public DefDevice
         int lastPcnt;
         
     public:
-        LN298( Node *_node, const char * Name);
+        LN298(const char * Name);
         void setupLN298(MotorControl_config_t *cfg);
         ~LN298();
         ProcessStatus  ExecuteCommand () override;

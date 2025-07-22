@@ -14,7 +14,7 @@
 #include <Preferences.h>
 #include "common.h"
 #include "driver/gpio.h"
-#include "DefNode.h"
+#include "Node.h"
 #include "Driver.h"
 #include "INA3221Device.h"
 
@@ -37,7 +37,7 @@ DPacket      DataPacket;
 CPacket      CommandPacket;
 char         DataString[MAX_MESSAGE_LENGTH];
 
-DefNode      *ThisNode;  // The Node for this example
+Node      *ThisNode;  // The Node for this example
 Driver       *myDriver;
 
 #ifdef USE_INA3221
@@ -105,7 +105,7 @@ void setup()
   // Node ID's cannot be duplicated in your SMAC System.
   // --- Do not use the same ID for other Nodes ---
   //=======================================================
-  ThisNode = new DefNode("TwoWheeler", 1);
+  ThisNode = new Node("TwoWheeler", 1);
 
 
   //=======================================================
@@ -138,7 +138,7 @@ void setup()
       };
 
   // CREATE DRIVER device
-  myDriver = new Driver(ThisNode, "Driver");
+  myDriver = new Driver("Driver", ThisNode);
   myDriver->setup(&left_mtr_cfg, &right_mtr_cfg);
   ThisNode->AddDevice(myDriver);
 

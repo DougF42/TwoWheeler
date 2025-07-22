@@ -12,9 +12,10 @@
 #include "MotorControl.h"
 
 
-MotorControl::MotorControl( Node *_node, const char * InName) : DefDevice(_node, InName)
+MotorControl::MotorControl(const char * InName, Node *_nodePtr) : DefDevice(InName)
 {
     piddev = nullptr;
+    myNode = _nodePtr;
  }
 
 
@@ -38,14 +39,14 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     strcpy(name+strlen(name), "QUAD");
     // quadDecoder    = new QuadDecoder(myNode, name);
     // quadDecoder->setupQuad(cfg);
-    myQuadDecoder = new QuadDecoder(myNode, name);
+    myQuadDecoder = new QuadDecoder(name);
     myQuadDecoder->setup(cfg);
     myNode->AddDevice(myQuadDecoder);
 
     // Create and add the ln298 driver
     strcpy(name, prefix);
     strcpy(name+strlen(name), "LN298");
-    ln298   = new LN298(myNode, name);
+    ln298   = new LN298(name);
     ln298->setupLN298(cfg);
     myNode->AddDevice(ln298);
 
@@ -53,7 +54,7 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     // Set up new PID. THIS IS NOT (currently) A DEVICE!
     //  Input, Output Setpoint, Kp, Ki, Kd, P_ON_E Flag,   controlerDirection
     sprintf(name, "%s%s", prefix,"PID");
-    piddev = new PidDevice(myNode, name, cfg);
+    piddev = new PidDevice(name, cfg);
     myNode->AddDevice(piddev);
     periodicEnabled=false;
 }
@@ -89,7 +90,6 @@ ProcessStatus MotorControl::ExecuteCommand()
             retVal = FAIL_DATA;
         }
     }
-        defDevSendData(0, false);
         return (retVal);
 }
 

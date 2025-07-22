@@ -9,36 +9,40 @@
  * 
  * This superclass adds the following to the SMAC 'Device'
  * class -
- *  (1) Capture a pointer to 'Node', which allows us to 
- * call sendData
- *  (2) A 'sendData' routine that sets the timestamp and 
- * (optionally) calls the node's senddata.
- *  (3) Functions for parsing and decoding the parameter 
- * string.
+ *  (1) scanParam - parses a string into a list of '|' separated 
+ *      tokens (null-temrinated strings).  The result is available 
+ *      in the 'arglist[n]', where n is the index of each token (0...5).
+ *  
+ *  (2) Functions for parsing and decoding a token into various numeric
+ *      types.
  */
 #pragma once
 #include "common.h"
-#include "Node.h"
 #include "Device.h"
 
+// This is the max number of arguments allowed. It defines the size of 
+//   the arglist array, so should be kept to a rasonable size.
+#define  DEFDEVICE_MAX_ARGS  5
 class DefDevice : public Device
 {
+    private:
+        ProcessStatus   argCountCheck(int argno, const char* msg);
+        
     protected:
-        char *arglist[6];
+        char *arglist[DEFDEVICE_MAX_ARGS];
         int argCount;
-        Node *myNode;
-        void  defDevSendData(time_t timeStamp, bool sendNowFlag=false);
         int   scanParam();  // scan the parameter list
-        int   getUInt8(int arg, uint8_t *result, const char *msg);
-        int   getLLint(int arg, long long  *result, const char *msg);
-        int   getUint32(int arg, uint32_t *result, const char *msg);
-        int   getInt32(int arg,  int32_t *result, const char *msg);
-        int   getDouble(int arg, double *result, const char *msg);
-        int   getBool(int arg, bool *result, const char *msg);
         bool  isCommand(const char *cmd);
 
+        ProcessStatus   getUInt8(int arg, uint8_t *result, const char *msg);
+        ProcessStatus   getLLint(int arg, long long  *result, const char *msg);
+        ProcessStatus   getUint32(int arg, uint32_t *result, const char *msg);
+        ProcessStatus   getInt32(int arg,  int32_t *result, const char *msg);
+        ProcessStatus   getDouble(int arg, double *result, const char *msg);
+        ProcessStatus   getBool(int arg, bool *result, const char *msg);
+
     public:
-        DefDevice( Node *_node, const char * InName);
+        DefDevice(const char * InName);
         ~DefDevice();
         
 };

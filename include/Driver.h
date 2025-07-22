@@ -30,6 +30,7 @@ private:
     int nextMotorIdx;
     int mySpeed;
     int myDirect;
+    Node *myNode;
         
     MotorControl  *leftMtr;
     MotorControl  *rightMtr;
@@ -43,7 +44,7 @@ private:
 
 
 public:
-    Driver( Node *_node, const char * name);
+    Driver(const char * name, Node *_Node);
     ~Driver();
     void setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg); // Instantiate all the subtasks...
     ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands

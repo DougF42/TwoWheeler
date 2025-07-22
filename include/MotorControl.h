@@ -21,6 +21,7 @@
  * TODO: Should we vary the K-factors depending on current power level?
  */
 #pragma once
+#include "Node.h"
 #include "DefDevice.h"
 #include "PidDevice.h"
 #include "ln298.h"
@@ -34,6 +35,9 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - -
 class MotorControl: public DefDevice
 {
+    private:
+        Node *myNode;
+        
     public:
         // These are used by PID
         double input_val;   // the actual speed (mm/sec)
@@ -45,7 +49,7 @@ class MotorControl: public DefDevice
         PidDevice *piddev;    // The PID controler instance
 
     
-        MotorControl( Node *_node, const char * Name);
+        MotorControl(const char * Name, Node *_nodePtr);
         ~MotorControl();
 
         void setup(MotorControl_config_t *cfg, const char *prefix);

@@ -32,7 +32,7 @@ class QuadDecoder : public DefDevice
     
 
     public:
-    QuadDecoder( Node *_node, const char * InName);
+    QuadDecoder( const char * InName);
     ~QuadDecoder();
     void setup(MotorControl_config_t*cfg);
     ProcessStatus  ExecuteCommand () override;    // Override this method to handle custom commands

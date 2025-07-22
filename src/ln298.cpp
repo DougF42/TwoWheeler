@@ -22,7 +22,7 @@ volatile uint8_t LN298::timer_is_inited=0;
 #define LEDC_DUTY               (4096) // Set duty to 50%. (2 ** 13) * 50% = 4096
 #define LEDC_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
-LN298::LN298(Node *_node, const char * Name) : DefDevice(_node, Name)
+LN298::LN298(const char * Name) : DefDevice(Name)
 {
     lastPcnt = 0;
     motorStatus=MOTOR_DIS;
@@ -189,7 +189,6 @@ ProcessStatus LN298::setPulseWidthCommand()
         retVal = SUCCESS_DATA;
     }
 
-    defDevSendData(0, false);
     return (retVal);
 }
 
@@ -264,7 +263,6 @@ ProcessStatus LN298::disable(bool isRemoteCmd)
     {
         sprintf(DataPacket.value, "OK|DISA|%s Disabled", GetName());
         retVal=SUCCESS_DATA;
-        defDevSendData(0, false);
     }
     return(retVal);
 }
@@ -285,7 +283,6 @@ ProcessStatus LN298::enable(bool isRemoteCmd)
     if (isRemoteCmd)
     {
         sprintf(DataPacket.value, "OK|ENAB|%s enabled", GetName());
-        defDevSendData(0, false);
         retVal = SUCCESS_DATA;
     }
     return (retVal);

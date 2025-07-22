@@ -7,17 +7,44 @@
  * 
  * @copyright Copyright (c) 2025
  * 
+ * This superclass 
+ * scanParam - scans the argument list, separating it into null-terminated
+ *             tokens, using '|' as a delimiter.  It returns 'argCount' (the 
+ *             number of tokens found) and  'argList', an array of pointers to each token.
+ * 
+ * Various 'get...' ) functions to convert a string into one a number of different data types,
+ *              with syntax checking specific to each data type.
+ * 
+ *              1st parameter is the index of the parameter (in arglist) to be scanned.
+ *                     NOTE: scanParam MUST be called once before any of these 'get...' functions!!!
+ *              2nd parameter is pointer to where the result should be stored. This must point
+ *                  to existing memory of a suitable size for the requested data type.
+ *              3d  parametr is a short 'header' string used to identify what is being
+ *                  parsed in case of an error message. (see return value below)
+ * 
+ *              return value: 'SUCCESS_NODATA' or FAIL_DATA' as appropriate.
+ *                 IF FAIL_DATA, a message is placed in the DataPacket.value indicating the
+ *                 problem. The message will be in this format:
+ *                     ERR|<3dParam>|<text describing the error>
+ *                               
  */
 #include "DefDevice.h"
 
-DefDevice::DefDevice( Node *_node, const char *inName) : Device(inName)
+/**
+ * @brief Construct a new Def Device:: Def Device object
+ * 
+ * @param _node   - poitner to the node controlling this device.
+ * @param inName  - Name of the device.
+ */
+DefDevice::DefDevice(const char *inName) : Device(inName)
 {
-    myNode = _node;
+    return;
 }
 
 
 DefDevice::~DefDevice()
 {
+    return;
 }
 
 
@@ -28,7 +55,12 @@ DefDevice::~DefDevice()
  * null terminated, and  and a pointer to it is 
  * stored in the argument list. 
  * 
- * @return int number of parameters found. 
+ *    IF we reach DEFDEVICE_MAX_ARGS, then we stop -
+ *  the last argument will be the entire remaining
+ *  line, regardless of content.
+ * 
+ * @return int number of parameters found. (This is
+ *    the same as the argCount)
  */
 int DefDevice::scanParam()
 {
@@ -36,6 +68,7 @@ int DefDevice::scanParam()
     char *aPtr = strtok(CommandPacket.params, "|");
     while ( (aPtr!=nullptr) && ( *aPtr != '\0') )
     {
+        if (argCount >= DEFDEVICE_MAX_ARGS) break; // negative Ghost Rider, the pattern is full!
         arglist[argCount++] = aPtr;
         aPtr = strtok(nullptr, "|");
     }
@@ -44,91 +77,97 @@ int DefDevice::scanParam()
 
 
 /**
- * @brief Send a data packet Using the node's 'SendDataPacket'
- *    This causes a SMAC message to be sent using
- * the global 'DataString' and the deviceID to send the packet.
+ * @brief INTERNAL USE ONLY - verify that the argument number is valid.
  * 
- *   Timestamp is set - either to 'millis()' (if 0)
- *       or to the given value.
- * 
- * @param timeStamp if not zero, set the timestamp of the message.
- *                  if zero, use the value returned by millis().
- * 
- * @param sendNowFlag - if true, the packet is sent immediatly.
- *                    set false if the packet is being sent from 
- *                    the termination of a Execute, doImmediate or
- *                    doPeriodica route.
- *                      default false.
+ * @param argno        - the index of the argument (in 'arglist').
+ * @return ProcessStatus  - Either FAIL_DATA (if error) or SUCCESS_NODATA
  */
-void DefDevice::defDevSendData(time_t timeStamp, bool sendNowFlag)
+ProcessStatus   DefDevice::argCountCheck(int argno, const char *msg)
 {
-    memcpy( DataPacket.deviceID, deviceID, ID_SIZE+1);
-    DataPacket.timestamp = (timeStamp==0) ? millis() : timeStamp;
-    if (sendNowFlag)     myNode->SendDataPacket();
+    if ((argno >  argCount) | (argno<0))
+    {
+        sprintf(DataPacket.value, "ERR|%s|Missing argument no %d", msg, argno);
+        return(FAIL_DATA);
+    }
+    return(SUCCESS_NODATA);
 }
+
+
+/**
+ * @brief Determine if we have a specific command
+ * This does a caseless compare between the CommandPacket.command and a candidate command string.
+ * 
+ * @param cmd     - the command we are looking for. Only uip to 4 chars are used.
+ * @return true   - the command matches.
+ * @return false  - not a match.
+ *   - TBD: Should this be a macro?
+ */
+bool  DefDevice::isCommand(const char *cmd)
+{
+    return(0==strncasecmp(CommandPacket.command, cmd, 4));
+}
+
 
 /**
  * @brief Get a 8bit unsigned integer
- * 
- * @param arg 
- * @param result 
- * @param msg 
- * @return int 
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
  */
-int DefDevice::getUInt8(int arg, uint8_t *result, const char *msg)
+ProcessStatus DefDevice::getUInt8(int arg, uint8_t *result, const char *msg)
 {
+   if (FAIL_DATA == argCountCheck(arg,msg)) return(FAIL_DATA);
 
-   if (arg > argCount)
-    {
-        // Missing argument
-        sprintf(DataPacket.value, "%s:Missing argument no %d", msg, arg);
-        return (1);
-    }
-
-    // Must  be positive digits
+    // Must be positive digits
     for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "%s:argument %d is not an unsigned int\n", msg, arg);
-            return (2);
+            sprintf(DataPacket.value, "ERR|%s|argument %d is not an unsigned int", msg, arg);
+            return (FAIL_DATA);
         }
-
     }
 
     long long tmpRes;
     tmpRes = strtoll(arglist[arg], nullptr, 10);
     if (tmpRes > (1L<<16) )
     {
-        sprintf(DataPacket.value, "%s|Aregument out of range");
-        return(3);
+        sprintf(DataPacket.value, "ERR|%s|Missing argument no %d");
+        return(FAIL_DATA);
     }
 
     *result = (uint8_t)tmpRes;
-    return (0); // OKAY
+    return (SUCCESS_NODATA); // OKAY
 }
 
-int DefDevice::getLLint(int arg, long long *result, const char *msg)
+
+/**
+ * @brief  get a long long int value
+ * 
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
+ * @return ProcessStatus 
+ */
+ProcessStatus DefDevice::getLLint(int arg, long long *result, const char *msg)
 {
-    if (arg > argCount)
-    {
-        // Missing argumen t
-        sprintf(DataPacket.value, "%s|Missing argument no %d", msg, arg);
-        return (1);
-    }
+    if (FAIL_DATA == argCountCheck(arg,msg)) return(FAIL_DATA);
 
     for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "%s|argument %d is not an unsigned int\n", msg, arg);
-            return (2);
+            sprintf(DataPacket.value, "ERR|%s|argument %d is not an unsigned int\n", msg, arg);
+            return (FAIL_DATA);
         }
     }
 
     *result = strtoll(arglist[arg], nullptr, 10);
-    return (0);
+    return (SUCCESS_NODATA);
 }
+
 
 /**
  * @brief Get an unsigned int (32 bits)
@@ -136,115 +175,98 @@ int DefDevice::getLLint(int arg, long long *result, const char *msg)
  * If an error is detected, a diagnostic
  * is queued in DataPacket.value
  * 
- * @param arg    - argument number (index of arglist)
- * @param result - where to store the result 
- * @param msg    - header for error messages
- * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
  */
-int DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
+ProcessStatus DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
 {
-    if (arg>argCount)
-    {
-        // Missing argumen t
-        sprintf(DataPacket.value, "%s:Missing argument no %d",msg, arg );
-        Serial.printf("%s|Missing argument %d - argcount is %d\r\n", msg, arg, argCount);
-        return(1);
-    }
+    if (FAIL_DATA == argCountCheck(arg, msg))
+        return (FAIL_DATA);
 
-    for (char *ptr = arglist[arg]; *ptr!='\0'; ptr++)
+    for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "%s:argument %d is not an unsigned int\n", msg, arg);
-            Serial.printf("%s|Bad integer value for argument %d: '%s'\r\n", msg, arg, arglist[arg]);
-            return (2);
+            sprintf(DataPacket.value, "ERR|%s|argument %d is not an unsigned int", msg, arg);
+            Serial.printf("ERR|%s|Bad integer value for argument %d: '%s'", msg, arg, arglist[arg]);
+            return (FAIL_DATA);
         }
     }
 
     *result = strtol(arglist[arg], nullptr, 10);
-    return(0);
+    return (SUCCESS_NODATA);
 }
 
 
 /**
  * @brief Get a signed integer (32 bit)
- * 
- * @param arg    - argument number (index of arglist)
- * @param result - where to store the result 
- * @param msg    - header for error messages
- * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
+ *
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
  */
-int DefDevice::getInt32(int arg, int32_t *result, const char *msg)
+ProcessStatus DefDevice::getInt32(int arg, int32_t *result, const char *msg)
 {
-    if ((arg >= argCount) || (arg<0))
-    {
-        // Missing argumen t
-        sprintf(DataPacket.value, "%s|Invalid or Missing argument no %d", msg, arg);
-        return (1);
-    }
+    if (FAIL_DATA == argCountCheck(arg, msg))
+        return (FAIL_DATA);
+
     Serial.printf("getInt32: argument is %s\r\n", arglist[arg]);
     for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
         {
-            sprintf(DataPacket.value, "%s|Argument %d is not a int\n", msg, arg);
-            return (2);
+            sprintf(DataPacket.value, "ERR|%s|Argument %d is not a int\n", msg, arg);
+            return (FAIL_DATA);
         }
     }
 
     *result = strtol(arglist[arg], nullptr, 10);
-    // Serial.printf("%s|Result is %d\n",msg,  *result);
-    return(0);
+    return (SUCCESS_DATA);
 }
 
 
 /**
  * @brief Get a 'double' value
  * 
- * @param arg    - argument number (index of arglist)
- * @param result - where to store the result 
- * @param msg    - header for error messages
- * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
  */
-int DefDevice::getDouble(int arg, double *result, const char *msg)
+ProcessStatus DefDevice::getDouble(int arg, double *result, const char *msg)
 {
-    if (arg > argCount)
-    {
-        // Missing argumen t
-        sprintf(DataPacket.value, "%s:Missing argument no %d", msg, arg);
-        return (1);
-    }
+   if (FAIL_DATA == argCountCheck(arg,msg)) return(FAIL_DATA);
 
     errno = 0;
     double tmpVal =strtod(arglist[arg], nullptr);
     if (errno!=0)
         {
-            sprintf(DataPacket.value, "%s: Invalid double for argument no %d", msg, arg);
-            return(2);
+            sprintf(DataPacket.value, "ERR|%s|Invalid double for argument no %d", msg, arg);
+            return(FAIL_DATA);
         }
 
     *result=tmpVal;
-    return(0);
+    return(SUCCESS_NODATA);
 }
+
 
 /**
  * @brief Get the Bool value
  *     values recognized - 0, 1, Y(es) N(o), T(rue), F(alse)
  * 
- * @param arg    - argument number (index of arglist)
- * @param result - where to store the result 
- * @param msg    - header for error messages
- * @return int   - 0 if okay. non-zero if bad value - a 'fail' message was generated
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
  */
-int DefDevice::getBool(int arg, bool *result, const char *msg)
+ProcessStatus DefDevice::getBool(int arg, bool *result, const char *msg)
 {
-    int retval=0;
-    if (arg>=argCount)
-    {
-        sprintf( DataPacket.value, "%s: %s %d", msg, "Missing argument %d");
-        defDevSendData(0, false);
-        retval=1;
-    }
+    ProcessStatus retval=SUCCESS_NODATA;
+   if (FAIL_DATA == argCountCheck(arg,msg)) return(FAIL_DATA);
+
     char firstChar = toupper(arglist[arg][0]); // Just use 1st char
     if ( (firstChar == '0') || (firstChar=='N') || (firstChar=='F') )
     {
@@ -254,22 +276,11 @@ int DefDevice::getBool(int arg, bool *result, const char *msg)
     {
         *result=true;
 
-    }  else 
-        sprintf(DataPacket.value, "%s|%s %s", msg, "Unknown boolean value for argument ", arg);
-        defDevSendData(0, false);
-        retval= 2;
-    return(retval);
+    }  else {
+        sprintf(DataPacket.value, "ERR|%s|Unknown boolean value for argument %d",
+                 msg, arg);
+        return(FAIL_DATA);
+    }
+    return(SUCCESS_NODATA);
 }
 
-
-/**
- * @brief Determine if we have a specific command
- * 
- * @param cmd   - the command we are looking for
- * @return true  - the command matches
- * @return false  - not a match
- */
-bool  DefDevice::isCommand(const char *cmd)
-{
-    return(0==strncasecmp(CommandPacket.command, cmd, 4));
-}

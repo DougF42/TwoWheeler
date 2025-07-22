@@ -31,7 +31,7 @@ class PidDevice : public DefDevice
         bool enableReportFlag;
 
     
-        PidDevice(Node *_node, const char * _name, MotorControl_config_t *cfg);
+        PidDevice(const char * _name, MotorControl_config_t *cfg);
         ~PidDevice();
 
         ProcessStatus  DoPeriodic     () override; 

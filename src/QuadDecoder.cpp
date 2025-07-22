@@ -20,7 +20,7 @@ static const char *TAG="QuadDecoder";
  * @param _node 
  * @param InName 
  */
-QuadDecoder::QuadDecoder(Node *_node, const char *InName): DefDevice(_node, InName)
+QuadDecoder::QuadDecoder(const char *InName): DefDevice(InName)
 {
     myEncoder      = new ESP32Encoder;
     spdUpdateTimerhandle=nullptr;

@@ -10,7 +10,7 @@
  */
 #include "PidDevice.h"
 
-PidDevice::PidDevice(Node *_node, const char *_name, MotorControl_config_t *cfg) : DefDevice(_node, _name)
+PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg) : DefDevice( _name)
 {
     pid = nullptr;
     enableReportFlag=false;
@@ -165,7 +165,6 @@ ProcessStatus PidDevice::cmdSetMode()
         retVal=SUCCESS_DATA;
     }
 
-    defDevSendData(0, false);
     return(retVal);
 }
 
@@ -200,7 +199,7 @@ ProcessStatus PidDevice::cmdSetSTime()
         sprintf(DataPacket.value,"STIM|%s",  (pid->GetMode() ? "Enabled": "Disabled" ));
         retVal=SUCCESS_DATA;
     }
-    defDevSendData(0, false);
+
     return(retVal);
 }
 
@@ -233,7 +232,7 @@ ProcessStatus PidDevice::cmdSetRept()
         sprintf(DataPacket.value, "STIM|%s",  (pid->GetMode() ? "Enabled": "Disabled" ));
         retVal = SUCCESS_DATA;
     }
-    defDevSendData(0, false);
+
     return(retVal);
 }
 
