@@ -26,7 +26,7 @@ class QuadDecoder : public DefDevice
     time_t last_timecheck;
     double last_speed;
     time_t currentSpdCheckRate;
-    double convertPosition;  // converts pulse count to engineering units 
+    double pulsesToDist;  // converts pulse count to engineering units 
     static void update_speed_cb(void *arg);
     esp_timer_handle_t spdUpdateTimerhandle;
     

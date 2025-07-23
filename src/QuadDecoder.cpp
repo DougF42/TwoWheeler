@@ -91,14 +91,15 @@ void QuadDecoder::update_speed_cb(void *arg)
     time_t  now  = esp_timer_get_time();
     time_t  elapsed;
     pulse_t pos_now = me->myEncoder->getCount();
-    pos_diff = pos_now - me->last_position;
-    elapsed  = now - me->last_timecheck;
-    // me->last_speed = ((double)pos_diff) / (double)elapsed;
-    // speed in mm/millisecond
-    me->last_speed = ( ((double)pos_diff) * me->convertPosition) / ((double)elapsed);
 
-    //ESP_LOGE(TAG, "update_speed: %ld|%ld|%ld|%lld|%f", 
-    //        pos_now, me->last_position, pos_diff, elapsed, me->last_speed);
+    // Deltas
+    pos_diff = (pos_now - me->last_position);
+    elapsed  = (now - me->last_timecheck)/1000;
+
+    // Calc speed
+    me->last_speed = ( ((double)pos_diff) * me->pulsesToDist) / ((double)elapsed);
+   //Serial.printf(" position pulsesRoDist %lf  diff %ld elapsed= %lld speed=%lf\r\n", 
+   //     me->pulsesToDist, pos_diff, elapsed, me->last_speed);
     me->last_position = me->myEncoder->getCount();
     me->last_timecheck = now;
 
@@ -218,7 +219,7 @@ ProcessStatus QuadDecoder::qsetCommand()
     if (retVal == SUCCESS_NODATA)
     {
         // Show the current parameters
-        sprintf(DataPacket.value, "QSET|%f|%lld|%8.5f", wheelDiam, pulsesPerRev, convertPosition);
+        sprintf(DataPacket.value, "QSET|%f|%lld|%8.5f", wheelDiam, pulsesPerRev, pulsesToDist);
         retVal = SUCCESS_DATA;
     }
 
@@ -256,7 +257,7 @@ ProcessStatus QuadDecoder::qsckCommand()
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK|%f", currentSpdCheckRate);
+        sprintf(DataPacket.value, "OK|%lld", currentSpdCheckRate);
         retVal=SUCCESS_DATA;
     }
     return (retVal);
@@ -275,7 +276,8 @@ void QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
 {
     pulsesPerRev = pulseCnt;
     wheelDiam    = diam;
-    convertPosition = (pulsesPerRev*4) / (diam* M_PI);
+    pulsesToDist = (pulsesPerRev*4) / (diam* M_PI);
+    Serial.print("Convert pulsesToDist "); Serial.println(pulsesToDist);
     return;
 }
 
@@ -305,7 +307,7 @@ void QuadDecoder::setSpeedCheckInterval(time_t interval)
  */
 double QuadDecoder::QuadDecoder::getPosition()
 {
-    double result= myEncoder->getCount() * convertPosition;
+    double result= myEncoder->getCount() * pulsesToDist;
     return(result);
 }
 

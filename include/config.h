@@ -68,7 +68,7 @@ typedef double  dist_t;
 
 // Default scaling for quad
 #define QUAD_PULSES_PER_REV   600
-#define SPEED_CHECK_INTERVAL_mSec 500
+#define SPEED_CHECK_INTERVAL_mSec 50
 
 
 // * * * * * * * 
