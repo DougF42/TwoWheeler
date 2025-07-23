@@ -86,7 +86,6 @@ void QuadDecoder::setup(MotorControl_config_t *cfg)
 void QuadDecoder::update_speed_cb(void *arg)
 {
     QuadDecoder *me = (QuadDecoder *)arg;
-
     pulse_t pos_diff;
     time_t  now  = esp_timer_get_time();
     time_t  elapsed;
@@ -183,7 +182,7 @@ ProcessStatus QuadDecoder::qsetCommand()
     pulse_t pulses; // temporary number of pulses
     if (argCount == 2)
     {
-        if (0 != getInt32(1, &pulses, "Pulse Count: "))
+        if (SUCCESS_NODATA != getInt32(1, &pulses, "Pulse Count: "))
         {
             retVal = FAIL_DATA;
         }
@@ -237,10 +236,10 @@ ProcessStatus QuadDecoder::qsetCommand()
 ProcessStatus QuadDecoder::qsckCommand()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
-    uint32_t newclkRate = 0;
+    time_t newclkRate = 0;
     if (argCount == 1)
     {
-        if (0 != getUint32(0, &newclkRate, "Wheel Diameter: "))
+        if (SUCCESS_NODATA != getLLint(0, &newclkRate, "Speed check rate "))
         {
             retVal = FAIL_DATA;
         } else {
@@ -257,11 +256,12 @@ ProcessStatus QuadDecoder::qsckCommand()
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK|%lld", currentSpdCheckRate);
+        sprintf(DataPacket.value, "OK|SCLK|%lld", currentSpdCheckRate);
         retVal=SUCCESS_DATA;
     }
     return (retVal);
 }
+
 
 /**
  * @brief Set the Phys Paramers

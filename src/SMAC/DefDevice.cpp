@@ -190,7 +190,7 @@ ProcessStatus DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
         if (!isDigit(*ptr))
         {
             sprintf(DataPacket.value, "ERR|%s|argument %d is not an unsigned int", msg, arg);
-            Serial.printf("ERR|%s|Bad integer value for argument %d: '%s'", msg, arg, arglist[arg]);
+            //Serial.printf("ERR|%s|Bad integer value for argument %d: '%s'", msg, arg, arglist[arg]);
             return (FAIL_DATA);
         }
     }
