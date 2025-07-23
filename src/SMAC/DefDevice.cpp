@@ -84,7 +84,7 @@ int DefDevice::scanParam()
  */
 ProcessStatus   DefDevice::argCountCheck(int argno, const char *msg)
 {
-    if ((argno >  argCount) | (argno<0))
+    if ((argno >=  argCount) | (argno<0))
     {
         sprintf(DataPacket.value, "ERR|%s|Missing argument no %d", msg, argno);
         return(FAIL_DATA);
@@ -212,8 +212,7 @@ ProcessStatus DefDevice::getInt32(int arg, int32_t *result, const char *msg)
 {
     if (FAIL_DATA == argCountCheck(arg, msg))
         return (FAIL_DATA);
-
-    Serial.printf("getInt32: argument is %s\r\n", arglist[arg]);
+    
     for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
