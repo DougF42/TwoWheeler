@@ -1,28 +1,56 @@
 /**
  * @file PidDevice.cpp
  * @author Doug Fajardo
- * @brief 
+ * @brief Use a PID loop to control the motor speed
  * @version 0.1
  * @date 2025-06-14
  * 
  * @copyright Copyright (c) 2025
  * 
+ * Commands accepted by this controller:
+ * SPED|<val>              set (or get) the actual speed.
+ * SPID|<p>|<i>|<d>        (set or get PID values)
+ * SMODE|<AUTO|MAN..>      Auto (pid controls) or Manual(no pid) 
+ * STIM|<time>             PID loop rate (milliseconds)
+ *
  */
 #include "PidDevice.h"
 
-PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg) : DefDevice( _name)
+PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg, 
+        QuadDecoder *_quad, LN298 *_ln298 ) : DefDevice( _name)
 {
     pid = nullptr;
-    enableReportFlag=false;
+    ln298 = _ln298;
+    quad  = _quad;
 
     name = strdup(_name);
-        //PID(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
+        //PID(double*, double*, double*,        // * constructor.  links the PID to the actual, Output, and 
         // double, double, double, int, int);   //   Setpoint.  Initial tuning parameters are also set here.
                                                 //   (overload for specifying proportional mode)
-    pid = new PID(&input, &output, &setPoint,  // links the PID to the Input, Output, and setpoint
+    pid = new PID(&actual, &output, &setPoint,  // links the PID to the actual, Output, and setpoint
         cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
         
     periodicEnabled=false;
+        /// TODO: Force MANUAL mode?
+
+    // - - - -  Initialize and Start the timer
+       // Set up the speed update clock
+     // speed check timer
+    esp_timer_create_args_t speed_timer_args =
+        {
+            .callback = &update_pid_cb,      //!< Callback function to execute when timer expires
+            .arg = this,                       //!< Argument to pass to callback
+            .dispatch_method = ESP_TIMER_TASK, //!< Dispatch callback from task or ISR; if not specified, esp_timer task
+                                               //!< is used; for ISR to work, also set Kconfig option
+                                               //!< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
+            .name = "SpeedTimer",              //!< Timer name, used in esp_timer_dump() function
+            .skip_unhandled_events = true      //!< Setting to skip unhandled events in light sleep for periodic timers
+        };
+
+    ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &pidTimerhandle));
+    Serial.print("... PID timer created");
+
+
 }
 
 
@@ -30,35 +58,32 @@ PidDevice::~PidDevice()
 {
 }
 
-
 /**
- * @brief periodically - generate reports, 
- *    input, output, setValue
+ * @brief periodically -  report  setValue, actual, output
  * @param arg - pointer to this instance
  */
 ProcessStatus PidDevice::DoPeriodic()
 {
-    // GENERATE REPORTS
-    ProcessStatus retVal=SUCCESS_NODATA;
-    if (! enableReportFlag) 
-    {
-        sprintf(DataPacket.value, "PID|%f|%f|%f" );
-        retVal=SUCCESS_DATA;
-    }
-    return(retVal);
+    ProcessStatus retVal = SUCCESS_NODATA;
+
+    sprintf(DataPacket.value, "PID|%lf|%lf|%lf", setPoint, actual, output);
+    retVal = SUCCESS_DATA;
+
+    return (retVal);
 }
 
 
 /**
- * @brief run the PID loop
- * 
- * @return ProcessStatus 
+ * @brief Run the PID loop when the timer expires
+ *  The argument is a pointer to the current PidDevice instance
  */
-ProcessStatus PidDevice::DoImmediate()
-{
-    pid->Compute();
-    return(SUCCESS_NODATA);
-}
+ void PidDevice::update_pid_cb(void *arg)
+ {
+    PidDevice *me = (PidDevice *)arg;
+    me->pid->Compute();
+    me->ln298->setPulseWidth((int)me->output);
+    return;
+ }
 
 
 /**
@@ -67,36 +92,39 @@ ProcessStatus PidDevice::DoImmediate()
  * FORMAT:  SPID <Kp> <Ki> <Kd>
  * FORMAT:  SMODE <bool>         (true-automatic, false-manual)
  * FORMAT:  STIM <time_ms>      (sample time rate - via DOIMMEDIATE)
- * FORMAT:  REPT <bool>          (should we generate a report?)
  * @return ProcessStatus 
  */
 ProcessStatus PidDevice::ExecuteCommand()
 {
     ProcessStatus retVal = SUCCESS_DATA;
+
     retVal = Device::ExecuteCommand();
     if (retVal != NOT_HANDLED)
         return (retVal);
     retVal = NOT_HANDLED;
-    if (isCommand("SPID"))
-    {
+
+    scanParam();
+    if (isCommand("SPED"))
+    {   // Set s[eed]
+        retVal = cmdSetSpeed();
+
+    } else if (isCommand("SPID"))
+    {   // Set pid parameters
         // TODO:
         retVal = cmdSetPid();
     }
 
     else if (isCommand("SMODE"))
-    {
+    {    // Set mode (auto or manual)
         retVal = cmdSetPid();
     }
 
     else if (isCommand("STIM"))
-    {
+    {    // Set pid update time (millisecs)
         retVal = cmdSetSTime();
     }
 
-    else if (isCommand("REPT"))
-    {
-        retVal = cmdSetRept();
-    } else 
+    else 
     {
         sprintf(DataPacket.value, "EROR|PID|Unknown command");
         retVal = FAIL_DATA;
@@ -105,6 +133,41 @@ ProcessStatus PidDevice::ExecuteCommand()
     return (retVal); // for now...
 }
 
+
+/**
+ * @brief: Set the desired speed
+ *    Note: This works wether we are
+ * in MANUAL or AUTOMATIC modes
+ */
+ProcessStatus PidDevice::cmdSetSpeed()
+{
+    ProcessStatus retVal=SUCCESS_NODATA;
+
+    if (argCount == 1)
+    {
+        retVal=getDouble(0, &setPoint, "Speed ");
+    } else if (argCount != 0)
+    {
+        sprintf(DataPacket.value, "ERR|Wrong number of arguments in SPED command");
+        retVal=FAIL_DATA;
+    }
+
+    if (retVal==SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value, "OK|%ld", setPoint);
+        retVal = SUCCESS_DATA;
+    }
+    return(retVal);
+}
+
+/**
+ * @brief set the desired motor speed
+ */
+void PidDevice::setSpeed(double speed)
+{
+    // TODO:
+
+}
 
 /**
  * @brief Get or Set the PID parameters
@@ -131,6 +194,14 @@ ProcessStatus PidDevice::cmdSetPid()
     }
     retVal=SUCCESS_DATA;
     return(retVal);
+}
+
+/**
+ * @brief set the PID control values
+ */
+void setPid(double _kp, double ki, double kd)
+{
+    // TODO:
 }
 
 
@@ -169,6 +240,15 @@ ProcessStatus PidDevice::cmdSetMode()
 }
 
 /**
+ * @brief Set the mode (auto or manual)
+ */
+ void PidDevice::setMode(bool modeIsAuto)
+ {
+    // TODO
+ }
+
+
+/**
  * @brief  Command to Set the PID compute time (milliseconds)
  *    FORMAT: STIM|<time>
  * 
@@ -203,36 +283,8 @@ ProcessStatus PidDevice::cmdSetSTime()
     return(retVal);
 }
 
-
-/**
- * @brief Command to enable/disable reports
- *  FORMAT: REPT <bool>
- * @return ProcessStatus 
- */
-ProcessStatus PidDevice::cmdSetRept()
+void PidDevice::setSampleClock(time_t intervalMs)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
-    if (argCount == 1)
-    {
-        bool enaRept;
-        if ( 0 == getBool(1, &enaRept, "Set  Report Command: "))
-        {
-            enableReportFlag = enaRept;
-        } 
-
-    } else if (argCount != 0) 
-    {
-        // Error - wrong arg count
-        sprintf(DataPacket.value, "ERRO| wrong number of arguments");
-        retVal = FAIL_DATA;
-    }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        sprintf(DataPacket.value, "STIM|%s",  (pid->GetMode() ? "Enabled": "Disabled" ));
-        retVal = SUCCESS_DATA;
-    }
-
-    return(retVal);
+    // TODO:
 }
 

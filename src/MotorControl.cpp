@@ -54,7 +54,7 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     // Set up new PID. THIS IS NOT (currently) A DEVICE!
     //  Input, Output Setpoint, Kp, Ki, Kd, P_ON_E Flag,   controlerDirection
     sprintf(name, "%s%s", prefix,"PID");
-    piddev = new PidDevice(name, cfg);
+    piddev = new PidDevice(name, cfg, myQuadDecoder, ln298);
     myNode->AddDevice(piddev);
     periodicEnabled=false;
 }
