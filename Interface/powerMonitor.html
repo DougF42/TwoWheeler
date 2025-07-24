@@ -1,0 +1,125 @@
+<!--=======================================================
+//
+//     FILE : powerMonitor.html
+//
+//  PROJECT : Adafruit INA3221 Board (SMAC Interface)
+//
+//    NOTES : Widget width/height/diameter attributes are
+//            percentages of the browser's client area.
+//
+//======================================================-->
+
+<style>
+
+  .pmDigital
+  {
+    width : 4vw;
+  }
+
+  .sliderTV
+  {
+    width : 50vw;
+  }
+
+</style>
+
+
+<!-- Reload Button -->
+<div style="text-align:left">
+  <button class="dsButton" onpointerdown="reload()"> Reload </button>
+</div>
+
+
+<!-- Power Monitor Page -->
+<div class="dsTitle">ina3221 power monitor</div>
+<br>
+<br>
+
+<!-- Target Voltage -->
+<div class="dsBlock" style="font-size:1.5vw">
+
+  <div class="dsGridForm">
+
+    <label>Target Voltage : &nbsp;</label>
+    <div>
+      <div class="smac-digital pmDigital" id="digital_TV">0.0</div>
+      <input class="dsInput sliderTV" id="slider_TV" type="range" min="0.0" max="20.0" step="0.1" value="0.0" oninput="updateTV()" onpointerup="setTV()" />
+    </div>
+
+  </div>
+
+</div><br>
+<br>
+
+<!-- Graphs of Target Voltage, Actual Voltage and Current Draw -->
+<smac-timegraph
+  devices    = "1,12,#F08040|1,13,#FFFF00|1,14,#FF00FF"
+  width      = "80"
+  height     = "35"
+  minValue   = "0.0"
+  maxValue   = "15.0"
+  gridColor  = "#404040"
+  scaleColor = "#F0F0F0">
+</smac-timegraph>
+<br>
+<br>
+
+<!-- Graphs of Current Draw -->
+<smac-timegraph
+  devices    = "1,9,#F08040|1,10,#FFFF00|1,11,#FF00FF"
+  width      = "80"
+  height     = "35"
+  minValue   = "0.0"
+  maxValue   = "500.0"
+  gridColor  = "#404040"
+  scaleColor = "#F0F0F0">
+</smac-timegraph>
+<br>
+
+
+<script>
+
+  //--- updateTV ------------------------------------------
+  function updateTV ()
+  {
+    try
+    {
+      const newValue = $("#slider_TV").val();
+
+      // Update the smac-digital
+      $("#digital_TV").text (newValue.toString());
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  //--- setTV ---------------------------------------------
+  async function setTV ()
+  {
+    try
+    {
+      const newValue = $("#slider_TV").val();
+
+
+
+      // Send command to device
+      // await Send_UItoRelayer (0, 0, 'CCCC', newValue.toString());  // Send command to set target voltage
+
+
+
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  // Reload this page
+  function reload ()
+  {
+    $('#powerMonitor').load ('powerMonitor.html?v=' + Math.random().toString());
+  }
+
+</script>

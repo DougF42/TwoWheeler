@@ -40,6 +40,7 @@ PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg,
 
 PidDevice::~PidDevice()
 {
+    return;
 }
 
 /**
@@ -49,7 +50,7 @@ PidDevice::~PidDevice()
 ProcessStatus PidDevice::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
-
+    DataPacket.timestamp = millis();    
     sprintf(DataPacket.value, "PID|%lf|%lf|%lf", setPoint, actual, output);
     retVal = SUCCESS_DATA;
 
@@ -62,6 +63,13 @@ ProcessStatus PidDevice::DoPeriodic()
  */
 ProcessStatus PidDevice::DoImmediate()
 {
+    return(SUCCESS_NODATA); // FOR NOW, DISABLE
+    if (pid->GetMode()==MANUAL) return(SUCCESS_NODATA);
+    // TODO: LOAD requested, actual, cur PWD Setting
+    actual = quad->getSpeed();
+    // setpoint = (requested speed)
+    // output =  (current PWM setting)
+
     if (pid->Compute())
     {   // if the PID re-calculated, then update
         // the motor speed accordingly
@@ -85,7 +93,7 @@ ProcessStatus PidDevice::DoImmediate()
 ProcessStatus PidDevice::ExecuteCommand()
 {
     ProcessStatus retVal = SUCCESS_DATA;
-
+    DataPacket.timestamp = millis();
     retVal = Device::ExecuteCommand();
     if (retVal != NOT_HANDLED)
         return (retVal);

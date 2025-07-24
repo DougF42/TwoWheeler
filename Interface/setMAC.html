@@ -1,0 +1,206 @@
+<!doctype html>
+<!--=======================================================
+//
+//      FILE : setMAC.html
+//
+//   PROJECT : SMAC Framework
+//
+//  FUNCTION : Set the Relayer's MAC address for Nodes
+//
+//    AUTHOR : Bill Daniels
+//             Copyright 2023-2025, D+S Tech Labs, Inc.
+//             All Rights Reserved
+//
+//======================================================-->
+
+<html lang="en-us">
+
+  <!-- Head -->
+  <head>
+
+    <!-- These three meta tags MUST come first in the <head> tag. -->
+    <!-- All other <head> content must come AFTER these tags.     -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>SMAC - Set MAC Tool</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="dsStyles.css" />
+    <link rel="stylesheet" href="smacStyles.css" />
+
+  </head>
+
+  <!-- Body -->
+  <body onpointerdown="RemoveBubble()">
+
+    <!-- For Full Screen Modal Popups -->
+    <div id="modalBackdrop"></div>
+
+    <!-- SMAC Console -->
+    <div id="smacConsole">
+
+      <!-- App Bar with Nav Buttons -->
+      <div id="smacTitleBar" class="themeColors">
+
+        <div style="display:inline-block">
+
+          <div id="titleAndVersion">
+            <div id="appTitle">Set Mac Tool</div>
+            <div id="title_Version"></div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Tabbed Display Page Area -->
+      <div id="smacPageArea">
+
+        <br>
+        <div id="dsSplashTitle">Set MAC Tool</div>
+        <div id="dsSplashVersion"></div>
+        <br>
+        <br>
+
+        <!-- No Serial Support -->
+        <div id="noSerial" class="setMACToolBlock" style="color:#C00000">
+          <br>
+          This browser does not support serial communications.<br>
+          Please use the Chrome or Edge browser.
+        </div>
+
+
+        <!--============================================-->
+        <!-- Plug in Relayer - Get MAC                  -->
+        <!--============================================-->
+
+        <!-- Request Serial Port -->
+        <div id="connectToRelayer" class="setMACToolBlock">
+
+          <div class="dsBlock">  <!-- style="vertical-align:top"> -->
+            In a <b>SMAC System</b>, Remote Modules (<b>Nodes</b>)<br>
+            communicate with the <b>Relayer Module</b> using direct WiFi.<br>
+            To do this, each <b>Node</b> requires the <b>Relayer</b>'s MAC address.<br>
+            This tool stores the <b>Relayer</b>'s MAC address in the <b>Node</b>.<br>
+            <br>
+
+            Let's first get the <b>Relayer</b>'s MAC address:<br>
+            Using a USB cable, connect the <b><u>Relayer</u></b><br>
+            to this computer and click the button below.<br>
+            <br>
+
+            <button class="dsButton dsSplashButton" onpointerdown="ConnectToRelayer()"> Connect to Relayer </button>
+          </div>
+
+          <img src="Images/image_ConnectToRelayer.png" style="margin-left:2vw; width:40vw; vertical-align:top" /><br>
+
+        </div>
+
+
+        <!--============================================-->
+        <!-- Plug in Node - Set MAC                     -->
+        <!--============================================-->
+
+        <!-- Request Serial Port -->
+        <div id="connectToNode" class="setMACToolBlock">
+
+          <div style="display:inline-block; vertical-align:top">
+            The <b>Relayer</b>'s MAC address is:<br>
+            <br>
+
+            <span id="relayerMAC"></span><br>
+            <br>
+
+            Now connect a <b><u>Node</u></b> to this<br>
+            computer and click the button below.<br>
+            You will need to do this for each <b>Node</b><br>
+            in your <b>SMAC System</b>.<br>
+            <br>
+
+            <button class="dsButton dsSplashButton" onpointerdown="ConnectToNode()"> Connect to Node </button>
+          </div>
+
+          <img src="Images/image_ConnectToNode.png" style="margin-left:20px; width:40%; vertical-align:top" /><br>
+
+        </div>
+
+
+
+        <!-- This is a Relayer
+        <div id="thisIsARelayer" class="setMACToolBlock">
+          This is a Relayer Module<br>
+          <br>
+
+          MAC = <span id="thisIsARelayer_MAC" class="macAddress"></span><br>
+        </div>
+        -->
+
+
+
+        <!--============================================-->
+        <!-- Keep or Set New MAC Address                -->
+        <!--============================================-->
+
+        <div id="keepOrSetNewMAC" class="setMACToolBlock">
+
+          Current Relayer MAC Address : <span id="currentMAC" class="macAddress"></span><br>
+          <br>
+
+          <div>
+            <button class="dsButton" style="vertical-align:middle" onpointerdown="Reset()">  Keep this setting  </button>
+            <div style="display:inline-block; padding:0 20px; vertical-align:middle">
+              <div class="dsDividerV" style="height:80px"></div><br>
+              OR<br>
+              <div class="dsDividerV" style="height:80px"></div><br>
+            </div>
+            <div style="display:inline-block; vertical-align:middle">
+              Enter New MAC Address:<br>
+              <input id="newMAC" type="text" class="dsInput" style="width:350px; font-family:font_sonoRegular; text-align:center" /><br>
+              <small>(XX:XX:XX:XX:XX:XX)</small><br>
+              <br>
+
+              <button class="dsButton" onpointerdown="SetRelayerMAC(event)">  Submit  </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!--============================================-->
+        <!-- New MAC is Set                             -->
+        <!--============================================-->
+
+        <div id="newMACSet" class="setMACToolBlock">
+
+          The new MAC Address has been set.<br>
+          You may unplug the USB cable and use your Node normally.<br>
+          <br>
+
+          ──────── OR ────────<br>
+          <br>
+
+          <button class="dsButton" onpointerdown="Reset()">  Set MAC for another Node  </button><br>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- Load Scripts -->
+
+    <!-- jQuery -->
+    <script src="Scripts/jquery-3.7.1.min.js"></script>
+
+    <!-- Javascript Extras -->
+    <script src="Scripts/dsExtras.js"></script>
+
+    <!-- SMAC Interface Scripts -->
+    <script src="Scripts/serialPort.js"></script>
+    <script src="Scripts/setMAC.js"></script>
+
+  </body>
+
+</html>

@@ -24,6 +24,7 @@ class PidDevice : public DefDevice
         LN298       *ln298;
         esp_timer_handle_t pidTimerhandle;
         time_t     mySampleTime;
+
     public:
         PID *pid;
         char *name;
@@ -32,7 +33,6 @@ class PidDevice : public DefDevice
         double actual;   // the actual value
         double output;   // what to set the motor (ln298) to
   
-
         double kp;
         double ki;
         double kd;

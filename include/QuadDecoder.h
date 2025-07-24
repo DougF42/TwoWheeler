@@ -44,6 +44,7 @@ class QuadDecoder : public DefDevice
 
     void setSpeedCheckInterval(time_t interval);
     double getPosition();
+    double getSpeed();
     void   resetPosition();
 };
 

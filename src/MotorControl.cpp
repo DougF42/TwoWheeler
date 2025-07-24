@@ -75,6 +75,7 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
 ProcessStatus MotorControl::ExecuteCommand()
 {
     ProcessStatus retVal;
+    DataPacket.timestamp = millis();
     retVal = Device::ExecuteCommand();
     if (retVal == NOT_HANDLED)
     {
@@ -83,14 +84,14 @@ ProcessStatus MotorControl::ExecuteCommand()
         { // Set motor speed
             retVal = cmdSetSpeed(argCount, arglist);
         }
-        
+
         else
         {
             sprintf(DataPacket.value, "EROR|MotorControl|Unknown command");
             retVal = FAIL_DATA;
         }
     }
-        return (retVal);
+    return (retVal);
 }
 
 /**

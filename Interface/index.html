@@ -1,0 +1,224 @@
+<!doctype html>
+<!--=======================================================
+//
+//      FILE : index.html
+//
+//   PROJECT : SMAC Framework (System Monitor and Control):
+//             - Visualize data from factory/lab equipment in a browser
+//             - Control that equipment through browser interaction
+//             - Fast, Wireless communication
+//
+//  FUNCTION : SMAC Interface Template/Example
+//
+//    AUTHOR : Bill Daniels
+//             Copyright 2014-2025, D+S Tech Labs, Inc.
+//             All Rights Reserved
+//
+//======================================================-->
+
+<html lang="en-us">
+
+  <!-- Head -->
+  <head>
+
+    <!-- These three meta tags MUST come first in the <head> tag. -->
+    <!-- All other <head> content must come AFTER these tags.     -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>SMAC Demo</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="dsStyles.css" />
+    <link rel="stylesheet" href="smacStyles.css" />
+
+    <!-- jQuery -->
+    <script src="Scripts/jquery-3.7.1.min.js"></script>
+
+    <!-- Javascript Extras -->
+    <script src="Scripts/dsExtras.js"></script>
+
+  </head>
+
+  <!-- Body -->
+  <body onpointerdown="RemoveBubble()">
+
+    <!-- For Full Screen Modal Popups -->
+    <div id="modalBackdrop"></div>
+
+
+    <!--================================================-->
+    <!--  S M A C   C O N S O L E                       -->
+    <!--================================================-->
+    <div id="smacConsole">
+
+      <!-- Title Bar with Nav Buttons -->
+      <div id="smacTitleBar" class="themeColors">
+
+        <div style="display:inline-block">
+
+          <div id="titleAndVersion">
+            <div id="appTitle">SMAC</div>
+            <div id="title_Version"></div>
+          </div>
+
+
+
+
+          <!--=====================================================-->
+          <!--  Create <button>'s for each of your display pages.  -->
+          <!--  - They must have the class 'navButton'.            -->
+          <!--  - The onclick attribute must call ShowPage().      -->
+          <!--  - The first param of ShowPage must match the id    -->
+          <!--    of the corresponding content page below          -->
+          <!--=====================================================-->
+          <div id="navButtons">
+            <button class="navButton" onpointerdown="ShowPage ('powerMonitor', this)"> Power Monitor </button>
+          </div>
+
+
+
+
+        </div>
+
+        <div id="diagAndCBox">
+
+          <!-- Diagnostics navButton must be included last -->
+          <button id="diagNavButton" class="navButton" onpointerdown="ShowPage ('diagnostics', this)"> Diagnostics </button>
+
+          <div id="connectionBox">
+            <div id="cbStatus">Not Connected</div>
+            <div id="cbLine2">to SMAC Relayer</div>
+          </div>
+
+        </div>
+
+      </div>  <!-- Title Bar -->
+
+
+      <!-- Tabbed Display Page Area -->
+      <div id="smacPageArea" class="dsScrollable" onscroll="RemoveBubble()">
+
+        <!-- Splash Screen: Required to go full screen and access the Relayer's serial port -->
+        <div id="dsSplash" class="dsHidden">
+
+          <!-- <div id="dsSplashWelcome">Welcome to the</div> -->
+          <div id="dsSplashTitle">SMAC<br>User Interface</div>
+          <div id="dsSplashVersion"></div>
+          <br>
+
+          <img src="Images/image_ConnectToRelayer.png" style="width:50%" /><br>
+          <br>
+
+          <!-- <h1 style="line-height:1.1; text-shadow:1px 1px 1px #000000"> -->
+          <div class="dsLabelM">
+            This interface requires a USB connection to the SMAC Relayer Module.<br>
+            Please connect the Relayer Module to this computer<br>
+            and click the button below.
+          </div>
+          <br>
+          <!-- </h1> -->
+
+          <button class="dsButton dsSplashButton" onpointerdown="ConnectToRelayer()"> Connect to the Relayer </button>
+
+        </div>
+
+
+
+
+        <!--==================================================-->
+        <!--  Create <div>'s for each of your content pages.  -->
+        <!--  The id's should match their html filename.      -->
+        <!--    For example: the file myPage.html is loaded   -->
+        <!--    into the div with id="myPage"                 -->
+        <!--  They must have the class 'contentPage'.         -->
+        <!--==================================================-->
+        <div id="powerMonitor" class="contentPage"></div>
+
+
+
+
+        <!-- Diagnostics must be included last -->
+        <div id="diagnostics" class="contentPage"></div>
+
+      </div>  <!-- Page Area -->
+
+
+      <!--====================================================-->
+      <!-- Bottom Status Bar                                  -->
+      <!--====================================================-->
+      <div id="smacStatusBar">
+
+        <div class="statusBlock">
+          <div class="statusLabel">State:</div>
+          <div class="statusItem" id="statusBar_State">Running</div>
+        </div>
+        <div class="statusDivider"></div>
+
+        <div class="statusBlock" style="flex:1">  <!-- Use remaining width of screen -->
+          <div class="statusLabel">Messages:</div>
+          <div class="statusItem" id="statusBar_Message">No issues</div>
+        </div>
+        <div class="statusDivider"></div>
+
+        <div class="statusBlock">
+          <div class="statusLabel">Nodes:</div>
+          <div class="statusItem" id="statusBar_Nodes"></div>
+        </div>
+        <div class="statusDivider"></div>
+
+        <div class="statusBlock">
+          <div class="statusLabel">Devices:</div>
+          <div class="statusItem" id="statusBar_Devices"></div>
+        </div>
+        <div class="statusDivider"></div>
+
+        <div class="statusBlock">
+          <div class="statusLabel">Date:</div>
+          <div class="statusItem" id="statusBar_Date"></div>
+        </div>
+        <div class="statusDivider"></div>
+
+        <div class="statusBlock">
+          <div class="statusLabel">Time:</div>
+          <div class="statusItem" id="statusBar_Time"></div>
+        </div>
+
+      </div>  <!-- Status Bar -->
+
+    </div>  <!-- SMAC Console -->
+
+
+    <!--================================================-->
+    <!-- Load Scripts                                   -->
+    <!--================================================-->
+
+    <!-- SMAC Interface Scripts -->
+    <script src="Scripts/serialPort.js"></script>
+    <script src="Scripts/SMAC_Interface.js"></script>
+    <script src="Scripts/diagnostics.js"></script>
+
+    <!-- dvCanvas2D and SMAC GUI Widgets -->
+    <script src="Scripts/dvCanvas2D.js"></script>
+    <script src="Scripts/SMAC_Widgets.js"></script>
+
+    <!-- Optional User Startup Code -->
+    <script>
+
+      function UserStartup ()
+      {
+        try
+        {
+        }
+        catch (ex)
+        {
+          ShowException (ex);
+        }
+      }
+
+    </script>
+
+  </body>
+
+</html>

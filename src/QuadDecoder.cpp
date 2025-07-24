@@ -117,6 +117,7 @@ ProcessStatus QuadDecoder::ExecuteCommand()
     ProcessStatus retVal = NOT_HANDLED;
     dist_t wheelDia;
     uint32_t pulseCnt;
+    DataPacket.timestamp = millis();
     retVal = Device::ExecuteCommand();
     if (retVal != NOT_HANDLED )  return(retVal);
 
@@ -321,4 +322,12 @@ void QuadDecoder::resetPosition()
     last_position = 0;
     last_timecheck = millis();
     last_speed = 0;
+}
+
+/**
+ * Retrieve the last calculated speed
+ */
+double QuadDecoder::getSpeed()
+{
+    return(last_speed);
 }

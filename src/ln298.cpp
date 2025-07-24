@@ -154,6 +154,7 @@ ProcessStatus LN298::ExecuteCommand()
  */
  ProcessStatus LN298::DoPeriodic()
  {
+        DataPacket.timestamp = millis();
         sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
         return (SUCCESS_DATA);
  }
@@ -169,14 +170,15 @@ ProcessStatus LN298::setPulseWidthCommand()
     ProcessStatus retVal = SUCCESS_NODATA;
     int32_t val = 0;
     // set pulse width (autmatically enables driver)
-    getInt32(0, &val, GetName());
-
-    if ((val < -100) || (val > 100))
+    if (SUCCESS_NODATA == getInt32(0, &val, GetName()))
     {
-        sprintf(DataPacket.value, "EROR|SPWM|%s|Value must be 0 +/- 100", GetName());
-        retVal = FAIL_DATA;
-    } else {
-        if (!setPulseWidth((int)val))
+        if ((val < -100) || (val > 100))
+        {
+            sprintf(DataPacket.value, "EROR|SPWM|%s|Value must be 0 +/- 100", GetName());
+            retVal = FAIL_DATA;
+        }
+
+        else if (motorStatus == MOTOR_DIS)
         {
             sprintf(DataPacket.value, "EROR|SPWM|%s is not enabled", GetName());
             retVal = FAIL_DATA;
@@ -185,10 +187,15 @@ ProcessStatus LN298::setPulseWidthCommand()
 
     if (retVal==SUCCESS_NODATA)
     {
+        if (argCount == 1)
+        {
+            setPulseWidth((int)val);
+        }
+ 
         sprintf(DataPacket.value, "OK|SPWM|Pulse width is %d", lastPcnt);
         retVal = SUCCESS_DATA;
     }
-
+    DataPacket.timestamp = millis();
     return (retVal);
 }
 
@@ -247,12 +254,16 @@ void LN298::setDirection(int pcnt)
 
 /**
  * @brief Disable the motor driver
+ *     This is shared as a SMAC command and (optionally) a
+ * method call from an external function.
+ * 
  * @param isRemoteCmd - if true, then we send an 'ok' message via SMAC.
+ * @return ProcessStatus - SUCCESS_DATA if this is a remote command,
+ *                         SUCCESS_NODATA if this is not a remote command
  */
 ProcessStatus LN298::disable(bool isRemoteCmd)
 {
     ProcessStatus retVal = SUCCESS_NODATA;
-
     setPulseWidth(0);
     gpio_set_level(dir_pin_a, false);
     gpio_set_level(dir_pin_b, false);
@@ -261,16 +272,22 @@ ProcessStatus LN298::disable(bool isRemoteCmd)
     ledc_stop(LEDC_MODE, led_channel, 0 );
     if (isRemoteCmd)
     {
-        sprintf(DataPacket.value, "OK|DISA|%s Disabled", GetName());
-        retVal=SUCCESS_DATA;
+        DataPacket.timestamp = millis();
+        retVal = SUCCESS_DATA;
+        sprintf(DataPacket.value, "OK|DISA|%s Disabled", GetName());    
     }
     return(retVal);
 }
 
+
 /**
  * @brief Enable the motor driver
+ *    *     This is shared as a SMAC command and (optionally) a
+ * method call from an external function.
  * 
  * @param isRemoteCmd  if true, then a response message is sent via SMAC.
+ * @return ProcessStatus - SUCCESS_DATA if this is a remote command,
+ *                         SUCCESS_NODATA if this is not a remote command
  */
 ProcessStatus LN298::enable(bool isRemoteCmd)
 {
@@ -282,8 +299,10 @@ ProcessStatus LN298::enable(bool isRemoteCmd)
 
     if (isRemoteCmd)
     {
+        DataPacket.timestamp = millis();
         sprintf(DataPacket.value, "OK|ENAB|%s enabled", GetName());
         retVal = SUCCESS_DATA;
     }
+    
     return (retVal);
 }
