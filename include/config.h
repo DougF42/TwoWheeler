@@ -66,9 +66,13 @@ typedef double  dist_t;
 #define MOTOR_2_QUAD_A  GPIO_NUM_6
 #define MOTOR_2_QUAD_B  GPIO_NUM_7
 
-// Default scaling for quad
+// Default scaling for quad and PID controller
 #define QUAD_PULSES_PER_REV   600
 #define SPEED_CHECK_INTERVAL_mSec 50
+#define PID_SAMPLE_TIME_ms    1000.0
+#define DEFAULT_Kp              50.0
+#define DEFAULT_Ki               0.0
+#define DEFAULT_Kd               0.0
 
 
 // * * * * * * * 

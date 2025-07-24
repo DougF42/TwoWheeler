@@ -23,8 +23,7 @@ class PidDevice : public DefDevice
         QuadDecoder *quad;
         LN298       *ln298;
         esp_timer_handle_t pidTimerhandle;
-        static void update_pid_cb(void *arg);
-
+        time_t     mySampleTime;
     public:
         PID *pid;
         char *name;
@@ -42,15 +41,24 @@ class PidDevice : public DefDevice
         ~PidDevice();
 
         ProcessStatus  DoPeriodic     () override; 
-        // ProcessStatus  DoImmediate    () override;
+        ProcessStatus  DoImmediate    () override;
         ProcessStatus  ExecuteCommand () override;
 
         ProcessStatus cmdSetSpeed();
         void setSpeed(double speed);
-        ProcessStatus cmdSetPid();
-        void setPid(double _kp, double ki, double kd);
+
+        ProcessStatus cmdSetP();
+        void setP(double _kp);
+
+        ProcessStatus cmdSetI();
+        void setI(double _kp);
+
+        ProcessStatus cmdSetD();
+        void setD(double _kp);
+
         ProcessStatus cmdSetMode();
         void setMode(bool modeIsAuto);
+
         ProcessStatus cmdSetSTime();
         void setSampleClock(time_t intervalMs);
 
