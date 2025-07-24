@@ -1,0 +1,39 @@
+7/24/2025-a
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+TWO WHEELER SPECIFIC COMMANDS
+- - - - - - - - - - - - - - - - - - - 
+
+Commands for the QUAD device  ( left 0,  right 4)
+   QSET  <pulsesPerRev> <circum_mm>          ; Set parameters for quadrature decoder.
+   QRST                                      ; reset position to '0.0'
+   QSCK  <updateRate>                        ; Set how often we update the speed (in millisecs)
+
+
+Commands for the ln298 device ( left 1,  right 5)
+    SPWM     <pulseDidth>                     ; set the pulse width for this motor (0...+/- 100 pcnt)
+    ENAB                                      ; Enable the Driver
+    DISA                                      ; Disable the Driver
+
+
+Commands for the PID device  (left 2,   right 6)
+   SPID  <kp> <ki> <ki>                      ; Set the P.I.D. coeficients
+   SMOD  <bool>                              ; PID controler mode: true=automatic, false=manual.
+   STIM  <time>                              ; set sample time (millisecs)
+   REPT  <bool>                              ; enable status reports
+
+
+Commands for the MOTORControl device (left 3, right 7)
+   MSPD  <speed>                              ; Set motor speed - 0 +/- 2047.
+   REPT  <bool>                               ; enable status reports
+
+Commands for the Driver device:  (8)
+   MOVE  <speed>   <rotRate>                ; set for given speed/rotation rate
+   SPED <speed>     (from joystick)          ; set the speed (command from joystick - 0 +/- 2048)
+   ROTA <rotRate>   (from joystick)          ; set the rotation rate (command from joystick - 0 +/-2048)
+   STOP                                      ; stop all motion
+   DRFT                                      ; disable drivers, drift...
+
+Commands for the Voltage sensor (9)
+   TBD   Set number of samples to average
+   TBD   Set sample time
+   TBD   

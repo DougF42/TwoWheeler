@@ -80,18 +80,22 @@
  *       Add user code callable readValues to allow user code to force a read of current values.
  */ 
 #pragma once
+#include "Node.h"
 #include "Device.h"
 #include "Adafruit_INA3221.h"
 #include <Wire.h>
-#define INA3221Version 2.0.0
+#define INA3221Version 3.0.0
+enum DeviceType {INA3221_VOLTAGE, INA3321_CURRENT};
 class INA3221Device : public Adafruit_INA3221, public Device
 {
     private:
         int i2cAddr;
         float busVolt[3];
         float current[3];
+
+
     public:
-        INA3221Device(const char *inName, int _i2CAddr, TwoWire *theWire);
+        INA3221Device(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire);
         ~INA3221Device();
         bool initStatusOk;     // True if init was okay. false if any error
         ProcessStatus  DoPeriodic     () override;  // Override this method for processing your device periodically
