@@ -73,7 +73,6 @@ typedef double  dist_t;
 #define DEFAULT_Kp              50.0
 #define DEFAULT_Ki               0.0
 #define DEFAULT_Kd               0.0
->>>>>>> workPID
 
 
 // * * * * * * * 
