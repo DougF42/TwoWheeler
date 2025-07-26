@@ -11,7 +11,8 @@
 #pragma once
 #include "config.h"
 #include "DefDevice.h"
-#include "PID_v1.h"
+// #include "PID_v1.h"
+#include "DefPID.h"
 #include "esp_timer.h"
 #include "QuadDecoder.h"
 #include "ln298.h"
@@ -26,7 +27,7 @@ class PidDevice : public DefDevice
         time_t     mySampleTime;
 
     public:
-        PID *pid;
+        DefPID *pid;
         char *name;
 
         double setPoint; // the value we want

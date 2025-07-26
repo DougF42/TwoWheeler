@@ -20,7 +20,8 @@
 #pragma once
 
 #include "MotorControl.h"
-#include "PID_v1.h"
+// #include "PID_v1.h"
+#include "DefPID.h"
 #include "DefDevice.h"
 
 #define MAX_MOTOR_COUNT 2

@@ -27,7 +27,7 @@ PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg,
         //PID(double*, double*, double*,        // * constructor.  links the PID to the actual, Output, and 
         // double, double, double, int, int);   //   Setpoint.  Initial tuning parameters are also set here.
                                                 //   (overload for specifying proportional mode)
-    pid = new PID(&actual, &output, &setPoint,  // links the PID to the actual, Output, and setpoint
+    pid = new DefPID(&actual, &output, &setPoint,  // links the PID to the actual, Output, and setpoint
         cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
     pid->SetOutputLimits(0.0, 100.0);           //  We cant do any better than 100 % !!!!
     pid->SetTunings(DEFAULT_Kp, DEFAULT_Ki, DEFAULT_Kd);
