@@ -43,6 +43,7 @@ PidDevice::~PidDevice()
     return;
 }
 
+
 /**
  * @brief periodically -  report  setValue, actual, output
  * @param arg - pointer to this instance
@@ -56,6 +57,7 @@ ProcessStatus PidDevice::DoPeriodic()
 
     return (retVal);
 }
+
 
 /**
  * run the PID controller.
@@ -71,7 +73,7 @@ ProcessStatus PidDevice::DoImmediate()
     // output =  (current PWM setting)
 
     if (pid->Compute())
-    {   // if the PID re-calculated, then update
+    {   // IF the PID re-calculated, then update
         // the motor speed accordingly
         ln298->setPulseWidth((int)output);
     }

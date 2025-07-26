@@ -72,53 +72,116 @@
  *
  * Change Log:
  *  7/18/2025 DEF Ver 1.01
- *  7/81/2025 DEF Ver 2.00 - Refactor after review
+ *  7/24/2025 DEF Ver 2.00 - Refactor after review
  *       Moved setup operations into initializer. added initStatusOk variable.
  *       Default: periodic updates are enabled, occur once per 1minute.
  *       Remove unneeded functions - (setup, DoImmediate, ExecuteCommand)
  *       Add user code callable getChannelVoltage and getChannelCurrent to allow programatic access to lastr available readings.
  *       Add user code callable readValues to allow user code to force a read of current values.
+ * 
+ *  7/24/2025 DEF Ver 3.0
+ *       Invoking this creates 7 SMAC devices, so that each only outputs
+ *          one variable.
+ *            The first 3 are Current, (Current0...Current2).
+ *            The second 3 are Voltage (Volt0...Volt3).
+ *            The last is the 'power' controler. This is what actually
+ *            reads all 6 values.
+ * 
+ *  7/25/2025 DEF Ver 3.1.0
+ *         (1) Add functions to set the sample time and number of samples.
+ *         (2) Use a timer callback to trigger reading new values after a time period.
+ *              The period is calculated = sample time * number of samples to average * 6
+ *                 a small time period is added to ensure that the conversion will be completed
+ *                 before the timer expires.
+ * 
+ *         (3) When the timer expires, read the values, increment a counter (for diagnostics) and
+ *             start another timer.
+ * 
+ *         (4) The 'DoPeriodic' on the 'power' device reports all 6 values PLUS a counter. This
+ *             report is for diagnostic purposes, and probably should not be enabled for normal use.
+ * 
+ *         (5) IMPLEMENT multiple-reader, single writer locking mechanism using atomic variables:
+ *              READERS:  increment readerCount. If taskIsReading, decrement readerCount and wait.
+ *                 (when read is done, decrement readerCount)
+ * 
+ *              WRITER:   set taskIsWriting.  If readerCount>0, then unset taskIsWriting and wait.
+ *                 (when write is done, unset taskIsWriting).
  */
+
 #pragma once
+#include <atomic>
 #include "Node.h"
 #include "DefDevice.h"
 #include "Adafruit_INA3221.h"
 #include <Wire.h>
-#define INA3221Version 3.0.0
+#include "FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
+#define INA3221Version "3.1.0"
 
 
 class INA3221Device : public Adafruit_INA3221, public DefDevice
 {
 private:
     int i2cAddr;
-    float busVolt[3];
-    float current[3];
+  
+    std::atomic_uint8_t readerCount;   // how many are reading?
+    std::atomic_bool    taskIsWriting; // is the writer task writing?
 
-    // - - - - - -
+    time_t dts_msec;   // Timestamp When the data was last updated
+    float dataReadings[6];  // The values read from the INA3221. The 1st three (0..2) are
+                            //  Voltages for channles 0..2,  The last three (3,4,5) are
+                            //  the Currents for channels 0..2.
+    unsigned long busyReadCount;      // Statistics
+    unsigned long deviceNotReadyCount;
+ 
+    unsigned long long readCounter;  // How many times have we read data?
+    int noOfSamplesPerReading;
+    time_t sampleTimeUs;             // how long for each sample?
+    time_t sampleReadInterval;       // Assuming 6 data values, how long for each set of readings? (uSecs)
+    time_t updateSampleReadInterval(bool forceNewInterval=true);
+
+    // Locks and subtask
+    TaskHandle_t readtask;            // Points to the task struct
+    static void readDataTask(void *arg);  // The actual task
+    
+    void getGetLock();
+    void freeGetLock();
+
+    void getReadLock();
+    void freeReadLock();
+    
+    // = = = = = = = = = = = = = = = = = = = = = = = = = 
     // This subclass is used to instantiate separate classes
-    //  for reporting voltages and currents in separate messages.
+    //  for reporting voltages/currents in separate messages.
     //
     class INA3221DeviceChannel : public DefDevice
     {
     private:
-        float *datapointr;
-
+        int dataPointNo;
+        INA3221Device *me;
     public:
-        INA3221DeviceChannel(const char *inName, float *data);
+        INA3221DeviceChannel(const char *inName, INA3221Device *_me, int dataPtNo);
         ~INA3221DeviceChannel();
         ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
     };
+     // = = = = = = = = = = = = = = = = = = = = = = = = = 
 
 public:
     INA3221Device(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire);
     ~INA3221Device();
     bool initStatusOk;                   // True if init was okay. false if any error
-    ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
+    // ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
+    // ProcessStatus DoImmediate()    override;
     ProcessStatus ExecuteCommand() override;
     ProcessStatus gpowerCommand();
     ProcessStatus setAveragingModeCommand();
-    ProcessStatus setConvTime();
+    ProcessStatus setTimePerSampleCommand();
 
-    double getChannelVoltage(int channel);
-    double getChannelCurrent(int current);
+    ProcessStatus setAvgCount(int noOfSamples);
+    ProcessStatus setConvTime(int _time);
+
+    void getDataReading(int idx, float *dta, unsigned long *timeStamp);
+    friend class INA3221DeviceChannel;
 };
