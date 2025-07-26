@@ -1,5 +1,5 @@
 /**
- * @file QuadDecoder.cpp 
+ * @file DEV_QuadDecoder.cpp 
  * @author Doug F (doug@fajaardo.hm)
  * @brief  device driver for the quadrature encoders.
  * @version 0.1
@@ -8,19 +8,19 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#include "QuadDecoder.h"
+#include "DEV_QuadDecoder.h"
 #include <math.h>
 #include "esp_err.h"
 #include "esp_log_buffer.h"
 
-static const char *TAG="QuadDecoder";
+static const char *TAG="DEV_QuadDecoder";
 /**
  * @brief Construct a new Quad Decoder object
  * 
  * @param _node 
  * @param InName 
  */
-QuadDecoder::QuadDecoder(const char *InName): DefDevice(InName)
+DEV_QuadDecoder::DEV_QuadDecoder(const char *InName): DefDevice(InName)
 {
     myEncoder      = new ESP32Encoder;
     spdUpdateTimerhandle=nullptr;
@@ -36,7 +36,7 @@ QuadDecoder::QuadDecoder(const char *InName): DefDevice(InName)
  * @brief Destroyer - not really used in ESP environment
  * 
  */
-QuadDecoder::~QuadDecoder()
+DEV_QuadDecoder::~DEV_QuadDecoder()
 {
     return;
 }
@@ -47,7 +47,7 @@ QuadDecoder::~QuadDecoder()
  * 
  * @param cfg - pointer to motor configuration info
  */
-void QuadDecoder::setup(MotorControl_config_t *cfg)
+void DEV_QuadDecoder::setup(MotorControl_config_t *cfg)
 {
     // deocder setup
     ESP32Encoder::useInternalWeakPullResistors = puType::none;
@@ -81,11 +81,11 @@ void QuadDecoder::setup(MotorControl_config_t *cfg)
 /**
  * @brief Called by High res timer to update the speed
  * 
- * @param arg - pointer to the appropriate QuadDecoder instance
+ * @param arg - pointer to the appropriate DEV_QuadDecoder instance
  */
-void QuadDecoder::update_speed_cb(void *arg)
+void DEV_QuadDecoder::update_speed_cb(void *arg)
 {
-    QuadDecoder *me = (QuadDecoder *)arg;
+    DEV_QuadDecoder *me = (DEV_QuadDecoder *)arg;
     pulse_t pos_diff;
     time_t  now  = esp_timer_get_time();
     time_t  elapsed;
@@ -111,7 +111,7 @@ void QuadDecoder::update_speed_cb(void *arg)
  *
  * @return ProcessStatus
  */
-ProcessStatus QuadDecoder::ExecuteCommand()
+ProcessStatus DEV_QuadDecoder::ExecuteCommand()
 {
     ProcessStatus retVal = NOT_HANDLED;
     dist_t wheelDia;
@@ -153,7 +153,7 @@ ProcessStatus QuadDecoder::ExecuteCommand()
  *
  * @return ProcessStatus
  */
-ProcessStatus QuadDecoder::DoPeriodic()
+ProcessStatus DEV_QuadDecoder::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_DATA;
     sprintf(DataPacket.value, "%f|%f|%s", getPosition(), last_speed, name);
@@ -176,7 +176,7 @@ ProcessStatus QuadDecoder::DoPeriodic()
  *
  * @return ProcessStatus
  */
-ProcessStatus QuadDecoder::qsetCommand()
+ProcessStatus DEV_QuadDecoder::qsetCommand()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     double wheel;   // temporary wheel diameter
@@ -234,7 +234,7 @@ ProcessStatus QuadDecoder::qsetCommand()
  *                      checks, in milliseconds
  * @return ProcessStatus
  */
-ProcessStatus QuadDecoder::qsckCommand()
+ProcessStatus DEV_QuadDecoder::qsckCommand()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     time_t newclkRate = 0;
@@ -273,7 +273,7 @@ ProcessStatus QuadDecoder::qsckCommand()
  * @param pulseCnt  - number of positive pulses per revolution
  * @param diam      - diameter of the wheel.
  */
-void QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
+void DEV_QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
 {
     pulsesPerRev = pulseCnt;
     wheelDiam    = diam;
@@ -290,7 +290,7 @@ void QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
  * @return true  - normal return
  * @return false  - error detected - failed
  */
-void QuadDecoder::setSpeedCheckInterval(time_t interval)
+void DEV_QuadDecoder::setSpeedCheckInterval(time_t interval)
 {
     currentSpdCheckRate = interval * 1000;
     if (esp_timer_is_active(spdUpdateTimerhandle))
@@ -306,7 +306,7 @@ void QuadDecoder::setSpeedCheckInterval(time_t interval)
  *   (this is in engineering units)
  * @return pulse_t
  */
-double QuadDecoder::QuadDecoder::getPosition()
+double DEV_QuadDecoder::DEV_QuadDecoder::getPosition()
 {
     double result= myEncoder->getCount() * pulsesToDist;
     return(result);
@@ -316,7 +316,7 @@ double QuadDecoder::QuadDecoder::getPosition()
  * @brief Reset the position, speed, etc to 0
  *
  */
-void QuadDecoder::resetPosition()
+void DEV_QuadDecoder::resetPosition()
 {
     myEncoder->clearCount();
     last_position = 0;
@@ -327,7 +327,7 @@ void QuadDecoder::resetPosition()
 /**
  * Retrieve the last calculated speed
  */
-double QuadDecoder::getSpeed()
+double DEV_QuadDecoder::getSpeed()
 {
     return(last_speed);
 }

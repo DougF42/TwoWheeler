@@ -1,5 +1,5 @@
 /**
- * @file Driver.h
+ * @file DEV_Driver.h
  * @author Doug Fajardo
  * @brief 
  * @version 0.1
@@ -19,13 +19,13 @@
  */
 #pragma once
 
-#include "MotorControl.h"
+#include "DEV_MotorControl.h"
 // #include "PID_v1.h"
-#include "DefPID.h"
+#include "DEV_Pid.h"
 #include "DefDevice.h"
 
 #define MAX_MOTOR_COUNT 2
-class Driver:public DefDevice
+class DEV_Driver:public DefDevice
 {
 private:
     int nextMotorIdx;
@@ -33,8 +33,8 @@ private:
     int myDirect;
     Node *myNode;
         
-    MotorControl  *leftMtr;
-    MotorControl  *rightMtr;
+    DEV_MotorControl  *leftMtr;
+    DEV_MotorControl  *rightMtr;
     
     // COMMAND SET: 
     ProcessStatus cmdMOV(int argcnt, char *argv[]);   // FWD  <speed> <dir> (if no dir, then straight ahead)
@@ -45,8 +45,8 @@ private:
 
 
 public:
-    Driver(const char * name, Node *_Node);
-    ~Driver();
+    DEV_Driver(const char * name, Node *_Node);
+    ~DEV_Driver();
     void setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg); // Instantiate all the subtasks...
     ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
     ProcessStatus  DoPeriodic() override;       

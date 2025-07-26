@@ -21,7 +21,7 @@
 #include "DefDevice.h"
 
 
-class LN298 : public DefDevice
+class DEV_LN298 : public DefDevice
 {
     private:
         volatile static uint8_t timer_is_inited;
@@ -37,9 +37,9 @@ class LN298 : public DefDevice
         int lastPcnt;
         
     public:
-        LN298(const char * Name);
+        DEV_LN298(const char * Name);
         void setupLN298(MotorControl_config_t *cfg);
-        ~LN298();
+        ~DEV_LN298();
         ProcessStatus  ExecuteCommand () override;
         ProcessStatus  DoPeriodic()  override;
         ProcessStatus  setPulseWidthCommand();

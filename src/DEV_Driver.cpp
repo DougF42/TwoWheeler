@@ -13,7 +13,7 @@
  */
 #include "Node.h"
 #include "config.h"
-#include "Driver.h"
+#include "DEV_Driver.h"
 #include "stdlib.h"
 
 // What we consider delimiters for commands 
@@ -22,7 +22,7 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-Driver::Driver( const char *_name, Node *_myNode) : DefDevice(_name)
+DEV_Driver::DEV_Driver( const char *_name, Node *_myNode) : DefDevice(_name)
 {
     myNode = _myNode;
     nextMotorIdx=0;   
@@ -35,7 +35,7 @@ Driver::Driver( const char *_name, Node *_myNode) : DefDevice(_name)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-Driver::~Driver()
+DEV_Driver::~DEV_Driver()
 {
 
 }
@@ -48,13 +48,13 @@ Driver::~Driver()
  * @param left_cfg 
  * @param right_cfg 
  */
-void Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg)
+void DEV_Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg)
 {
-    leftMtr  = new MotorControl("leftMotor", myNode);
+    leftMtr  = new DEV_MotorControl("leftMotor", myNode);
     leftMtr->setup(left_cfg, "left_");
     myNode->AddDevice(leftMtr);
     
-    rightMtr = new MotorControl("rightMotor", myNode);
+    rightMtr = new DEV_MotorControl("rightMotor", myNode);
     rightMtr->setup(right_cfg, "right_");
     myNode->AddDevice(rightMtr);
     periodicEnabled = false; 
@@ -67,7 +67,7 @@ void Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right
 //     current positionm current direction, current (average)speed over ground
 //  
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-ProcessStatus Driver::DoPeriodic()
+ProcessStatus DEV_Driver::DoPeriodic()
 {
     // TODO:
     return(SUCCESS_NODATA);
@@ -96,7 +96,7 @@ ProcessStatus Driver::DoPeriodic()
 //   stop (int stopRate); // 0..100 0 means drift, 100 means emergency stop, otherwise percentage
 //
 //
-ProcessStatus  Driver::ExecuteCommand ()
+ProcessStatus  DEV_Driver::ExecuteCommand ()
 {
     ProcessStatus status;
     status = Device::ExecuteCommand();
@@ -144,7 +144,7 @@ ProcessStatus  Driver::ExecuteCommand ()
  * @param speed     - the desired speed (0 +/-2048).
  * @param rotation  - the desired rotation (0 +/- 2048)
  */
-void Driver::setMotion(int speed, int rotation)
+void DEV_Driver::setMotion(int speed, int rotation)
 {
     Serial.printf("** In setMotion: Speed=%d  rotation=%d\n", speed, rotation);
     int tmpSpeed, tmpRotate = 0;   // these are the raw joystick readings, 0 to +/-2048
@@ -180,7 +180,7 @@ void Driver::setMotion(int speed, int rotation)
  *  If no turnRate, assume straight ahead
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdMOV(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdMOV(int argcnt, char *argv[])
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     int tmpval = 0;
@@ -242,7 +242,7 @@ endCmdMOV:
  *
  * @return ProcessStatus
  */
-ProcessStatus Driver::cmdSTOP(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdSTOP(int argcnt, char *argv[])
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     Serial.println("See cmdSTOP");
@@ -255,7 +255,7 @@ ProcessStatus Driver::cmdSTOP(int argcnt, char *argv[])
  * @brief SMAC command handler - set speed
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdSPEED(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdSPEED(int argcnt, char *argv[])
 {
     ProcessStatus retVal=SUCCESS_NODATA;   
     errno = 0;
@@ -295,7 +295,7 @@ cmdSPEEDend:
  * 
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdROTATION(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdROTATION(int argcnt, char *argv[])
 {
     ProcessStatus retVal = SUCCESS_DATA;
 
@@ -339,7 +339,7 @@ cmdROTATIONend:
  * @param argv 
  * @return ProcessStatus 
  */
-ProcessStatus Driver::cmdDrift(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdDrift(int argcnt, char *argv[])
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     // PID to manunal

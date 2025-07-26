@@ -15,8 +15,8 @@
 #include "common.h"
 #include "driver/gpio.h"
 #include "Node.h"
-#include "Driver.h"
-#include "INA3221Device.h"
+#include "DEV_Driver.h"
+#include "DEV_INA3221.h"
 
 #define USE_INA3221
 
@@ -38,11 +38,11 @@ CPacket      CommandPacket;
 char         DataString[MAX_MESSAGE_LENGTH];
 
 Node      *ThisNode;  // The Node for this example
-Driver       *myDriver;
+DEV_Driver   *myDriver;
 
 #ifdef USE_INA3221
 #include "Wire.h"
-INA3221Device      *myIna3221Device;
+DEV_INA3221      *myIna3221Device;
 #endif
 
 //--- Declarations ----------------------------------------
@@ -138,7 +138,7 @@ void setup()
       };
 
   // CREATE DRIVER device
-  myDriver = new Driver("Driver", ThisNode);
+  myDriver = new DEV_Driver("Driver", ThisNode);
   myDriver->setup(&left_mtr_cfg, &right_mtr_cfg);
   ThisNode->AddDevice(myDriver);
 
@@ -146,7 +146,7 @@ void setup()
   #ifdef USE_INA3221
   // CREATE Power Monitor device
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-    myIna3221Device = new INA3221Device("Power", I2C_INA3221_ADDR, ThisNode,  &Wire);
+    myIna3221Device = new DEV_INA3221("Power", I2C_INA3221_ADDR, ThisNode,  &Wire);
     ThisNode->AddDevice(myIna3221Device);
   #endif
 

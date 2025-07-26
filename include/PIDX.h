@@ -2,7 +2,7 @@
 #define PID_v1_h
 #define LIBRARY_VERSION	1.2.1
 
-class DefPID
+class PIDX
 {
 
 
@@ -17,11 +17,11 @@ class DefPID
   #define P_ON_E 1
 
   //commonly used functions **************************************************************************
-    DefPID(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
+    PIDX(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
         double, double, double, int, int);//   Setpoint.  Initial tuning parameters are also set here.
                                           //   (overload for specifying proportional mode)
 
-    DefPID(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
+    PIDX(double*, double*, double*,        // * constructor.  links the PID to the Input, Output, and 
         double, double, double, int);     //   Setpoint.  Initial tuning parameters are also set here
 	
     void SetMode(int Mode);               // * sets PID to either Manual (0) or Auto (non-0)

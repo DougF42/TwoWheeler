@@ -15,7 +15,7 @@
 //  See INA3221Device.h for implementation and usage notes
 // - - - - - - - - - - - - - - - - - - - - -
 
-#include "INA3221Device.h"
+#include "DEV_INA3221.h"
 #include "cmath"
 #include "esp_log.h"
 #include <atomic>
@@ -28,7 +28,7 @@
 // @param theWire  - pointer to the 'Wire' class instance to use for I2C communication.
 // - - - - - - - - - - - - - - - - - - - - -
 
-INA3221Device::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, INA3221Device *_me, int _dataPtNo) :
+DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_INA3221 *_me, int _dataPtNo) :
      DefDevice(inName)
 {
     me = _me;
@@ -41,15 +41,15 @@ INA3221Device::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, IN
 // @brief Destroy the INA3221 object
 //
  // - - - - - - - - - - - - - - - - - - - - -
- INA3221Device::INA3221DeviceChannel::~INA3221DeviceChannel()
-{
+ DEV_INA3221::INA3221DeviceChannel::~INA3221DeviceChannel()
+{    
 }
 
 
 // - - - - - - - - - - - - - - - - - - - - -
 // Report the battery voltage and current readings
 // - - - - - - - - - - - - - - - - - - - - -
-ProcessStatus INA3221Device::INA3221DeviceChannel::DoPeriodic()
+ProcessStatus DEV_INA3221::INA3221DeviceChannel::DoPeriodic()
 {
     
     float val=0;
@@ -66,7 +66,7 @@ ProcessStatus INA3221Device::INA3221DeviceChannel::DoPeriodic()
 // @param _i2CAddr - adress on the I2C bus of the IAN3221
 // @param theWire  - pointer to the 'Wire' class instance to use for I2C communication.
 // - - - - - - - - - - - - - - - - - - - - -
-INA3221Device::INA3221Device(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire) : DefDevice(inName)
+DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire) : DefDevice(inName)
 {    
     // Device default condition
     strncpy(version, INA3221Version, MAX_VERSION_LENGTH);
@@ -120,7 +120,7 @@ INA3221Device::INA3221Device(const char *inName, int _i2CAddr, Node *myNode, Two
 // @brief Destroy the INA3221 object
 //
  // - - - - - - - - - - - - - - - - - - - - -
- INA3221Device::~INA3221Device()
+ DEV_INA3221::~DEV_INA3221()
 {
     return;
 }
@@ -129,7 +129,7 @@ INA3221Device::INA3221Device(const char *inName, int _i2CAddr, Node *myNode, Two
 // get the 'getter' (e.g.: get value) lock
 // When this returns, we have the 'getValue' lock
 // - - - - - - - - - - - - - - - - - - - - -
-void INA3221Device::getGetLock()
+void DEV_INA3221::getGetLock()
 {
     readerCount++;
     if (taskIsWriting) 
@@ -142,7 +142,7 @@ void INA3221Device::getGetLock()
 // - - - - - - - - - - - - - - - - - - - - -
 // release the 'getter' (e.g.: get value) lock
 // - - - - - - - - - - - - - - - - - - - - -
-void INA3221Device::freeGetLock()
+void DEV_INA3221::freeGetLock()
 {
     readerCount--;
 }
@@ -152,7 +152,7 @@ void INA3221Device::freeGetLock()
 // Get the 'reader' lock (allows reading from INA3221)
 // When this returns, we have the reader lock.
 // - - - - - - - - - - - - - - - - - - - - -
-void INA3221Device::getReadLock()
+void DEV_INA3221::getReadLock()
 {
     taskIsWriting=true;
     if (readerCount>0)
@@ -168,7 +168,7 @@ void INA3221Device::getReadLock()
 // NOTE: you MUST have the lock (see getReadLock) before calling
 //      this!
 // - - - - - - - - - - - - - - - - - - - - -
-void INA3221Device::freeReadLock()
+void DEV_INA3221::freeReadLock()
 {
     taskIsWriting=false;
 }
@@ -184,7 +184,7 @@ void INA3221Device::freeReadLock()
 //     do a fresh read (using the new values)
 //
 // - - - - - - - - - - - - - - - - - - - - -
-time_t INA3221Device::updateSampleReadInterval(bool forceNewInterval)
+time_t DEV_INA3221::updateSampleReadInterval(bool forceNewInterval)
 {
     // What the new time interval should be
     getReadLock();
@@ -209,7 +209,7 @@ time_t INA3221Device::updateSampleReadInterval(bool forceNewInterval)
 //         the RTOS time_t is defined as long long. We handle
 //         this conversion internally
 // - - - - - - - - - - - - - - - - - - - - -
-void INA3221Device::getDataReading(int idx, float *dta, unsigned long int *timeStamp)
+void DEV_INA3221::getDataReading(int idx, float *dta, unsigned long int *timeStamp)
 {
     getGetLock();
     *timeStamp = (unsigned long) dts_msec;
@@ -222,9 +222,9 @@ void INA3221Device::getDataReading(int idx, float *dta, unsigned long int *timeS
 //   this is where we get the voltage and current
 // readings from the INA3221
 // - - - - - - - - - - - - - - - - - - - - -
-void INA3221Device::readDataTask(void *arg)
+void DEV_INA3221::readDataTask(void *arg)
 {
-    INA3221Device *me=(INA3221Device *) arg;
+    DEV_INA3221 *me=(DEV_INA3221 *) arg;
 
     while (true)
     {   // do forever
@@ -257,7 +257,7 @@ void INA3221Device::readDataTask(void *arg)
 // Handle any SMAC commands 
 // FORMAT: GPOW   ( get all 6 current values)
 // - - - - - - - - - - - - - - - - - - - - -
-ProcessStatus  INA3221Device::ExecuteCommand () 
+ProcessStatus  DEV_INA3221::ExecuteCommand () 
 {
     ProcessStatus retVal=SUCCESS_NODATA;
     DataPacket.timestamp=millis();
@@ -300,7 +300,7 @@ ProcessStatus  INA3221Device::ExecuteCommand ()
  *         busVolt[0], current[0], busVolt[1], current[1], busVolt[2], current[2]);
 
  */
-ProcessStatus INA3221Device::gpowerCommand()
+ProcessStatus DEV_INA3221::gpowerCommand()
 {
     DataPacket.timestamp = millis();
     sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
@@ -317,7 +317,7 @@ ProcessStatus INA3221Device::gpowerCommand()
  *         1, 4, 16, 64, 128, 256, 512, 1024
  * @return ProcessStatus 
  */
-ProcessStatus INA3221Device::setAveragingModeCommand()
+ProcessStatus DEV_INA3221::setAveragingModeCommand()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     uint8_t timeCode = 0;
@@ -348,7 +348,7 @@ ProcessStatus INA3221Device::setAveragingModeCommand()
  *     Value is one of the following:
  *         1, 4, 16, 64, 128, 256, 512, 1024
  */
-ProcessStatus INA3221Device::setAvgCount(int noOfSamples)
+ProcessStatus DEV_INA3221::setAvgCount(int noOfSamples)
 {
     ProcessStatus retVal;
     uint8_t val;
@@ -420,7 +420,7 @@ ProcessStatus INA3221Device::setAvgCount(int noOfSamples)
  *    
  * @return ProcessStatus 
  */
-ProcessStatus INA3221Device::setTimePerSampleCommand()
+ProcessStatus DEV_INA3221::setTimePerSampleCommand()
 {
   ProcessStatus retVal = SUCCESS_NODATA;
     uint8_t timePerSampleCode = 0;
@@ -453,7 +453,7 @@ ProcessStatus INA3221Device::setTimePerSampleCommand()
  *          1 (mSec)      2 (mSecs)  4 (mSecs) 8 (secs)
  *
  */
-ProcessStatus INA3221Device::setConvTime(int _time)
+ProcessStatus DEV_INA3221::setConvTime(int _time)
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     uint8_t val = 0;

@@ -7,7 +7,7 @@
  * 
  * This library is Copyright (@)Doug Fajardo 7/2025
  * Changes from Arduino PID library:
- * (1) Change name from PID to DefPID.
+ * (1) Change name from PID to PIDX.
  * (2) 
  **********************************************************************************************/
 
@@ -17,13 +17,13 @@
   #include "WProgram.h"
 #endif
 
-#include "DefPID.h"
+#include "PIDX.h"
 
 /*Constructor (...)*********************************************************
  *    The parameters specified here are those for for which we can't set up
  *    reliable defaults, so we need to have the user set them.
  ***************************************************************************/
-DefPID::DefPID(double* Input, double* Output, double* Setpoint,
+PIDX::PIDX(double* Input, double* Output, double* Setpoint,
         double Kp, double Ki, double Kd, int POn, int ControllerDirection)
 {
     myOutput = Output;
@@ -31,13 +31,13 @@ DefPID::DefPID(double* Input, double* Output, double* Setpoint,
     mySetpoint = Setpoint;
     inAuto = false;
 
-    DefPID::SetOutputLimits(0, 255);				//default output limit corresponds to
+    PIDX::SetOutputLimits(0, 255);				//default output limit corresponds to
 												//the arduino pwm limits
 
     SampleTime = 100;							//default Controller Sample Time is 0.1 seconds
 
-    DefPID::SetControllerDirection(ControllerDirection);
-    DefPID::SetTunings(Kp, Ki, Kd, POn);
+    PIDX::SetControllerDirection(ControllerDirection);
+    PIDX::SetTunings(Kp, Ki, Kd, POn);
 
     lastTime = millis()-SampleTime;
 }
@@ -47,9 +47,9 @@ DefPID::DefPID(double* Input, double* Output, double* Setpoint,
  *    to use Proportional on Error without explicitly saying so
  ***************************************************************************/
 
-DefPID::DefPID(double* Input, double* Output, double* Setpoint,
+PIDX::PIDX(double* Input, double* Output, double* Setpoint,
         double Kp, double Ki, double Kd, int ControllerDirection)
-    :DefPID::DefPID(Input, Output, Setpoint, Kp, Ki, Kd, P_ON_E, ControllerDirection)
+    :PIDX::PIDX(Input, Output, Setpoint, Kp, Ki, Kd, P_ON_E, ControllerDirection)
 {
 
 }
@@ -61,7 +61,7 @@ DefPID::DefPID(double* Input, double* Output, double* Setpoint,
  *   pid Output needs to be computed.  returns true when the output is computed,
  *   false when nothing has been done.
  **********************************************************************************/
-bool DefPID::Compute()
+bool PIDX::Compute()
 {
    if(!inAuto) return false;
    unsigned long now = millis();
@@ -105,7 +105,7 @@ bool DefPID::Compute()
  * it's called automatically from the constructor, but tunings can also
  * be adjusted on the fly during normal operation
  ******************************************************************************/
-void DefPID::SetTunings(double Kp, double Ki, double Kd, int POn)
+void PIDX::SetTunings(double Kp, double Ki, double Kd, int POn)
 {
    if (Kp<0 || Ki<0 || Kd<0) return;
 
@@ -130,14 +130,14 @@ void DefPID::SetTunings(double Kp, double Ki, double Kd, int POn)
 /* SetTunings(...)*************************************************************
  * Set Tunings using the last-rembered POn setting
  ******************************************************************************/
-void DefPID::SetTunings(double Kp, double Ki, double Kd){
+void PIDX::SetTunings(double Kp, double Ki, double Kd){
     SetTunings(Kp, Ki, Kd, pOn); 
 }
 
 /* SetSampleTime(...) *********************************************************
  * sets the period, in Milliseconds, at which the calculation is performed
  ******************************************************************************/
-void DefPID::SetSampleTime(int NewSampleTime)
+void PIDX::SetSampleTime(int NewSampleTime)
 {
    if (NewSampleTime > 0)
    {
@@ -157,7 +157,7 @@ void DefPID::SetSampleTime(int NewSampleTime)
  *  want to clamp it from 0-125.  who knows.  at any rate, that can all be done
  *  here.
  **************************************************************************/
-void DefPID::SetOutputLimits(double Min, double Max)
+void PIDX::SetOutputLimits(double Min, double Max)
 {
    if(Min >= Max) return;
    outMin = Min;
@@ -178,12 +178,12 @@ void DefPID::SetOutputLimits(double Min, double Max)
  * when the transition from manual to auto occurs, the controller is
  * automatically initialized
  ******************************************************************************/
-void DefPID::SetMode(int Mode)
+void PIDX::SetMode(int Mode)
 {
     bool newAuto = (Mode == AUTOMATIC);
     if(newAuto && !inAuto)
     {  /*we just went from manual to auto*/
-        DefPID::Initialize();
+        PIDX::Initialize();
     }
     inAuto = newAuto;
 }
@@ -192,7 +192,7 @@ void DefPID::SetMode(int Mode)
  *	does all the things that need to happen to ensure a bumpless transfer
  *  from manual to automatic mode.
  ******************************************************************************/
-void DefPID::Initialize()
+void PIDX::Initialize()
 {
    outputSum = *myOutput;
    lastInput = *myInput;
@@ -206,7 +206,7 @@ void DefPID::Initialize()
  * know which one, because otherwise we may increase the output when we should
  * be decreasing.  This is called from the constructor.
  ******************************************************************************/
-void DefPID::SetControllerDirection(int Direction)
+void PIDX::SetControllerDirection(int Direction)
 {
    if(inAuto && Direction !=controllerDirection)
    {
@@ -222,9 +222,9 @@ void DefPID::SetControllerDirection(int Direction)
  * functions query the internal state of the PID.  they're here for display
  * purposes.  this are the functions the PID Front-end uses for example
  ******************************************************************************/
-double DefPID::GetKp(){ return  dispKp; }
-double DefPID::GetKi(){ return  dispKi;}
-double DefPID::GetKd(){ return  dispKd;}
-int    DefPID::GetMode(){ return  inAuto ? AUTOMATIC : MANUAL;}
-int    DefPID::GetDirection(){ return controllerDirection;}
+double PIDX::GetKp(){ return  dispKp; }
+double PIDX::GetKi(){ return  dispKi;}
+double PIDX::GetKd(){ return  dispKd;}
+int    PIDX::GetMode(){ return  inAuto ? AUTOMATIC : MANUAL;}
+int    PIDX::GetDirection(){ return controllerDirection;}
 

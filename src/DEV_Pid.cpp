@@ -1,5 +1,5 @@
 /**
- * @file PidDevice.cpp
+ * @file DEF_Pid.cpp
  * @author Doug Fajardo
  * @brief Use a PID loop to control the motor speed
  * @version 0.1
@@ -14,10 +14,11 @@
  * STIM|<time>             PID loop rate (milliseconds)
  *
  */
-#include "PidDevice.h"
 
-PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg, 
-        QuadDecoder *_quad, LN298 *_ln298 ) : DefDevice( _name)
+#include "DEV_Pid.h"
+
+DEV_Pid::DEV_Pid( const char *_name, MotorControl_config_t *cfg, 
+        DEV_QuadDecoder *_quad, DEV_LN298 *_ln298 ) : DefDevice( _name)
 {
     pid = nullptr;
     ln298 = _ln298;
@@ -27,7 +28,7 @@ PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg,
         //PID(double*, double*, double*,        // * constructor.  links the PID to the actual, Output, and 
         // double, double, double, int, int);   //   Setpoint.  Initial tuning parameters are also set here.
                                                 //   (overload for specifying proportional mode)
-    pid = new DefPID(&actual, &output, &setPoint,  // links the PID to the actual, Output, and setpoint
+    pid = new PIDX(&actual, &output, &setPoint,  // links the PID to the actual, Output, and setpoint
         cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
     pid->SetOutputLimits(0.0, 100.0);           //  We cant do any better than 100 % !!!!
     pid->SetTunings(DEFAULT_Kp, DEFAULT_Ki, DEFAULT_Kd);
@@ -38,7 +39,7 @@ PidDevice::PidDevice( const char *_name, MotorControl_config_t *cfg,
 }
 
 
-PidDevice::~PidDevice()
+DEV_Pid::~DEV_Pid()
 {
     return;
 }
@@ -48,7 +49,7 @@ PidDevice::~PidDevice()
  * @brief periodically -  report  setValue, actual, output
  * @param arg - pointer to this instance
  */
-ProcessStatus PidDevice::DoPeriodic()
+ProcessStatus DEV_Pid::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     DataPacket.timestamp = millis();    
@@ -63,7 +64,7 @@ ProcessStatus PidDevice::DoPeriodic()
  * run the PID controller.
  *
  */
-ProcessStatus PidDevice::DoImmediate()
+ProcessStatus DEV_Pid::DoImmediate()
 {
     return(SUCCESS_NODATA); // FOR NOW, DISABLE
     if (pid->GetMode()==MANUAL) return(SUCCESS_NODATA);
@@ -92,7 +93,7 @@ ProcessStatus PidDevice::DoImmediate()
  * FORMAT:  STIM <time_ms>      (sample time rate - via DOIMMEDIATE)
  * @return ProcessStatus 
  */
-ProcessStatus PidDevice::ExecuteCommand()
+ProcessStatus DEV_Pid::ExecuteCommand()
 {
     ProcessStatus retVal = SUCCESS_DATA;
     DataPacket.timestamp = millis();
@@ -146,7 +147,7 @@ ProcessStatus PidDevice::ExecuteCommand()
  *    Note: This works wether we are
  * in MANUAL or AUTOMATIC modes
  */
-ProcessStatus PidDevice::cmdSetSpeed()
+ProcessStatus DEV_Pid::cmdSetSpeed()
 {
     ProcessStatus retVal=SUCCESS_NODATA;
 
@@ -170,7 +171,7 @@ ProcessStatus PidDevice::cmdSetSpeed()
 /**
  * @brief set the desired motor speed
  */
-void PidDevice::setSpeed(double speed)
+void DEV_Pid::setSpeed(double speed)
 {
     setPoint = speed;
     return;
@@ -182,7 +183,7 @@ void PidDevice::setSpeed(double speed)
  * 
  * @return ProcessStatus 
  */
-ProcessStatus PidDevice::cmdSetP()
+ProcessStatus DEV_Pid::cmdSetP()
 {
     ProcessStatus retVal=SUCCESS_NODATA;
     if (argCount == 1)
@@ -210,7 +211,7 @@ ProcessStatus PidDevice::cmdSetP()
  * 
  * @return ProcessStatus 
  */
-ProcessStatus PidDevice::cmdSetI()
+ProcessStatus DEV_Pid::cmdSetI()
 {
     ProcessStatus retVal=SUCCESS_NODATA;
     if (argCount == 1)
@@ -238,7 +239,7 @@ ProcessStatus PidDevice::cmdSetI()
  * 
  * @return ProcessStatus 
  */
-ProcessStatus PidDevice::cmdSetD()
+ProcessStatus DEV_Pid::cmdSetD()
 {
     ProcessStatus retVal=SUCCESS_NODATA;
     if (argCount == 1)
@@ -267,7 +268,7 @@ ProcessStatus PidDevice::cmdSetD()
  *    FORMAT: SMODE|<bool>
  * @return ProcessStatus 
  */
-ProcessStatus PidDevice::cmdSetMode()
+ProcessStatus DEV_Pid::cmdSetMode()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     bool val=false;
@@ -302,7 +303,7 @@ ProcessStatus PidDevice::cmdSetMode()
 /**
  * @brief Set the mode (auto or manual)
  */
- void PidDevice::setMode(bool modeIsAuto)
+ void DEV_Pid::setMode(bool modeIsAuto)
  {
     pid->SetMode(modeIsAuto);
  }
@@ -314,7 +315,7 @@ ProcessStatus PidDevice::cmdSetMode()
  * 
  * @return ProcessStatus 
  */
-ProcessStatus PidDevice::cmdSetSTime()
+ProcessStatus DEV_Pid::cmdSetSTime()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     int32_t stime=mySampleTime;
@@ -348,9 +349,9 @@ ProcessStatus PidDevice::cmdSetSTime()
 
 /**
  * @brief set how often the PID loop re-calculates.
- * MUST be longer than QuadDecoder's sample time!
+ * MUST be longer than DEV_QuadDecoder's sample time!
  */
-void PidDevice::setSampleClock(time_t intervalMs)
+void DEV_Pid::setSampleClock(time_t intervalMs)
 {
     pid->SetSampleTime(intervalMs);
     mySampleTime = intervalMs;

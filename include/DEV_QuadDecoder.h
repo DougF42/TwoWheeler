@@ -1,5 +1,5 @@
 /**
- * @file QuadDecoder.h
+ * @file DEV_QuadDecoder.h
  * @author Doug F (doug@fajaardo.hm)
  * @brief  Device driver for the quadrature decoders
  * @version 0.1
@@ -16,7 +16,7 @@
 #include "ESP32Encoder.h"
 #include "esp_timer.h"
 
-class QuadDecoder : public DefDevice
+class DEV_QuadDecoder : public DefDevice
 {
     private:
     ESP32Encoder  *myEncoder;
@@ -33,8 +33,8 @@ class QuadDecoder : public DefDevice
     
 
     public:
-    QuadDecoder( const char * InName);
-    ~QuadDecoder();
+    DEV_QuadDecoder( const char * InName);
+    ~DEV_QuadDecoder();
     void setup(MotorControl_config_t*cfg);
     ProcessStatus  ExecuteCommand () override;    // Override this method to handle custom commands
     ProcessStatus  DoPeriodic() override;         // Override this method to periodically send reports

@@ -1,5 +1,5 @@
 /**
- * @file MotorControl.cpp
+ * @file DEV_MotorControl.cpp
  * @author Doug Fajardo
  * @brief
  * @version 0.1
@@ -9,17 +9,16 @@
  *
  */
 
-#include "MotorControl.h"
+#include "DEV_MotorControl.h"
 
-
-MotorControl::MotorControl(const char * InName, Node *_nodePtr) : DefDevice(InName)
+DEV_MotorControl::DEV_MotorControl(const char * InName, Node *_nodePtr) : DefDevice(InName)
 {
     piddev = nullptr;
     myNode = _nodePtr;
  }
 
 
-MotorControl::~MotorControl()
+DEV_MotorControl::~DEV_MotorControl()
 {
     return;
 }
@@ -31,22 +30,23 @@ MotorControl::~MotorControl()
  * @param cfg       - pointer to the config structure
  * @param prefix    - A prefix for 'names' of the created devices
  */
-void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
+void DEV_MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
 {
     char name[20];  // for building the actual device name
+    
     // Create and add the quadrature decoder driver
     strcpy(name, prefix);
     strcpy(name+strlen(name), "QUAD");
     // quadDecoder    = new QuadDecoder(myNode, name);
     // quadDecoder->setupQuad(cfg);
-    myQuadDecoder = new QuadDecoder(name);
+    myQuadDecoder = new DEV_QuadDecoder(name);
     myQuadDecoder->setup(cfg);
     myNode->AddDevice(myQuadDecoder);
 
     // Create and add the ln298 driver
     strcpy(name, prefix);
     strcpy(name+strlen(name), "LN298");
-    ln298   = new LN298(name);
+    ln298   = new DEV_LN298(name);
     ln298->setupLN298(cfg);
     myNode->AddDevice(ln298);
 
@@ -54,7 +54,7 @@ void MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     // Set up new PID. THIS IS NOT (currently) A DEVICE!
     //  Input, Output Setpoint, Kp, Ki, Kd, P_ON_E Flag,   controlerDirection
     sprintf(name, "%s%s", prefix,"PID");
-    piddev = new PidDevice(name, cfg, myQuadDecoder, ln298);
+    piddev = new DEV_Pid(name, cfg, myQuadDecoder, ln298);
     myNode->AddDevice(piddev);
     periodicEnabled=false;
 }
@@ -72,7 +72,7 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
  *  REPT <Y|N>   - enable periodic reports
  * @return ProcessStatus 
  */
-ProcessStatus MotorControl::ExecuteCommand()
+ProcessStatus DEV_MotorControl::ExecuteCommand()
 {
     ProcessStatus retVal;
     DataPacket.timestamp = millis();
@@ -87,7 +87,7 @@ ProcessStatus MotorControl::ExecuteCommand()
 
         else
         {
-            sprintf(DataPacket.value, "EROR|MotorControl|Unknown command");
+            sprintf(DataPacket.value, "EROR|DEV_MotorControl|Unknown command");
             retVal = FAIL_DATA;
         }
     }
@@ -97,7 +97,7 @@ ProcessStatus MotorControl::ExecuteCommand()
 /**
  * @brief Set the overall ground speed of the robot
  */
- ProcessStatus MotorControl::cmdSetSpeed(int argCnt, char **argv)
+ ProcessStatus DEV_MotorControl::cmdSetSpeed(int argCnt, char **argv)
  {
     // TODO:
     return(NOT_HANDLED);
@@ -109,7 +109,7 @@ ProcessStatus MotorControl::ExecuteCommand()
  * @brief loop - call periodically to send status info
  * 
  */
-ProcessStatus MotorControl::DoPeriodic()
+ProcessStatus DEV_MotorControl::DoPeriodic()
 {
     static double last_output_val = 0;
 
@@ -138,7 +138,7 @@ ProcessStatus MotorControl::DoPeriodic()
  * 
  * @param ratemm_Sec - speed, mm per millisecond???
  */
-void MotorControl::setSpeed(double rate_mm_mmsec)
+void DEV_MotorControl::setSpeed(double rate_mm_mmsec)
 {
     setpoint = rate_mm_mmsec;
 }
@@ -148,7 +148,7 @@ void MotorControl::setSpeed(double rate_mm_mmsec)
  * @brief Set the robot to drift.
  * 
  */
-void MotorControl::setDrift()
+void DEV_MotorControl::setDrift()
 {
     // TODO:
 }
@@ -161,7 +161,7 @@ void MotorControl::setDrift()
  *  
  * @param stopRate  - TBD:
  */
-void MotorControl::setStop(int stopRate)
+void DEV_MotorControl::setStop(int stopRate)
 {
     setSpeed(0);  // for now, just stop...
 }

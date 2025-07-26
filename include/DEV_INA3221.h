@@ -121,7 +121,7 @@
 #define INA3221Version "3.1.0"
 
 
-class INA3221Device : public Adafruit_INA3221, public DefDevice
+class DEV_INA3221: public Adafruit_INA3221, public DefDevice
 {
 private:
     int i2cAddr;
@@ -160,17 +160,17 @@ private:
     {
     private:
         int dataPointNo;
-        INA3221Device *me;
+        DEV_INA3221 *me;
     public:
-        INA3221DeviceChannel(const char *inName, INA3221Device *_me, int dataPtNo);
+        INA3221DeviceChannel(const char *inName, DEV_INA3221 *_me, int dataPtNo);
         ~INA3221DeviceChannel();
         ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
     };
      // = = = = = = = = = = = = = = = = = = = = = = = = = 
 
 public:
-    INA3221Device(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire);
-    ~INA3221Device();
+    DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire);
+    ~DEV_INA3221();
     bool initStatusOk;                   // True if init was okay. false if any error
     // ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
     // ProcessStatus DoImmediate()    override;

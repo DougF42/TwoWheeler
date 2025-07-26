@@ -9,11 +9,11 @@
  * 
  */
 #include <Arduino.h>
-#include "ln298.h"
+#include "DEV_ln298.h"
 #include "esp_check.h"
 #include "driver/gpio.h"
 
-volatile uint8_t LN298::timer_is_inited=0;
+volatile uint8_t DEV_LN298::timer_is_inited=0;
 
 // Timer - samefor all channels. 
 #define LEDC_TIMER              LEDC_TIMER_0
@@ -22,14 +22,14 @@ volatile uint8_t LN298::timer_is_inited=0;
 #define LEDC_DUTY               (4096) // Set duty to 50%. (2 ** 13) * 50% = 4096
 #define LEDC_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
-LN298::LN298(const char * Name) : DefDevice(Name)
+DEV_LN298::DEV_LN298(const char * Name) : DefDevice(Name)
 {
     lastPcnt = 0;
     motorStatus=MOTOR_DIS;
     return;
 }
 
-LN298::~LN298()
+DEV_LN298::~DEV_LN298()
 {
     return;
 }
@@ -44,7 +44,7 @@ LN298::~LN298()
  * @param chnlNo - the LEDC channel number to use.
  */
 // void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b)
-void LN298::setupLN298(MotorControl_config_t *cfg)
+void DEV_LN298::setupLN298(MotorControl_config_t *cfg)
 {
     led_channel = cfg->chnlNo;
     ena_pin   = cfg->ena_pin;
@@ -108,7 +108,7 @@ void LN298::setupLN298(MotorControl_config_t *cfg)
  * 
  * @return ProcessStatus 
  */
-ProcessStatus LN298::ExecuteCommand()
+ProcessStatus DEV_LN298::ExecuteCommand()
 {
 
     ProcessStatus retVal = SUCCESS_NODATA;
@@ -152,7 +152,7 @@ ProcessStatus LN298::ExecuteCommand()
  * 
  * @return ProcessStatus 
  */
- ProcessStatus LN298::DoPeriodic()
+ ProcessStatus DEV_LN298::DoPeriodic()
  {
         DataPacket.timestamp = millis();
         sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
@@ -165,7 +165,7 @@ ProcessStatus LN298::ExecuteCommand()
  *      <pulseWidth> is percentage -
  *                   positive for forward, negative is reverse
  */
-ProcessStatus LN298::setPulseWidthCommand()
+ProcessStatus DEV_LN298::setPulseWidthCommand()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     int32_t val = 0;
@@ -209,7 +209,7 @@ ProcessStatus LN298::setPulseWidthCommand()
  * @param pcnt  percentage - 0 thru + or - 100
  * @return true normally, false if the motorStatus is disabled
  */
-bool LN298::setPulseWidth(int pcnt)
+bool DEV_LN298::setPulseWidth(int pcnt)
 {
     if (motorStatus == MOTOR_DIS) 
     {
@@ -233,7 +233,7 @@ bool LN298::setPulseWidth(int pcnt)
  *    NOTE: Zero is treated as 'forward'. This has the affect of enabling the driver
  * @param pcnt - positive for forward, negative for reverse.
  */
-void LN298::setDirection(int pcnt)
+void DEV_LN298::setDirection(int pcnt)
 {
     ProcessStatus retVal=SUCCESS_NODATA;
 
@@ -261,7 +261,7 @@ void LN298::setDirection(int pcnt)
  * @return ProcessStatus - SUCCESS_DATA if this is a remote command,
  *                         SUCCESS_NODATA if this is not a remote command
  */
-ProcessStatus LN298::disable(bool isRemoteCmd)
+ProcessStatus DEV_LN298::disable(bool isRemoteCmd)
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     setPulseWidth(0);
@@ -289,7 +289,7 @@ ProcessStatus LN298::disable(bool isRemoteCmd)
  * @return ProcessStatus - SUCCESS_DATA if this is a remote command,
  *                         SUCCESS_NODATA if this is not a remote command
  */
-ProcessStatus LN298::enable(bool isRemoteCmd)
+ProcessStatus DEV_LN298::enable(bool isRemoteCmd)
 {
     ProcessStatus retVal = SUCCESS_NODATA;
 

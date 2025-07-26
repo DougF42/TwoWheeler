@@ -1,5 +1,5 @@
 /**
- * @file PidDevice.h
+ * @file DEF_Pid.h
  * @author Doug Fajardo
  * @brief 
  * @version 0.1
@@ -11,23 +11,22 @@
 #pragma once
 #include "config.h"
 #include "DefDevice.h"
-// #include "PID_v1.h"
-#include "DefPID.h"
+#include "PIDX.h"
 #include "esp_timer.h"
-#include "QuadDecoder.h"
-#include "ln298.h"
+#include "DEV_QuadDecoder.h"
+#include "DEV_ln298.h"
 
 
-class PidDevice : public DefDevice
+class DEV_Pid : public DefDevice
 {
     private:
-        QuadDecoder *quad;
-        LN298       *ln298;
+        DEV_QuadDecoder *quad;
+        DEV_LN298       *ln298;
         esp_timer_handle_t pidTimerhandle;
         time_t     mySampleTime;
 
     public:
-        DefPID *pid;
+        PIDX *pid;
         char *name;
 
         double setPoint; // the value we want
@@ -38,8 +37,8 @@ class PidDevice : public DefDevice
         double ki;
         double kd;
     
-        PidDevice(const char * _name, MotorControl_config_t *cfg, QuadDecoder *_quad, LN298 *_ln298 );
-        ~PidDevice();
+        DEV_Pid(const char * _name, MotorControl_config_t *cfg, DEV_QuadDecoder *_quad, DEV_LN298 *_ln298 );
+        ~DEV_Pid();
 
         ProcessStatus  DoPeriodic     () override; 
         ProcessStatus  DoImmediate    () override;
