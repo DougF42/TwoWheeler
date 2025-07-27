@@ -54,12 +54,10 @@ PIDX::PIDX(double* Input, double* Output, double* Setpoint,
 
 }
 
-
 /* Compute() **********************************************************************
- *     This, as they say, is where the magic happens.  this function should be called
- *   every time "void loop()" executes.  the function will decide for itself whether a new
- *   pid Output needs to be computed.  returns true when the output is computed,
- *   false when nothing has been done.
+ *    call frequently, from 'loop'.  PIDX will take care of timing
+ *
+ * @return  true if an update occured, false if not. (not time, or not in 'auto' mode)
  **********************************************************************************/
 bool PIDX::Compute()
 {
@@ -67,7 +65,32 @@ bool PIDX::Compute()
    unsigned long now = millis();
    unsigned long timeChange = (now - lastTime);
    if(timeChange>=SampleTime)
-   {
+      {
+         ComputeCore();
+         lastTime = now;
+         return(true);
+      }
+   return(false);
+}
+
+/* ComputeFromTimer()**************************************************************
+*     Call from a timer once every  SampleTime milliseconds
+* @return  true if an update occured, false if not (not in 'auto' mode)
+**********************************************************************************/
+bool PIDX::ComputeFromTimer()
+{
+   ComputeCore();
+   return(true);
+}
+
+/* Compute() **********************************************************************
+ *     This, as they say, is where the magic happens.  this function should be called
+ *   every time "void loop()" executes.  the function will decide for itself whether a new
+ *   pid Output needs to be computed.  returns true when the output is computed,
+ *   false when nothing has been done.
+ **********************************************************************************/
+void PIDX::ComputeCore()
+{
       /*Compute all the working error variables*/
       double input = *myInput;
       double error = *mySetpoint - input;
@@ -94,10 +117,6 @@ bool PIDX::Compute()
 
       /*Remember some variables for next time*/
       lastInput = input;
-      lastTime = now;
-	    return true;
-   }
-   else return false;
 }
 
 /* SetTunings(...)*************************************************************

@@ -26,10 +26,15 @@ class PIDX
 	
     void SetMode(int Mode);               // * sets PID to either Manual (0) or Auto (non-0)
 
-    bool Compute();                       // * performs the PID calculation.  it should be
+    bool Compute();                       // * This is the 'normal' entry - call every time
+                                          //   is called. (do not combine with ComputeFromTimer)
+    bool ComputeFromTimer();             // *  This should be called from a timer once every 
+                                         //    SampleTime milliseconds. (Do not combine with Compute())
+    void ComputeCore();                  // * performs the PID calculation.  it should be
                                           //   called every time loop() cycles. ON/OFF and
                                           //   calculation frequency can be set using SetMode
                                           //   SetSampleTime respectively
+
 
     void SetOutputLimits(double, double); // * clamps the output to a specific range. 0-255 by default, but
 										                      //   it's likely the user will want to change this depending on

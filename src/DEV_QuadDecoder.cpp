@@ -295,9 +295,10 @@ void DEV_QuadDecoder::setSpeedCheckInterval(time_t interval)
     currentSpdCheckRate = interval * 1000;
     if (esp_timer_is_active(spdUpdateTimerhandle))
     {
-        ESP_ERROR_CHECK(esp_timer_stop(spdUpdateTimerhandle));
+        ESP_ERROR_CHECK(esp_timer_restart(spdUpdateTimerhandle, interval*1000));
+    } else {
+        ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimerhandle, interval * 1000));
     }
-    ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimerhandle, interval * 1000));
     return;
 }
 

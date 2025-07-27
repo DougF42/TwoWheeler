@@ -13,6 +13,7 @@
  * SMODE|<AUTO|MAN..>      Auto (pid controls) or Manual(no pid) 
  * STIM|<time>             PID loop rate (milliseconds)
  *
+ * 7/26/2026 DEF Use timer to drive PID compute.
  */
 
 #include "DEV_Pid.h"
@@ -32,10 +33,22 @@ DEV_Pid::DEV_Pid( const char *_name, MotorControl_config_t *cfg,
         cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
     pid->SetOutputLimits(0.0, 100.0);           //  We cant do any better than 100 % !!!!
     pid->SetTunings(DEFAULT_Kp, DEFAULT_Ki, DEFAULT_Kd);
-    pid->SetSampleTime(PID_SAMPLE_TIME_ms);
-    mySampleTime=PID_SAMPLE_TIME_ms;
+    setSampleClock(PID_SAMPLE_TIME_ms); 
     pid->SetMode(AUTOMATIC); // MANUAL ????
     periodicEnabled=false;
+
+    esp_timer_create_args_t timer_cfg {
+        .callback=timer_callback,        //!< Callback function to execute when timer expires
+        .arg=this,                       //!< Argument to pass to callback
+        .dispatch_method=ESP_TIMER_TASK, //!< Dispatch callback from task or ISR; if not specified, esp_timer task
+                                         //!< is used; for ISR to work, also set Kconfig option
+                                         //!< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
+        .name="PIDtimer",          //!< Timer name, used in esp_timer_dump() function
+        .skip_unhandled_events=true     //!< Setting to skip unhandled events in light sleep for periodic timers
+    };
+    ESP_ERROR_CHECK (esp_timer_create( &timer_cfg, &pidTimerhandle)); // DEFINE A TIMER
+    ESP_ERROR_CHECK (esp_timer_start_periodic(pidTimerhandle,  mySampleTime*1000) ); // And start it!
+
 }
 
 
@@ -46,8 +59,8 @@ DEV_Pid::~DEV_Pid()
 
 
 /**
- * @brief periodically -  report  setValue, actual, output
- * @param arg - pointer to this instance
+ * @brief periodically -  report  current values
+ * @param arg
  */
 ProcessStatus DEV_Pid::DoPeriodic()
 {
@@ -59,28 +72,6 @@ ProcessStatus DEV_Pid::DoPeriodic()
     return (retVal);
 }
 
-
-/**
- * run the PID controller.
- *
- */
-ProcessStatus DEV_Pid::DoImmediate()
-{
-    return(SUCCESS_NODATA); // FOR NOW, DISABLE
-    if (pid->GetMode()==MANUAL) return(SUCCESS_NODATA);
-    // TODO: LOAD requested, actual, cur PWD Setting
-    actual = quad->getSpeed();
-    // setpoint = (requested speed)
-    // output =  (current PWM setting)
-
-    if (pid->Compute())
-    {   // IF the PID re-calculated, then update
-        // the motor speed accordingly
-        ln298->setPulseWidth((int)output);
-    }
-
-    return(SUCCESS_NODATA);
-}
 
 
 /**
@@ -337,7 +328,7 @@ ProcessStatus DEV_Pid::cmdSetSTime()
     {
         if (argCount == 1)
         {
-            pid->SetSampleTime(stime);
+            setSampleClock(mySampleTime);
             mySampleTime=stime;
         }
         sprintf(DataPacket.value,"STIM|%s",  (pid->GetMode() ? "Enabled": "Disabled" ));
@@ -347,13 +338,42 @@ ProcessStatus DEV_Pid::cmdSetSTime()
     return(retVal);
 }
 
+
 /**
  * @brief set how often the PID loop re-calculates.
  * MUST be longer than DEV_QuadDecoder's sample time!
  */
 void DEV_Pid::setSampleClock(time_t intervalMs)
 {
-    pid->SetSampleTime(intervalMs);
     mySampleTime = intervalMs;
+
+    pid->SetSampleTime(mySampleTime);
+
+    // IF timer is active, stop it and restart
+    if (esp_timer_is_active(pidTimerhandle))
+    {
+        esp_timer_restart(pidTimerhandle, mySampleTime*1000);
+    } else {
+        esp_timer_start_periodic(pidTimerhandle, mySampleTime*1000);
+    }
 }
 
+
+/**
+ * @brief Run the PID Comput function
+ *    This is a callback from the high-priority timer task
+ * 
+ * @param arg pointer to 'this' instance of DEV_Pid
+ */
+void DEV_Pid::timer_callback(void *arg)
+{
+    DEV_Pid *me = (DEV_Pid *)arg;
+
+    // GET INPUT VALUES from QUAD and current state
+
+    // RUN COMPUTE
+    if (me->pid->ComputeFromTimer())
+    {
+        // SHARE THE OUTPUT VALUES
+    }
+}

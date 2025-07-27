@@ -23,7 +23,7 @@ class DEV_Pid : public DefDevice
         DEV_QuadDecoder *quad;
         DEV_LN298       *ln298;
         esp_timer_handle_t pidTimerhandle;
-        time_t     mySampleTime;
+        time_t          mySampleTime;
 
     public:
         PIDX *pid;
@@ -39,9 +39,9 @@ class DEV_Pid : public DefDevice
     
         DEV_Pid(const char * _name, MotorControl_config_t *cfg, DEV_QuadDecoder *_quad, DEV_LN298 *_ln298 );
         ~DEV_Pid();
-
+        static void timer_callback(void *arg);
         ProcessStatus  DoPeriodic     () override; 
-        ProcessStatus  DoImmediate    () override;
+        //ProcessStatus  DoImmediate    () override;
         ProcessStatus  ExecuteCommand () override;
 
         ProcessStatus cmdSetSpeed();
