@@ -20,8 +20,9 @@
 class DEV_Pid : public DefDevice
 {
     private:
-        DEV_QuadDecoder *quad;
-        DEV_LN298       *ln298;
+                                  // Commands (setpoint) are 
+        DEV_QuadDecoder *quad;    // pointer to the quad device we get 'actual; from
+        DEV_LN298       *ln298;   // pointer to the devuce we sebd the output to.
         esp_timer_handle_t pidTimerhandle;
         time_t          mySampleTime;
 
@@ -29,6 +30,7 @@ class DEV_Pid : public DefDevice
         PIDX *pid;
         char *name;
 
+        // The PID device requires we have our own storage for these...
         double setPoint; // the value we want
         double actual;   // the actual value
         double output;   // what to set the motor (ln298) to
@@ -36,18 +38,25 @@ class DEV_Pid : public DefDevice
         double kp;
         double ki;
         double kd;
-    
-        DEV_Pid(const char * _name, MotorControl_config_t *cfg, DEV_QuadDecoder *_quad, DEV_LN298 *_ln298 );
+
+        DEV_Pid(const char *_name, MotorControl_config_t *cfg,
+             DEV_QuadDecoder *_quad, DEV_LN298 *_ln298);
         ~DEV_Pid();
         static void timer_callback(void *arg);
-        ProcessStatus  DoPeriodic     () override; 
-        //ProcessStatus  DoImmediate    () override;
-        ProcessStatus  ExecuteCommand () override;
+        ProcessStatus DoPeriodic() override;
+        // ProcessStatus  DoImmediate    () override;
+        ProcessStatus ExecuteCommand() override;
 
-        ProcessStatus cmdSetSpeed();
-        void setSpeed(double speed);
+        ProcessStatus cmdSetSpeed(); // external command to directly 
+                                     // set the 'setpoint' or 
+                                     // desired speed. Same units as
+                                     // used by QUAD.
 
-        ProcessStatus cmdSetP();
+        void setSpeed(double speed); // Call this to set the 'setpoint'
+                                     // or desired speed. Same units as
+                                     // used by QUAD.
+
+        ProcessStatus cmdSetP();     // set the P Parameter
         void setP(double _kp);
 
         ProcessStatus cmdSetI();
@@ -61,5 +70,4 @@ class DEV_Pid : public DefDevice
 
         ProcessStatus cmdSetSTime();
         void setSampleClock(time_t intervalMs);
-
 };

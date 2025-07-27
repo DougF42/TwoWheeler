@@ -271,10 +271,10 @@ ProcessStatus DEV_Pid::cmdSetMode()
             retVal=FAIL_NODATA;
         }
     }
-    else
+    else if (argCount != 0)
     {
         // Error - wrong arg count
-        sprintf(DataPacket.value,"EROR| Missing Argument or wrong number of arguments");
+        sprintf(DataPacket.value,"EROR| Wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
@@ -284,7 +284,7 @@ ProcessStatus DEV_Pid::cmdSetMode()
         {
             pid->SetMode(val) ;
         }
-        sprintf(DataPacket.value, "SMOD|%s",  (pid->GetMode() ? "Enabled": "Disabled" ));
+        sprintf(DataPacket.value, "SMOD|%s",  (pid->GetMode()==AUTOMATIC) ? "Automatic": "Manual" );
         retVal=SUCCESS_DATA;
     }
 
@@ -362,18 +362,22 @@ void DEV_Pid::setSampleClock(time_t intervalMs)
 /**
  * @brief Run the PID Comput function
  *    This is a callback from the high-priority timer task
- * 
+ *    (NOTE: nothing done if ln298 is disabled, or pid is manual)
  * @param arg pointer to 'this' instance of DEV_Pid
  */
 void DEV_Pid::timer_callback(void *arg)
 {
     DEV_Pid *me = (DEV_Pid *)arg;
+    if (me->ln298->isDisabled() || (me->pid->GetMode()==MANUAL)) return;
 
-    // GET INPUT VALUES from QUAD and current state
-
-    // RUN COMPUTE
+    // The setpoint was previously set by calling 'setSpeed()'
+    // Get the 'actual' speed value from the QUAD.
+    me->actual = me->quad->getSpeed(); // get actual speed
+    
+    // RUN COMPUTE, set the new output
     if (me->pid->ComputeFromTimer())
     {
-        // SHARE THE OUTPUT VALUES
+        // Now share the 'output' value...
+        me->ln298->setPulseWidth(me->output);
     }
 }

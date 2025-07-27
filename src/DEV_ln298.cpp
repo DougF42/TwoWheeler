@@ -101,6 +101,18 @@ void DEV_LN298::setupLN298(MotorControl_config_t *cfg)
 }
 
 /**
+ * @brief is the motor disabled?
+ * 
+ * @return true    yes, motor IS disabled
+ * @return false   no, motor is NOT disabled
+ */
+bool DEV_LN298::isDisabled()
+{
+    return (motorStatus == MOTOR_DIS);
+}
+
+
+/**
  * @brief Handle commands:
  *  (1) SPWM | <percnt>
  *  (2) ENAB 
@@ -227,6 +239,15 @@ bool DEV_LN298::setPulseWidth(int pcnt)
     return(true);
 }; 
 
+/**
+ * @brief Get the last pulse width that was set
+ * 
+ * @return int - the pulse width (0... +/-100)
+ */
+ int DEV_LN298::getPulseWidth()
+ {
+    return(lastPcnt);
+ }
 
 /**
  * @brief INTERNAL:  Set the direction based on the sign of the pcnt argument.

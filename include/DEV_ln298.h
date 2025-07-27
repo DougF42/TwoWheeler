@@ -40,11 +40,13 @@ class DEV_LN298 : public DefDevice
         DEV_LN298(const char * Name);
         void setupLN298(MotorControl_config_t *cfg);
         ~DEV_LN298();
+        bool isDisabled();    // is the motor disabled?
         ProcessStatus  ExecuteCommand () override;
         ProcessStatus  DoPeriodic()  override;
         ProcessStatus  setPulseWidthCommand();
-        void setReportStatus(bool enaFlag);
         bool setPulseWidth(int pcnt); // Set the pulse width (0..100)
+        int getPulseWidth();       // What pulse width was last set?
+        void setReportStatus(bool enaFlag);
         ProcessStatus enable(bool isRemoteCmd=false);
         ProcessStatus disable(bool isRemoteCmd=false);
         ProcessStatus hardStop(bool isRemoteCmd=false);
