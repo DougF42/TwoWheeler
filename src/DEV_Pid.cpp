@@ -33,7 +33,6 @@ DEV_Pid::DEV_Pid( const char *_name, MotorControl_config_t *cfg,
         cfg->kp, cfg->ki, cfg->kd, P_ON_E, 0);    // Kp, Ki, Kd, POn, invertFlag
     pid->SetOutputLimits(0.0, 100.0);           //  We cant do any better than 100 % !!!!
     pid->SetTunings(DEFAULT_Kp, DEFAULT_Ki, DEFAULT_Kd);
-    setSampleClock(PID_SAMPLE_TIME_ms); 
     pid->SetMode(AUTOMATIC); // MANUAL ????
     periodicEnabled=false;
 
@@ -47,7 +46,8 @@ DEV_Pid::DEV_Pid( const char *_name, MotorControl_config_t *cfg,
         .skip_unhandled_events=true     //!< Setting to skip unhandled events in light sleep for periodic timers
     };
     ESP_ERROR_CHECK (esp_timer_create( &timer_cfg, &pidTimerhandle)); // DEFINE A TIMER
-    ESP_ERROR_CHECK (esp_timer_start_periodic(pidTimerhandle,  mySampleTime*1000) ); // And start it!
+    setSampleClock(PID_SAMPLE_TIME_ms);   // set sample time using default
+    // ESP_ERROR_CHECK (esp_timer_start_periodic(pidTimerhandle,  mySampleTime*1000) ); // And start it!
 
 }
 

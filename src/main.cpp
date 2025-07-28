@@ -13,6 +13,8 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include "common.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "driver/gpio.h"
 #include "Node.h"
 #include "DEV_Driver.h"
@@ -45,6 +47,10 @@ DEV_Driver   *myDriver;
 DEV_INA3221      *myIna3221Device;
 #endif
 
+// This MUTEX is used to control access to the I2C bus
+xSemaphoreHandle I2CMutex;
+//xSemaphoreTake(I2CMutex, portMAX_DELAY))
+//xSemmaphoreGive(I2CMutex);
 //--- Declarations ----------------------------------------
 
 void Serial_CheckInput     ();

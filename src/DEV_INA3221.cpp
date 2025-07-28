@@ -18,7 +18,7 @@
 #include "DEV_INA3221.h"
 #include "cmath"
 #include "esp_log.h"
-#include <atomic>
+#include "config.h"
 
 // - - - - - - - - - - - - - - - - - - - - -
 // @brief Construct a new INA3221Device object
@@ -27,7 +27,6 @@
 // @param _i2CAddr - adress on the I2C bus of the IAN3221
 // @param theWire  - pointer to the 'Wire' class instance to use for I2C communication.
 // - - - - - - - - - - - - - - - - - - - - -
-
 DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_INA3221 *_me, int _dataPtNo) :
      DefDevice(inName)
 {
@@ -74,11 +73,6 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     periodicEnabled = false;
     immediateEnabled = false;
     SetRate(1800);           // default reporting rate
-
-    readerCount = 0;         // atomic - number of active readers
-    taskIsWriting = false;   // atomic - true if we are writing
-    busyReadCount = 0;       // statistic - how many times was 'reader' busy.
-    deviceNotReadyCount = 0; // statistic - How many times was the device not ready?
     initStatusOk = true;     // flag - did we initialze properly?
 
     // Initialize the readings to 0.
@@ -125,53 +119,6 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     return;
 }
 
-// - - - - - - - - - - - - - - - - - - - - -
-// get the 'getter' (e.g.: get value) lock
-// When this returns, we have the 'getValue' lock
-// - - - - - - - - - - - - - - - - - - - - -
-void DEV_INA3221::getGetLock()
-{
-    readerCount++;
-    if (taskIsWriting) 
-    {
-        readerCount--;
-        delay(2);
-    }
-}
-
-// - - - - - - - - - - - - - - - - - - - - -
-// release the 'getter' (e.g.: get value) lock
-// - - - - - - - - - - - - - - - - - - - - -
-void DEV_INA3221::freeGetLock()
-{
-    readerCount--;
-}
-
-
-// - - - - - - - - - - - - - - - - - - - - -
-// Get the 'reader' lock (allows reading from INA3221)
-// When this returns, we have the reader lock.
-// - - - - - - - - - - - - - - - - - - - - -
-void DEV_INA3221::getReadLock()
-{
-    taskIsWriting=true;
-    if (readerCount>0)
-    {
-        taskIsWriting=false;
-        vTaskDelay(2);
-    }
-    
-}
-
-// - - - - - - - - - - - - - - - - - - - - -
-// Free the 'reader' lock (allows reading from INA3221)
-// NOTE: you MUST have the lock (see getReadLock) before calling
-//      this!
-// - - - - - - - - - - - - - - - - - - - - -
-void DEV_INA3221::freeReadLock()
-{
-    taskIsWriting=false;
-}
 
 // - - - - - - - - - - - - - - - - - - - - -
 // This is called to re-calculate the time
@@ -187,16 +134,12 @@ void DEV_INA3221::freeReadLock()
 time_t DEV_INA3221::updateSampleReadInterval(bool forceNewInterval)
 {
     // What the new time interval should be
-    getReadLock();
-    sampleTimeUs = (noOfSamplesPerReading * sampleTimeUs *6 *1000)/portTICK_PERIOD_MS;
+    taskENTER_CRITICAL(&dataReading_spinlock);
+    sampleTimeUs = (noOfSamplesPerReading * sampleTimeUs * 6 * 1000) / portTICK_PERIOD_MS;
+    taskEXIT_CRITICAL(&dataReading_spinlock);
+    xTaskAbortDelay(readtask);
 
-    if (forceNewInterval)
-    {   // if the subtask was waiting on the previous sample time,
-        // then trigger it to 'wake up'
-        xTaskAbortDelay(readtask);
-    }
-    freeReadLock();
-    return(sampleTimeUs);
+    return (sampleTimeUs);
 }
 
 // - - - - - - - - - - - - - - - - - - - - -
@@ -211,45 +154,43 @@ time_t DEV_INA3221::updateSampleReadInterval(bool forceNewInterval)
 // - - - - - - - - - - - - - - - - - - - - -
 void DEV_INA3221::getDataReading(int idx, float *dta, unsigned long int *timeStamp)
 {
-    getGetLock();
+    taskENTER_CRITICAL(&dataReading_spinlock);
     *timeStamp = (unsigned long) dts_msec;
     *dta = dataReadings[idx];
-    freeGetLock();
+    taskEXIT_CRITICAL(&dataReading_spinlock);
 }
 
 // - - - - - - - - - - - - - - - - - - - - -
-// @brief This is run as a subtask.
+// @brief This is run as a separate task.
 //   this is where we get the voltage and current
 // readings from the INA3221
 // - - - - - - - - - - - - - - - - - - - - -
 void DEV_INA3221::readDataTask(void *arg)
 {
     DEV_INA3221 *me=(DEV_INA3221 *) arg;
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount ();
+    float tmpValues[6];
 
     while (true)
     {   // do forever
-        me->getReadLock();
-
-        if (me->getFlags() | INA3221_CONV_READY)
-        {            
-            // not ready? delay a short time
-            me->deviceNotReadyCount++;
-            me->freeReadLock();
-            vTaskDelay(2);  // delay a short while (2 ticks)
-            continue;
-        }
 
         // we are ready to read - do it!
+        TAKE_I2C;
         for (int idx = 0; idx < 3; idx++)
         {
-            me->dataReadings[idx]   = me->getBusVoltage(idx);
-            me->dataReadings[idx+3] = me->getCurrentAmps(idx+3) * 1000; // convert to ma
+            tmpValues[idx]   = me->getBusVoltage(idx);
+            tmpValues[idx+3] = me->getCurrentAmps(idx+3) * 1000; // convert to ma
         }
+        GIVE_I2C;
+
+        taskENTER_CRITICAL(&dataReading_spinlock);
         me->timestamp = esp_timer_get_time()/1000;
-        me->freeReadLock();
+        taskEXIT_CRITICAL(&dataReading_spinlock);
 
         // wait a while for the next reading
-        vTaskDelay( me->updateSampleReadInterval() );
+        TickType_t ticksToWait= pdMS_TO_TICKS(me->sampleReadInterval/1000);
+        xTaskDelayUntil( &xLastWakeTime, ticksToWait );
     }
 }
 
@@ -303,9 +244,11 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
 ProcessStatus DEV_INA3221::gpowerCommand()
 {
     DataPacket.timestamp = millis();
+    taskENTER_CRITICAL(&dataReading_spinlock);
     sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
         dataReadings[0], dataReadings[1], dataReadings[2], dataReadings[3], 
         dataReadings[4], dataReadings[5]);
+    taskEXIT_CRITICAL(&dataReading_spinlock);
     return(SUCCESS_DATA);
 }
 
@@ -350,60 +293,57 @@ ProcessStatus DEV_INA3221::setAveragingModeCommand()
  */
 ProcessStatus DEV_INA3221::setAvgCount(int noOfSamples)
 {
-    ProcessStatus retVal;
+    ProcessStatus retVal=SUCCESS_NODATA;
     uint8_t val;
     // bool setAveragingMode(ina3221_avgmode mode);
-    retVal=getUInt8(0, &val, "Averaging mode: ");
-    if (retVal == SUCCESS_NODATA)
+    TAKE_I2C;
+    if (val == 1)
     {
-        if (val == 1)
-        {
-            setAveragingMode(INA3221_AVG_1_SAMPLE);
-            noOfSamplesPerReading= 1;
-
-        } else if (val == 4)
-        {
-            setAveragingMode(INA3221_AVG_4_SAMPLES);
-            noOfSamplesPerReading= 4;
-
-        } else if (val == 16)
-        {
-            setAveragingMode(INA3221_AVG_16_SAMPLES);
-            noOfSamplesPerReading = 16;
-
-        }  else if (val == 64)
-        {
-            setAveragingMode(INA3221_AVG_64_SAMPLES);
-            noOfSamplesPerReading = 64;
-
-        }  else if (val == 128)
-        {
-            setAveragingMode(INA3221_AVG_128_SAMPLES);
-            noOfSamplesPerReading = 128;
-
-        }   else if (val == 256)
-        {
-            setAveragingMode(INA3221_AVG_256_SAMPLES);
-            noOfSamplesPerReading = 256;
-
-        }  else if (val == 512)
-        {
-            setAveragingMode(INA3221_AVG_512_SAMPLES);
-            noOfSamplesPerReading = 512;
-
-        }   else if (val == 1024)
-        {
-            setAveragingMode(INA3221_AVG_1024_SAMPLES);
-            noOfSamplesPerReading = 1024;
-
-        }  else
-        {
-            DataPacket.timestamp = millis(); 
-            sprintf(DataPacket.value,"ERROR:  Must be one of 1,4,16,64,128,256,512,1024");
-            retVal = FAIL_DATA;
-        }
+        setAveragingMode(INA3221_AVG_1_SAMPLE);
+        noOfSamplesPerReading = 1;
     }
-
+    else if (val == 4)
+    {
+        setAveragingMode(INA3221_AVG_4_SAMPLES);
+        noOfSamplesPerReading = 4;
+    }
+    else if (val == 16)
+    {
+        setAveragingMode(INA3221_AVG_16_SAMPLES);
+        noOfSamplesPerReading = 16;
+    }
+    else if (val == 64)
+    {
+        setAveragingMode(INA3221_AVG_64_SAMPLES);
+        noOfSamplesPerReading = 64;
+    }
+    else if (val == 128)
+    {
+        setAveragingMode(INA3221_AVG_128_SAMPLES);
+        noOfSamplesPerReading = 128;
+    }
+    else if (val == 256)
+    {
+        setAveragingMode(INA3221_AVG_256_SAMPLES);
+        noOfSamplesPerReading = 256;
+    }
+    else if (val == 512)
+    {
+        setAveragingMode(INA3221_AVG_512_SAMPLES);
+        noOfSamplesPerReading = 512;
+    }
+    else if (val == 1024)
+    {
+        setAveragingMode(INA3221_AVG_1024_SAMPLES);
+        noOfSamplesPerReading = 1024;
+    }
+    else
+    {
+        DataPacket.timestamp = millis();
+        sprintf(DataPacket.value, "ERROR:  Must be one of 1,4,16,64,128,256,512,1024");
+        retVal = FAIL_DATA;
+    }
+    GIVE_I2C;
     if (retVal == SUCCESS_NODATA)
     {
         updateSampleReadInterval();
@@ -444,6 +384,7 @@ ProcessStatus DEV_INA3221::setTimePerSampleCommand()
     DataPacket.timestamp = millis();
     return (retVal);
 }
+
 /**
  * @brief how long should conversion time take?
  * 
@@ -457,66 +398,63 @@ ProcessStatus DEV_INA3221::setConvTime(int _time)
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     uint8_t val = 0;
-    retVal = getUInt8(0, &val, "Averaging mode: ");
 
-    getReadLock();
-    if (retVal == SUCCESS_NODATA)
+    TAKE_I2C;
+    if (val == 140)
     {
-        if (val == 140)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_140US);
-            setShuntVoltageConvTime(INA3221_CONVTIME_140US);
-            sampleTimeUs = 140;
-        }
-        else if (val == 204)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_204US);
-            setShuntVoltageConvTime(INA3221_CONVTIME_204US);
-            sampleTimeUs = 204;
-        }
-        else if (val == 332)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_332US);
-            setShuntVoltageConvTime(INA3221_CONVTIME_332US);
-            sampleTimeUs = 332;
-        }
-        else if (val == 588)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_588US);
-            setShuntVoltageConvTime(INA3221_CONVTIME_588US);
-            sampleTimeUs = 588;
-        }
-        else if (val == 1)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_1MS);
-            setShuntVoltageConvTime(INA3221_CONVTIME_1MS);
-            sampleTimeUs = 1000;
-        }
-        else if (val == 2)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_2MS);
-            setShuntVoltageConvTime(INA3221_CONVTIME_2MS);
-            sampleTimeUs = 2000;
-        }
-        else if (val == 4)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_4MS);
-            setShuntVoltageConvTime(INA3221_CONVTIME_4MS);
-            sampleTimeUs = 4000;
-        }
-        else if (val == 8)
-        {
-            setBusVoltageConvTime(INA3221_CONVTIME_8MS);
-            setShuntVoltageConvTime(INA3221_CONVTIME_8MS);
-            sampleTimeUs = 8000;
-        }
-        else
-        {
-            retVal = FAIL_DATA;
-            sprintf(DataPacket.value, "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8");
-        }
+        setBusVoltageConvTime(INA3221_CONVTIME_140US);
+        setShuntVoltageConvTime(INA3221_CONVTIME_140US);
+        sampleTimeUs = 140;
     }
-    freeReadLock();
+    else if (val == 204)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_204US);
+        setShuntVoltageConvTime(INA3221_CONVTIME_204US);
+        sampleTimeUs = 204;
+    }
+    else if (val == 332)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_332US);
+        setShuntVoltageConvTime(INA3221_CONVTIME_332US);
+        sampleTimeUs = 332;
+    }
+    else if (val == 588)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_588US);
+        setShuntVoltageConvTime(INA3221_CONVTIME_588US);
+        sampleTimeUs = 588;
+    }
+    else if (val == 1)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_1MS);
+        setShuntVoltageConvTime(INA3221_CONVTIME_1MS);
+        sampleTimeUs = 1000;
+    }
+    else if (val == 2)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_2MS);
+        setShuntVoltageConvTime(INA3221_CONVTIME_2MS);
+        sampleTimeUs = 2000;
+    }
+    else if (val == 4)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_4MS);
+        setShuntVoltageConvTime(INA3221_CONVTIME_4MS);
+        sampleTimeUs = 4000;
+    }
+    else if (val == 8)
+    {
+        setBusVoltageConvTime(INA3221_CONVTIME_8MS);
+        setShuntVoltageConvTime(INA3221_CONVTIME_8MS);
+        sampleTimeUs = 8000;
+    }
+    else
+    {
+        retVal = FAIL_DATA;
+        sprintf(DataPacket.value, "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8");
+    }
+    GIVE_I2C;
+    
     if (retVal == SUCCESS_NODATA)
     {
         updateSampleReadInterval();

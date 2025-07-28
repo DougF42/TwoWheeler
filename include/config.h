@@ -12,6 +12,14 @@
 #define C_O_N_F_I_G__H
 #include "Arduino.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+// Control  access to I2C device through
+// these macros. The the I2CMutex is global, defined in MAIN)
+extern xSemaphoreHandle I2CMutex;
+#define TAKE_I2C (xSemaphoreTake(I2CMutex, portMAX_DELAY))
+#define GIVE_I2C (xSemaphoreGive(I2CMutex))
 
 // When comparing floating point numbers, 
 // How close is close enough to match?

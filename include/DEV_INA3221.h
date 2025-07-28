@@ -126,15 +126,13 @@ class DEV_INA3221: public Adafruit_INA3221, public DefDevice
 private:
     int i2cAddr;
   
-    std::atomic_uint8_t readerCount;   // how many are reading?
-    std::atomic_bool    taskIsWriting; // is the writer task writing?
+    // Controls access to 'dataReadings'
+    static portMUX_TYPE dataReading_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
     time_t dts_msec;   // Timestamp When the data was last updated
     float dataReadings[6];  // The values read from the INA3221. The 1st three (0..2) are
                             //  Voltages for channles 0..2,  The last three (3,4,5) are
                             //  the Currents for channels 0..2.
-    unsigned long busyReadCount;      // Statistics
-    unsigned long deviceNotReadyCount;
  
     unsigned long long readCounter;  // How many times have we read data?
     int noOfSamplesPerReading;
@@ -145,12 +143,6 @@ private:
     // Locks and subtask
     TaskHandle_t readtask;            // Points to the task struct
     static void readDataTask(void *arg);  // The actual task
-    
-    void getGetLock();
-    void freeGetLock();
-
-    void getReadLock();
-    void freeReadLock();
     
     // = = = = = = = = = = = = = = = = = = = = = = = = = 
     // This subclass is used to instantiate separate classes
