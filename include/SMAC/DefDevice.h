@@ -38,6 +38,7 @@ class DefDevice : public Device
         ProcessStatus   getLLint(int arg, long long  *result, const char *msg);
         ProcessStatus   getUint32(int arg, uint32_t *result, const char *msg);
         ProcessStatus   getInt32(int arg,  int32_t *result, const char *msg);
+        ProcessStatus   getInt  (int arg,  int   *result,  const char *msg);
         ProcessStatus   getDouble(int arg, double *result, const char *msg);
         ProcessStatus   getBool(int arg, bool *result, const char *msg);
 

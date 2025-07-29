@@ -20,7 +20,7 @@
 #include "esp_log.h"
 #include "config.h"
 
-#define DEBUG_DEV_INA3221
+// #define DEBUG_DEV_INA3221
 
 // Static initializer
 portMUX_TYPE DEV_INA3221::INA3221_Data_Access_Spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -39,8 +39,8 @@ DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_
     me = _me;
     dataPointNo = _dataPtNo;
     immediateEnabled = false;
-
-    SetRate(1800);
+    periodicEnabled = false;
+    SetRate(900); 
 }
 
 // - - - - - - - - - - - - - - - - - - - - -
@@ -56,8 +56,7 @@ DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_
 // Report the battery voltage and current readings
 // - - - - - - - - - - - - - - - - - - - - -
 ProcessStatus DEV_INA3221::INA3221DeviceChannel::DoPeriodic()
-{
-    
+{    
     float val=0;
     me->getDataReading(dataPointNo, &val, &DataPacket.timestamp);
     sprintf(DataPacket.value, "%f",val,  &DataPacket.timestamp);
@@ -96,9 +95,9 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
         return;
     }
 
-    myNode->AddDevice(new INA3221DeviceChannel("CVolt0",   this, 0));
-    myNode->AddDevice(new INA3221DeviceChannel("CVolt0",   this, 1));
-    myNode->AddDevice(new INA3221DeviceChannel("CVolt0",   this, 2));
+    myNode->AddDevice(new INA3221DeviceChannel("Volt0",   this, 0));
+    myNode->AddDevice(new INA3221DeviceChannel("Volt1",   this, 1));
+    myNode->AddDevice(new INA3221DeviceChannel("Volt2",   this, 2));
     myNode->AddDevice(new INA3221DeviceChannel("Current0", this, 3));
     myNode->AddDevice(new INA3221DeviceChannel("Current1", this, 4));
     myNode->AddDevice(new INA3221DeviceChannel("Current2", this, 5));
@@ -107,10 +106,14 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     ESP_ERROR_CHECK(xTaskCreate(readDataTask, "ReadINA3221", 4096, this, 3, &readtask));
     for (uint8_t idx = 0; idx < 3; idx++)
     {
+        TAKE_I2C;
         setShuntResistance(idx, 0.05);
+        GIVE_I2C;
     }
-    setAvgCount(16);     // aver 16 samples for each reading
-    setConvTime(2);      // 2msec per sample
+    noOfSamplesPerReading=16;
+    sampleTimeUs=5000;
+    updateSampleReadInterval(1000); // Default (for now) 1 Second.
+    Serial.printf("INITIAL SAMPLE TIME IS %d ticks\r\n", sampleReadIntervalTicks);
     initStatusOk = true;
 }
 
@@ -126,28 +129,24 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
 
 
 // - - - - - - - - - - - - - - - - - - - - -
-// This is called to re-calculate the time
-// between reading the 6 data channels.
-//
-// The interval is converted into 'ticks'
-// @param forceNewInterval (default: true)
-//     this is used if a parameter was changed
-//     by a command.  It forces the subtask to 
-//     do a fresh read (using the new values)
-//
+// @brief Set a new read interval.
+//   This notifies the read task that an update
+// happened
 // - - - - - - - - - - - - - - - - - - - - -
-time_t DEV_INA3221::updateSampleReadInterval()
+time_t DEV_INA3221::updateSampleReadInterval( time_t timeInMsecs)
 {
-    // What the new time interval should be   
     taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
-
-    sampleReadIntervalTicks = ((6 * sampleTimeUs * noOfSamplesPerReading)/1000)/portTICK_PERIOD_MS;    
+    sampleReadIntervalTicks = pdMS_TO_TICKS( timeInMsecs);    
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
-    Serial.printf ("In updateSampleReadInterval - new update interval is %d ticks\r\n", sampleReadIntervalTicks);
-    xTaskAbortDelay(readtask);
 
-    return (sampleTimeUs);
+
+    Serial.printf ("***In updateSampleReadInterval - new update interval is %d ticks\r\n", sampleReadIntervalTicks);
+
+    xTaskAbortDelay(readtask);  // tell our subtask to use the new time period
+
+    return (sampleReadIntervalTicks);
 }
+
 
 // - - - - - - - - - - - - - - - - - - - - -
 // @Brief - get the requested data value
@@ -183,9 +182,9 @@ void DEV_INA3221::readDataTask(void *arg)
     while (true)
     {   // do forever
         #ifdef DEBUG_DEV_INA3221
-        Serial.println("READ NEW DATA VALUES");
+        Serial.println("***READ NEW DATA VALUES");
         #endif
-
+        me->readCounter++;
         // we are ready to read - do it!
         TAKE_I2C;  // Using I2C - this can take a while...
         for (idx = 0; idx < 3; idx++)
@@ -206,12 +205,35 @@ void DEV_INA3221::readDataTask(void *arg)
 
         // wait a while for the next reading
         #ifdef DEBUG_DEV_INA3221
-         Serial.print("In readDataTask: ticks to wait = ");
+         Serial.print("***In readDataTask: ticks to wait = ");
          Serial.println(me->sampleReadIntervalTicks);
         #endif
         xTaskDelayUntil( &xLastWakeTime, me->sampleReadIntervalTicks );
     }
 }
+
+/**
+ * @brief show all the current data values, and the count of samples
+ * 
+ *  FORMAT:   INAX|<readCount>|volt[0], volt[1], volt[2], current[0], current[1], current[2]
+ */
+ProcessStatus DEV_INA3221::DoPeriodic()
+{
+    float tmp[6];
+    unsigned long long tmpCount;
+    taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
+    for (int i=0; i<6; i++)
+    {
+        tmp[i] = dataReadings[i];
+    }
+    tmpCount = readCounter;
+    taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
+
+    sprintf(DataPacket.value, "INAX|%d|%f|%f|%f|%f|%f|%f",tmpCount,
+         tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);     
+    return(SUCCESS_DATA);
+}
+
 
 // - - - - - - - - - - - - - - - - - - - - -
 // Handle any SMAC commands 
@@ -236,6 +258,11 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
         } else if (isCommand("SAVG"))
         {
             retVal=setAveragingModeCommand();
+
+        } else if (isCommand("RATE"))
+        {
+            retVal = setSampleRateCommand();
+        
         } else 
         { 
             sprintf(DataPacket.value, "ERROR: Unknown command");
@@ -282,22 +309,27 @@ ProcessStatus DEV_INA3221::gpowerCommand()
 ProcessStatus DEV_INA3221::setAveragingModeCommand()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
-    uint8_t timeCode = 0;
-    if (argCount != 1)
+    int notoaverage = 0;
+
+    if (argCount == 1)
+    {
+        retVal = getInt(0, &notoaverage, "Number to Average:");
+    }
+    else if (argCount != 0)
     {
         sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments to SAVG command");
         retVal = FAIL_DATA;
     }
-    else
+
+    if ((argCount == 1) && (retVal == SUCCESS_NODATA))
     {
-        retVal = getUInt8(0, &timeCode, "Number to Average:");
-        if (retVal == SUCCESS_NODATA)
-            retVal = setAvgCount(timeCode);
-        if (retVal == SUCCESS_NODATA)
-        {
-            sprintf(DataPacket.value, "OK");
-            retVal = SUCCESS_DATA;
-        }
+        retVal = setAvgCount(notoaverage);
+    }
+
+    if (retVal == SUCCESS_DATA)
+    {
+        Serial.printf(DataPacket.value, "SAVG|%d\r\n", noOfSamplesPerReading);
+        retVal = SUCCESS_DATA;
     }
 
     DataPacket.timestamp = millis();
@@ -306,15 +338,18 @@ ProcessStatus DEV_INA3221::setAveragingModeCommand()
 
 /*
  * @brief how many samples to average?
- * FORMAT:   SAVR|<value>
+
  *     Value is one of the following:
  *         1, 4, 16, 64, 128, 256, 512, 1024
+ *  return: The update interval is re-calculated.
  */
-ProcessStatus DEV_INA3221::setAvgCount(int noOfSamples)
+ProcessStatus DEV_INA3221::setAvgCount(int val)
 {
     ProcessStatus retVal=SUCCESS_NODATA;
-    uint8_t val;
-    // bool setAveragingMode(ina3221_avgmode mode);
+
+    #ifdef DEBUG_DEV_INA3221
+    Serial.printf("***setAvgCount - argument is %d\r\n", val);
+    #endif
     TAKE_I2C;
     if (val == 1)
     {
@@ -357,19 +392,21 @@ ProcessStatus DEV_INA3221::setAvgCount(int noOfSamples)
         noOfSamplesPerReading = 1024;
     }
     else
-    {
-        DataPacket.timestamp = millis();
-        sprintf(DataPacket.value, "ERROR:  Must be one of 1,4,16,64,128,256,512,1024");
+    {     
+        sprintf(DataPacket.value, "ERROR: Count Must be one of 1,4,16,64,128,256,512,1024. arg=%d", val);
+        #ifdef DEBUG_DEV_INA3221
+        Serial.println(DataPacket.value);
+        #endif
         retVal = FAIL_DATA;
     }
     GIVE_I2C;
+
     if (retVal == SUCCESS_NODATA)
     {
-        updateSampleReadInterval();
-        DataPacket.timestamp = millis();
         sprintf(DataPacket.value, "OK");
         retVal = SUCCESS_DATA;
     }
+    DataPacket.timestamp = millis();
     return(retVal);
 }
 
@@ -385,18 +422,18 @@ ProcessStatus DEV_INA3221::setAvgCount(int noOfSamples)
 ProcessStatus DEV_INA3221::setTimePerSampleCommand()
 {
   ProcessStatus retVal = SUCCESS_NODATA;
-    uint8_t timePerSampleCode = 0;
+    int time_val = 0;
     if (argCount == 1)
     {
-                retVal = getUInt8(0, &timePerSampleCode, "Code for timePerSample:");
+        retVal = getInt(0, &time_val, "Code for timePerSample:");
     } else if (argCount!=0)
     {
         sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments");
         retVal = FAIL_DATA;
     }
 
-    if ( (retVal == SUCCESS_NODATA) && (argCount==1))
-            retVal = setConvTime(timePerSampleCode);
+    if (  (argCount==1) && (retVal == SUCCESS_NODATA))
+            retVal = setConvTime(time_val);
 
     if (retVal == SUCCESS_NODATA)
     {
@@ -418,10 +455,9 @@ ProcessStatus DEV_INA3221::setTimePerSampleCommand()
  *          1 (mSec)      2 (mSecs)  4 (mSecs) 8 (secs)
  *
  */
-ProcessStatus DEV_INA3221::setConvTime(int _time)
+ProcessStatus DEV_INA3221::setConvTime(int val)
 {
     ProcessStatus retVal = SUCCESS_NODATA;
-    uint8_t val = 0;
 
     TAKE_I2C;
     if (val == 140)
@@ -476,12 +512,14 @@ ProcessStatus DEV_INA3221::setConvTime(int _time)
     {
         retVal = FAIL_DATA;
         sprintf(DataPacket.value, "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8");
+        #ifdef DEBUG_DEV_INA3221
+        Serial.printf( "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8. value seen = %d\r\n",val);
+        #endif
     }
     GIVE_I2C;
     
     if (retVal == SUCCESS_NODATA)
     {
-        updateSampleReadInterval();
         retVal = SUCCESS_DATA;
         sprintf(DataPacket.value, "OK");
     }
@@ -489,3 +527,37 @@ ProcessStatus DEV_INA3221::setConvTime(int _time)
     return (retVal);
 }
 
+
+/**
+ * @brief command to set how often samples are taken?
+ *  FORMAT:  <SRAT>|<time>
+ *     <time> is in milliseconds (limit 32767)
+ */
+ProcessStatus DEV_INA3221::setSampleRateCommand()
+{
+    ProcessStatus retVal = SUCCESS_NODATA;
+
+    time_t newRate = 0;
+    if (argCount == 1)
+    {
+        retVal = getLLint(0, &newRate, "Sample Rate:");
+    }
+    else if (argCount != 0)
+    {
+        sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments");
+        retVal = FAIL_DATA;
+    }
+
+    if (argCount==1)
+    {
+        updateSampleReadInterval(newRate);
+    }
+
+    if (retVal==SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value, "OK");
+        retVal=SUCCESS_DATA;
+    }
+
+    return(retVal);
+}

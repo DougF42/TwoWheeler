@@ -127,19 +127,16 @@ class DEV_INA3221: public Adafruit_INA3221, public DefDevice
 private:
     int i2cAddr;
     static portMUX_TYPE INA3221_Data_Access_Spinlock;
-    // Controls access to 'dataReadings'
-
-
     time_t dts_msec;   // Timestamp When the data was last updated
     float dataReadings[6];  // The values read from the INA3221. The 1st three (0..2) are
                             //  Voltages for channles 0..2,  The last three (3,4,5) are
                             //  the Currents for channels 0..2.
  
     unsigned long long readCounter;  // How many times have we read data?
-    int noOfSamplesPerReading;      // How many samples does INA3221 average per data point?)
+    int noOfSamplesPerReading;      // How many samples does INA3221 average per data point?
     time_t sampleTimeUs;           // how long for each sample? (INA3321 parameter uSecs)
-    TickType_t sampleReadIntervalTicks;  // Assuming 6 data values, how long for each set of readings? (MsecsSecs)
-    time_t updateSampleReadInterval();
+    TickType_t sampleReadIntervalTicks;  // How between data readings? (ticks)
+    time_t updateSampleReadInterval(time_t timeInMsecs);   // set the data reading interval, tell subtask
 
     // Locks and subtask
     TaskHandle_t readtask;            // Points to the task struct
@@ -165,15 +162,17 @@ public:
     DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire);
     ~DEV_INA3221();
     bool initStatusOk;                   // True if init was okay. false if any error
-    // ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
+    ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
     // ProcessStatus DoImmediate()    override;
     ProcessStatus ExecuteCommand() override;
     ProcessStatus gpowerCommand();
     ProcessStatus setAveragingModeCommand();
     ProcessStatus setTimePerSampleCommand();
+    ProcessStatus setSampleRateCommand();
 
     ProcessStatus setAvgCount(int noOfSamples);
     ProcessStatus setConvTime(int _time);
+    ProcessStatus setSampleRate();
 
     void getDataReading(int idx, float *dta, unsigned long *timeStamp);
     friend class INA3221DeviceChannel;

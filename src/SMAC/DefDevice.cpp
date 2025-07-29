@@ -226,6 +226,32 @@ ProcessStatus DefDevice::getInt32(int arg, int32_t *result, const char *msg)
     return (SUCCESS_DATA);
 }
 
+/**
+ * @brief get a plain integer value
+ * 
+ * @param arg        index of the argument to scan
+ * @param result     where to store the result (if no error)
+ * @param msg        Header for error messages
+ * @return    Either SUCCCESS_NODATA or FAIL_DATA
+ */
+ProcessStatus  DefDevice::getInt  (int arg,  int   *result,  const char *msg)
+{
+   if (FAIL_DATA == argCountCheck(arg, msg))
+        return (FAIL_DATA);
+    
+    for (char *ptr = arglist[arg]; *ptr != '\0'; ptr++)
+    {
+        if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
+        {
+            sprintf(DataPacket.value, "ERR|%s|Argument %d is not a int\n", msg, arg);
+            return (FAIL_DATA);
+        }
+    }
+
+    *result = strtol(arglist[arg], nullptr, 10);
+    return (SUCCESS_DATA);
+}
+
 
 /**
  * @brief Get a 'double' value
