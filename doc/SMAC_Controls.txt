@@ -27,10 +27,24 @@ COMMANDS HANDLED BY THE relayer
 //      <dst>   is 'nn|dd|' (node number and device to relay this to).
 // GVER     Get the version of a specific device.
 //
+
 COMMANDS handled by the NODE:
 // SNNA|<name> Set the node name
 // GNOI        get Node info
 // GDEI        get Device Info
 // PING        <respond to relayer with PONG>
-// BLINK       Blink the LED 10 times 
+// BLIN        Blink the LED 10 times 
 // RSET        Reset
+
+COMMANDS handled by the device
+// GDNA        Get device name
+// SDNA        Set device name
+// ENIP        Enable immediate processing
+// DIPP        Disable immediate processing
+// DOIP        Do immediate one time processing
+// ENPP        Enalble periodic processing
+// DIPP        Disable periodic processing
+// DOPP        DO periodic processing (one time)
+// GRAT        Get periodic processing rate ( calls per hour)
+// SRAT        Set periodic processing rate ( calls per hour)
+// GDVR        Get Version (of driver)

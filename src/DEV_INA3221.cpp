@@ -40,7 +40,7 @@ DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_
     dataPointNo = _dataPtNo;
     immediateEnabled = false;
     periodicEnabled = false;
-    SetRate(900); 
+    SetRate(900);     // default once every 4 seconds
 }
 
 // - - - - - - - - - - - - - - - - - - - - -
@@ -79,7 +79,8 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     version[MAX_VERSION_LENGTH-1]=0x00;
     immediateEnabled = false;
     periodicEnabled = false;
-    SetRate(900);     // default reporting rate (every 4 secs)for this device (note periodicEnabled=false!)
+    readCounter = 0;
+    SetRate(900);     // default reporting rate (every 4 secs)for this device
 
     // Initialize the readings to 0.
     for (int i=0; i<6; i++) {
@@ -112,7 +113,7 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     }
     noOfSamplesPerReading=16;
     sampleTimeUs=5000;
-    updateSampleReadInterval(1000); // Default (for now) 1 Second.
+    updateSampleReadInterval(11000); // Default (for now) 5 Second.
     Serial.printf("INITIAL SAMPLE TIME IS %d ticks\r\n", sampleReadIntervalTicks);
     initStatusOk = true;
 }
@@ -174,10 +175,14 @@ void DEV_INA3221::getDataReading(int idx, float *dta, unsigned long int *timeSta
 void DEV_INA3221::readDataTask(void *arg)
 {
     DEV_INA3221 *me=(DEV_INA3221 *) arg;
-    TickType_t xLastWakeTime;
-    xLastWakeTime = xTaskGetTickCount ();
+
+ 
     float tmpValues[6]= {};
     uint8_t idx=0;
+    TickType_t xLastWakeTime;
+    bool wasDelayedFlag=false; 
+    vTaskDelay(100);
+
 
     while (true)
     {   // do forever
@@ -185,6 +190,7 @@ void DEV_INA3221::readDataTask(void *arg)
         Serial.println("***READ NEW DATA VALUES");
         #endif
         me->readCounter++;
+
         // we are ready to read - do it!
         TAKE_I2C;  // Using I2C - this can take a while...
         for (idx = 0; idx < 3; idx++)
@@ -208,7 +214,14 @@ void DEV_INA3221::readDataTask(void *arg)
          Serial.print("***In readDataTask: ticks to wait = ");
          Serial.println(me->sampleReadIntervalTicks);
         #endif
-        xTaskDelayUntil( &xLastWakeTime, me->sampleReadIntervalTicks );
+
+        wasDelayedFlag = xTaskDelayUntil( &xLastWakeTime, me->sampleReadIntervalTicks );
+        Serial.print("Wake delay: ");  Serial.println(xLastWakeTime - xTaskGetTickCount() );
+
+        if (! wasDelayedFlag)
+        {
+            Serial.print("Delay period too short - requested interval was "); Serial.println(me->sampleReadIntervalTicks);
+        }
     }
 }
 
@@ -221,16 +234,19 @@ ProcessStatus DEV_INA3221::DoPeriodic()
 {
     float tmp[6];
     unsigned long long tmpCount;
+    time_t timeStamp;
     taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
     for (int i=0; i<6; i++)
     {
         tmp[i] = dataReadings[i];
     }
     tmpCount = readCounter;
+    timeStamp = dts_msec;
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
-    sprintf(DataPacket.value, "INAX|%d|%f|%f|%f|%f|%f|%f",tmpCount,
-         tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);     
+    sprintf(DataPacket.value, "INAX|%llu|%f|%f|%f|%f|%f|%f",tmpCount,
+         tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
+    DataPacket.timestamp = timeStamp;
     return(SUCCESS_DATA);
 }
 
@@ -247,11 +263,7 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
     if (retVal == NOT_HANDLED)
     {
         scanParam();
-        if (isCommand("SPOW"))
-        {    // get all 6 values
-            retVal=gpowerCommand();
-
-        } else if (isCommand("STIM"))
+        if (isCommand("STIM"))
         {  // Set the time per sample (ms)
             retVal=setTimePerSampleCommand();
 
@@ -277,25 +289,6 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
     }
     if (DataPacket.timestamp == 0) DataPacket.timestamp = millis();
     return(retVal);
-}
-
-
-/**
- * Report the current values of all three channels
- * Format: 
- *       sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
- *         busVolt[0], current[0], busVolt[1], current[1], busVolt[2], current[2]);
-
- */
-ProcessStatus DEV_INA3221::gpowerCommand()
-{
-    DataPacket.timestamp = millis();
-    taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
-    sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
-        dataReadings[0], dataReadings[1], dataReadings[2], dataReadings[3], 
-        dataReadings[4], dataReadings[5]);
-    taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
-    return(SUCCESS_DATA);
 }
 
 

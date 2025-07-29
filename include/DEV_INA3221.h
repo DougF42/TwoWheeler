@@ -151,6 +151,7 @@ private:
     private:
         int dataPointNo;
         DEV_INA3221 *me;
+        
     public:
         INA3221DeviceChannel(const char *inName, DEV_INA3221 *_me, int dataPtNo);
         ~INA3221DeviceChannel();
