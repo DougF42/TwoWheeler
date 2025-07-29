@@ -121,13 +121,14 @@
 #define INA3221Version "3.1.0"
 
 
+
 class DEV_INA3221: public Adafruit_INA3221, public DefDevice
 {
 private:
     int i2cAddr;
-  
+    static portMUX_TYPE INA3221_Data_Access_Spinlock;
     // Controls access to 'dataReadings'
-    static portMUX_TYPE dataReading_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
 
     time_t dts_msec;   // Timestamp When the data was last updated
     float dataReadings[6];  // The values read from the INA3221. The 1st three (0..2) are
@@ -135,10 +136,10 @@ private:
                             //  the Currents for channels 0..2.
  
     unsigned long long readCounter;  // How many times have we read data?
-    int noOfSamplesPerReading;
-    time_t sampleTimeUs;             // how long for each sample?
-    time_t sampleReadInterval;       // Assuming 6 data values, how long for each set of readings? (uSecs)
-    time_t updateSampleReadInterval(bool forceNewInterval=true);
+    int noOfSamplesPerReading;      // How many samples does INA3221 average per data point?)
+    time_t sampleTimeUs;           // how long for each sample? (INA3321 parameter uSecs)
+    TickType_t sampleReadIntervalTicks;  // Assuming 6 data values, how long for each set of readings? (MsecsSecs)
+    time_t updateSampleReadInterval();
 
     // Locks and subtask
     TaskHandle_t readtask;            // Points to the task struct

@@ -20,6 +20,12 @@
 #include "esp_log.h"
 #include "config.h"
 
+#define DEBUG_DEV_INA3221
+
+// Static initializer
+portMUX_TYPE DEV_INA3221::INA3221_Data_Access_Spinlock = portMUX_INITIALIZER_UNLOCKED;
+
+
 // - - - - - - - - - - - - - - - - - - - - -
 // @brief Construct a new INA3221Device object
 //
@@ -33,7 +39,8 @@ DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_
     me = _me;
     dataPointNo = _dataPtNo;
     immediateEnabled = false;
-    SetRate(900);
+
+    SetRate(1800);
 }
 
 // - - - - - - - - - - - - - - - - - - - - -
@@ -68,12 +75,12 @@ ProcessStatus DEV_INA3221::INA3221DeviceChannel::DoPeriodic()
 DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire) : DefDevice(inName)
 {    
     // Device default condition
+    initStatusOk=false;
     strncpy(version, INA3221Version, MAX_VERSION_LENGTH);
     version[MAX_VERSION_LENGTH-1]=0x00;
-    periodicEnabled = false;
     immediateEnabled = false;
-    SetRate(1800);           // default reporting rate
-    initStatusOk = true;     // flag - did we initialze properly?
+    periodicEnabled = false;
+    SetRate(900);     // default reporting rate (every 4 secs)for this device (note periodicEnabled=false!)
 
     // Initialize the readings to 0.
     for (int i=0; i<6; i++) {
@@ -89,12 +96,6 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
         return;
     }
 
-    // CONFIGRE THE INA3221 device, and initialize the subtasks
-    for (uint8_t idx = 0; idx < 3; idx++)
-    {
-        setShuntResistance(idx, 0.05);
-    }
-    initStatusOk = true;
     myNode->AddDevice(new INA3221DeviceChannel("CVolt0",   this, 0));
     myNode->AddDevice(new INA3221DeviceChannel("CVolt0",   this, 1));
     myNode->AddDevice(new INA3221DeviceChannel("CVolt0",   this, 2));
@@ -102,11 +103,15 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     myNode->AddDevice(new INA3221DeviceChannel("Current1", this, 4));
     myNode->AddDevice(new INA3221DeviceChannel("Current2", this, 5));
 
-    setAveragingMode(INA3221_AVG_16_SAMPLES);
-    noOfSamplesPerReading=16;
-    sampleTimeUs = 1000;  
- 
-    ESP_ERROR_CHECK(xTaskCreate(readDataTask, "ReadINA3221", 1024, NULL, 3, &readtask));
+ // Start the read task, configure the INA3221
+    ESP_ERROR_CHECK(xTaskCreate(readDataTask, "ReadINA3221", 4096, this, 3, &readtask));
+    for (uint8_t idx = 0; idx < 3; idx++)
+    {
+        setShuntResistance(idx, 0.05);
+    }
+    setAvgCount(16);     // aver 16 samples for each reading
+    setConvTime(2);      // 2msec per sample
+    initStatusOk = true;
 }
 
 
@@ -131,12 +136,14 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
 //     do a fresh read (using the new values)
 //
 // - - - - - - - - - - - - - - - - - - - - -
-time_t DEV_INA3221::updateSampleReadInterval(bool forceNewInterval)
+time_t DEV_INA3221::updateSampleReadInterval()
 {
-    // What the new time interval should be
-    taskENTER_CRITICAL(&dataReading_spinlock);
-    sampleTimeUs = (noOfSamplesPerReading * sampleTimeUs * 6 * 1000) / portTICK_PERIOD_MS;
-    taskEXIT_CRITICAL(&dataReading_spinlock);
+    // What the new time interval should be   
+    taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
+
+    sampleReadIntervalTicks = ((6 * sampleTimeUs * noOfSamplesPerReading)/1000)/portTICK_PERIOD_MS;    
+    taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
+    Serial.printf ("In updateSampleReadInterval - new update interval is %d ticks\r\n", sampleReadIntervalTicks);
     xTaskAbortDelay(readtask);
 
     return (sampleTimeUs);
@@ -154,43 +161,55 @@ time_t DEV_INA3221::updateSampleReadInterval(bool forceNewInterval)
 // - - - - - - - - - - - - - - - - - - - - -
 void DEV_INA3221::getDataReading(int idx, float *dta, unsigned long int *timeStamp)
 {
-    taskENTER_CRITICAL(&dataReading_spinlock);
+    taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
     *timeStamp = (unsigned long) dts_msec;
     *dta = dataReadings[idx];
-    taskEXIT_CRITICAL(&dataReading_spinlock);
+    taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 }
 
 // - - - - - - - - - - - - - - - - - - - - -
-// @brief This is run as a separate task.
+// @brief This is run as a separate task (It is Static!)
 //   this is where we get the voltage and current
-// readings from the INA3221
+// readings from the INA3221.
 // - - - - - - - - - - - - - - - - - - - - -
 void DEV_INA3221::readDataTask(void *arg)
 {
     DEV_INA3221 *me=(DEV_INA3221 *) arg;
     TickType_t xLastWakeTime;
     xLastWakeTime = xTaskGetTickCount ();
-    float tmpValues[6];
+    float tmpValues[6]= {};
+    uint8_t idx=0;
 
     while (true)
     {   // do forever
+        #ifdef DEBUG_DEV_INA3221
+        Serial.println("READ NEW DATA VALUES");
+        #endif
 
         // we are ready to read - do it!
-        TAKE_I2C;
-        for (int idx = 0; idx < 3; idx++)
-        {
+        TAKE_I2C;  // Using I2C - this can take a while...
+        for (idx = 0; idx < 3; idx++)
+        {           
             tmpValues[idx]   = me->getBusVoltage(idx);
-            tmpValues[idx+3] = me->getCurrentAmps(idx+3) * 1000; // convert to ma
+            tmpValues[idx+3] = me->getCurrentAmps(idx) * 1000; // convert to ma
         }
         GIVE_I2C;
 
-        taskENTER_CRITICAL(&dataReading_spinlock);
-        me->timestamp = esp_timer_get_time()/1000;
-        taskEXIT_CRITICAL(&dataReading_spinlock);
+        // Now update our internal memory with the new values
+        taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
+        for (idx=0; idx<6; idx++)
+        {
+            me->dataReadings[idx] = tmpValues[idx];
+        }
+        me->dts_msec = esp_timer_get_time()/1000;
+        taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
         // wait a while for the next reading
-        TickType_t ticksToWait= pdMS_TO_TICKS(me->sampleReadInterval/1000);
-        xTaskDelayUntil( &xLastWakeTime, ticksToWait );
+        #ifdef DEBUG_DEV_INA3221
+         Serial.print("In readDataTask: ticks to wait = ");
+         Serial.println(me->sampleReadIntervalTicks);
+        #endif
+        xTaskDelayUntil( &xLastWakeTime, me->sampleReadIntervalTicks );
     }
 }
 
@@ -202,7 +221,7 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
 {
     ProcessStatus retVal=SUCCESS_NODATA;
     DataPacket.timestamp=millis();
-    retVal = ExecuteCommand();
+    retVal = Device::ExecuteCommand();
     if (retVal == NOT_HANDLED)
     {
         scanParam();
@@ -211,7 +230,7 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
             retVal=gpowerCommand();
 
         } else if (isCommand("STIM"))
-        {  // Set the time per sample
+        {  // Set the time per sample (ms)
             retVal=setTimePerSampleCommand();
 
         } else if (isCommand("SAVG"))
@@ -244,11 +263,11 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
 ProcessStatus DEV_INA3221::gpowerCommand()
 {
     DataPacket.timestamp = millis();
-    taskENTER_CRITICAL(&dataReading_spinlock);
+    taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
     sprintf(DataPacket.value, "BATX|%f|%f|%f|%f|%f|%f",
         dataReadings[0], dataReadings[1], dataReadings[2], dataReadings[3], 
         dataReadings[4], dataReadings[5]);
-    taskEXIT_CRITICAL(&dataReading_spinlock);
+    taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
     return(SUCCESS_DATA);
 }
 
@@ -356,34 +375,39 @@ ProcessStatus DEV_INA3221::setAvgCount(int noOfSamples)
 
 
 /**
- * @brief Set the Time Per Sample command
- *    
+ * @brief Set (or get) the Time Per Sample.
+ *   FORMAT:  STIM <timeInMs>
+ *  total time for each sample (in uSecs). This is an INA3221
+ *  value, and is limited to specific values (see setConvTime)
+ * 
  * @return ProcessStatus 
  */
 ProcessStatus DEV_INA3221::setTimePerSampleCommand()
 {
   ProcessStatus retVal = SUCCESS_NODATA;
     uint8_t timePerSampleCode = 0;
-    if (argCount != 1)
+    if (argCount == 1)
+    {
+                retVal = getUInt8(0, &timePerSampleCode, "Code for timePerSample:");
+    } else if (argCount!=0)
     {
         sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments");
         retVal = FAIL_DATA;
     }
-    else
-    {
-        retVal = getUInt8(0, &timePerSampleCode, "Code for timePerSample:");
-        if (retVal == SUCCESS_NODATA)
+
+    if ( (retVal == SUCCESS_NODATA) && (argCount==1))
             retVal = setConvTime(timePerSampleCode);
-        if (retVal == SUCCESS_NODATA)
-        {
-            sprintf(DataPacket.value, "OK");
-            retVal = SUCCESS_DATA;
-        }
+
+    if (retVal == SUCCESS_NODATA)
+    {
+        sprintf(DataPacket.value, "STIM|%f", sampleTimeUs);
+        retVal = SUCCESS_DATA;
     }
 
     DataPacket.timestamp = millis();
     return (retVal);
 }
+
 
 /**
  * @brief how long should conversion time take?
