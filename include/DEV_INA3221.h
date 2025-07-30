@@ -135,7 +135,7 @@ private:
     unsigned long long readCounter;  // How many times have we read data?
     int noOfSamplesPerReading;      // How many samples does INA3221 average per data point?
     time_t sampleTimeUs;           // how long for each sample? (INA3321 parameter uSecs)
-    TickType_t sampleReadIntervalTicks;  // How between data readings? (ticks)
+    time_t sampleReadIntervalMs;  // How between data readings? (ticks)
     time_t updateSampleReadInterval(time_t timeInMsecs);   // set the data reading interval, tell subtask
 
     // Locks and subtask

@@ -113,8 +113,8 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
     }
     noOfSamplesPerReading=16;
     sampleTimeUs=5000;
-    updateSampleReadInterval(11000); // Default (for now) 5 Second.
-    Serial.printf("INITIAL SAMPLE TIME IS %d ticks\r\n", sampleReadIntervalTicks);
+    updateSampleReadInterval(5000); // Default 5000 msecs (5 Second).
+    Serial.printf("INITIAL SAMPLE TIME IS %d ticks\r\n", sampleReadIntervalMs);
     initStatusOk = true;
 }
 
@@ -137,15 +137,15 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
 time_t DEV_INA3221::updateSampleReadInterval( time_t timeInMsecs)
 {
     taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
-    sampleReadIntervalTicks = pdMS_TO_TICKS( timeInMsecs);    
+    sampleReadIntervalMs = timeInMsecs;  
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
 
-    Serial.printf ("***In updateSampleReadInterval - new update interval is %d ticks\r\n", sampleReadIntervalTicks);
+    Serial.printf ("***In updateSampleReadInterval - new update interval is %d Msecs\r\n", sampleReadIntervalMs);
 
     xTaskAbortDelay(readtask);  // tell our subtask to use the new time period
 
-    return (sampleReadIntervalTicks);
+    return (sampleReadIntervalMs);
 }
 
 
@@ -176,19 +176,17 @@ void DEV_INA3221::readDataTask(void *arg)
 {
     DEV_INA3221 *me=(DEV_INA3221 *) arg;
 
- 
     float tmpValues[6]= {};
     uint8_t idx=0;
-    TickType_t xLastWakeTime;
+    time_t xLastWakeTime;  // when we last woke up
     bool wasDelayedFlag=false; 
-    vTaskDelay(100);
-
 
     while (true)
     {   // do forever
         #ifdef DEBUG_DEV_INA3221
         Serial.println("***READ NEW DATA VALUES");
         #endif
+        xLastWakeTime = esp_timer_get_time();
         me->readCounter++;
 
         // we are ready to read - do it!
@@ -210,18 +208,8 @@ void DEV_INA3221::readDataTask(void *arg)
         taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
         // wait a while for the next reading
-        #ifdef DEBUG_DEV_INA3221
-         Serial.print("***In readDataTask: ticks to wait = ");
-         Serial.println(me->sampleReadIntervalTicks);
-        #endif
-
-        wasDelayedFlag = xTaskDelayUntil( &xLastWakeTime, me->sampleReadIntervalTicks );
-        Serial.print("Wake delay: ");  Serial.println(xLastWakeTime - xTaskGetTickCount() );
-
-        if (! wasDelayedFlag)
-        {
-            Serial.print("Delay period too short - requested interval was "); Serial.println(me->sampleReadIntervalTicks);
-        }
+        TickType_t waitTimeMs = me->sampleReadIntervalMs - ((esp_timer_get_time() - xLastWakeTime) / 1000);
+        vTaskDelay(portTICK_PERIOD_MS * waitTimeMs);
     }
 }
 
