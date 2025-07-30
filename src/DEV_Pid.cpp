@@ -111,7 +111,7 @@ ProcessStatus DEV_Pid::ExecuteCommand()
         retVal = cmdSetD();
     }
 
-    else if (isCommand("SMODE"))
+    else if (isCommand("SMOD"))
     {    // Set mode (auto or manual)
         retVal = cmdSetMode();
     }
