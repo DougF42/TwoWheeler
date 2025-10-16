@@ -3,37 +3,122 @@
 TWO WHEELER SPECIFIC COMMANDS
 - - - - - - - - - - - - - - - - - - - 
 
-Commands for the QUAD device  ( left 0,  right 4)
+= = = = = = = = = = = 
+quadrature encoder for the QUAD device  ( left is channel 0,  right channel 4)
+
+Commands:
+ 
    QSET  <pulsesPerRev> <circum_mm>          ; Set parameters for quadrature decoder.
-   QRST                                      ; reset position to '0.0'
+      "EROR,Pulse Count must be >0"
+      "EROR, Wheel diam must be >0"
+      "EROR, Wrong number of arguments"
+      "QSET,<wheelDiam>,<pulsePerRev>,pulsesToDist"
+
    QSCK  <updateRate>                        ; Set how often we update the speed (in millisecs)
+      "EROR,wrong number of arguments"
+      "OK,SCLK,<spdCheckRate>
+
+   QRST                                      ; reset position to '0.0'
+
+Output:
+   <position>,last_speed, name
 
 
+= = = = = = = = = = = 
 Commands for the ln298 device ( left 1,  right 5)
-    SPWM     <pulseDidth>                     ; set the pulse width for this motor (0...+/- 100 pcnt)
+    SPWM     <pulseDidth>                     ; set the pulse width for this motor (0...+/- 100)      
+      "ERR,Wrong number of arguments in SPED command");
+      resp:  'OK|SPWM|Pulse width is <val>
     ENAB                                      ; Enable the Driver
+      resp:  "OK|ENAB|<name> enabled"
     DISA                                      ; Disable the Driver
+      resp:  "OK|DISA|<name> disabled"
 
+    resp: "EROR|LN298|Unknown command"
+
+Output:
+   duty-cycle,"DIS"/"ENA"
+
+= = = = = = = = = = = 
+PID device:   This reads both the ln298 (current power level) and the QuadEncoder (actual speed)
 
 Commands for the PID device  (left 2,   right 6)
-   SPID  <kp> <ki> <ki>                      ; Set the P.I.D. coeficients
+   ////// SPID  <kp> <ki> <ki>                      ; Set the P.I.D. coeficients
+   SPED <val>                                ; Set the target speed (0... +/- 100)
+      resp: "EROR, Wrong number of arguments in SPED command"
+      resp: "OK,<val>
+
+   SETP <val>
+      resp:  "EROR,Wrong number of arguments in SETP command");
+      resp:  OK,<val>
+
+   SETI <val>
+      resp:  "EROR,Wrong number of arguments in SETI command");
+      resp:  OK,<val>
+
+   SETD <val>
+      resp:  "EROR,Wrong number of arguments in SETD command");
+      resp:  OK,<val>
+
    SMOD  <bool>                              ; PID controler mode: true=automatic, false=manual.
+      resp:SMOD,<bool>                      ; bool = Automatic or manual
+      resp: EROR,Wrong number of arguments
+
    STIM  <time>                              ; set sample time (millisecs)
-   REPT  <bool>                              ; enable status reports
+      resp:EROR,Wrong number of arguments
+      resp:STIM,<time>
+
+Output:
 
 
-Commands for the MOTORControl device (left 3, right 7)
+   "EROR,pid - unknown command"
+= = = = = = = = = = =
+MOTOR device (Marrige of LN298. QuadDecoder and PID devices)
+Commands:
    MSPD  <speed>                              ; Set motor speed - 0 +/- 2047.
-   REPT  <bool>                               ; enable status reports
 
-Commands for the Driver device:  (8)
+Output:
+   "PID,<setPoint>,<actual>,<output>"
+
+
+ = = = = = = = = = = 
+ DRIVER device ( not really implemented!!!)
+
+Commands(8)
    MOVE  <speed>   <rotRate>                ; set for given speed/rotation rate
    SPED <speed>     (from joystick)          ; set the speed (command from joystick - 0 +/- 2048)
    ROTA <rotRate>   (from joystick)          ; set the rotation rate (command from joystick - 0 +/-2048)
    STOP                                      ; stop all motion
    DRFT                                      ; disable drivers, drift...
 
-Commands for the Voltage sensor (9)
-   TBD   Set number of samples to average
-   TBD   Set sample time
-   TBD   
+Output Data:
+
+ = = = = = = = = = = 
+INA3221 device:
+   Commands:
+      STIM <timeInMsec>     Set Time per sample. See INA3221 docs
+      SAVG <cpde>           Set Averaging mode.  See INA3221 docs
+      RATE <timeInMs>       Set time between samples (Sample Rate) in (ms). Max is 32765
+
+   Data format:
+      IA3221:  INAX|%llu|%f|%f|%f|%f|%f|%f",tmpCount, volt(1), Volt(2), Volt(3), Ima(1), I(2), I(3)
+      
+SUBDEVICES:
+   Volt0, Volt1, Volt2, Current0, Current1, Current2
+
+   Output:
+     "%f"   (the value for this subdevice)
+
+
+= = = = = =
+
+ADITIONAL SMAC MESSAGES (GENERIC ERROR REPSONSES)
+ (In all cases, '%s' will idenify the specific parameter). 
+ ( '%d' is the index of the word - the original command is '0').
+   "EROR,%s,Missing argument no %d"         
+   "EROR,%s,argument %d is not an unsigned int"
+   "EROR,%s,Missing argument no %d
+   "EROR,%s,Argument %d is not a int"
+   "EROR,%s,Invalid double for argument no %d",
+   "EROR,%s,Unknown boolean value for argument %d"
+

@@ -156,7 +156,7 @@ ProcessStatus DEV_QuadDecoder::ExecuteCommand()
 ProcessStatus DEV_QuadDecoder::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_DATA;
-    sprintf(DataPacket.value, "%f|%f|%s", getPosition(), last_speed, name);
+    sprintf(DataPacket.value, "%f,%f,%s", getPosition(), last_speed, name);
 
     return(retVal);
 }
@@ -195,12 +195,12 @@ ProcessStatus DEV_QuadDecoder::qsetCommand()
         {
             if (pulses < 0)
             {
-                sprintf(DataPacket.value, "EROR|Pulse count must be >0");
+                sprintf(DataPacket.value, "EROR,Pulse count must be >0");
                 retVal = FAIL_DATA;
             }
             else if (wheel < 0)
             {
-                sprintf(DataPacket.value, "EROR|WheelDiam must be >0");
+                sprintf(DataPacket.value, "EROR,WheelDiam must be >0");
                 retVal = FAIL_DATA;
             }
             else
@@ -212,14 +212,14 @@ ProcessStatus DEV_QuadDecoder::qsetCommand()
 
     } else if (argCount !=0 )
     {
-        sprintf(DataPacket.value, "ERRR| wrong number of arguments");
+        sprintf(DataPacket.value, "EROR, wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
     if (retVal == SUCCESS_NODATA)
     {
         // Show the current parameters
-        sprintf(DataPacket.value, "QSET|%f|%lld|%8.5f", wheelDiam, pulsesPerRev, pulsesToDist);
+        sprintf(DataPacket.value, "QSET,%f,%lld,%8.5f", wheelDiam, pulsesPerRev, pulsesToDist);
         retVal = SUCCESS_DATA;
     }
 
@@ -250,14 +250,14 @@ ProcessStatus DEV_QuadDecoder::qsckCommand()
 
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERRR| wrong number of arguments");
+        sprintf(DataPacket.value, "EROR,wrong number of arguments");
         retVal = FAIL_DATA;
 
     }
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK|SCLK|%lld", currentSpdCheckRate);
+        sprintf(DataPacket.value, "OK,SCLK,%lld", currentSpdCheckRate);
         retVal=SUCCESS_DATA;
     }
     return (retVal);
@@ -278,7 +278,7 @@ void DEV_QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
     pulsesPerRev = pulseCnt;
     wheelDiam    = diam;
     pulsesToDist = (pulsesPerRev*4) / (diam* M_PI);
-    Serial.print("Convert pulsesToDist "); Serial.println(pulsesToDist);
+   // Serial.print("Convert pulsesToDist "); Serial.println(pulsesToDist);
     return;
 }
 

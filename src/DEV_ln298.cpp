@@ -152,7 +152,7 @@ ProcessStatus DEV_LN298::ExecuteCommand()
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK|%d|%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus = MOTOR_DIS) ? "DIS" : "ENA");
+        sprintf(DataPacket.value, "%d,%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus = MOTOR_DIS) ? "DIS" : "ENA");
         retVal = SUCCESS_DATA;
     }
 
@@ -167,7 +167,7 @@ ProcessStatus DEV_LN298::ExecuteCommand()
  ProcessStatus DEV_LN298::DoPeriodic()
  {
         DataPacket.timestamp = millis();
-        sprintf(DataPacket.value, "L298|%d|%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
+        sprintf(DataPacket.value, "%d,%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
         return (SUCCESS_DATA);
  }
 

@@ -169,7 +169,7 @@ void DEV_INA3221::getDataReading(int idx, float *dta, unsigned long int *timeSta
 
 // - - - - - - - - - - - - - - - - - - - - -
 // @brief This is run as a separate task (It is Static!)
-//   this is where we get the voltage and current
+//   this is where we get the voltage and current   
 // readings from the INA3221.
 // - - - - - - - - - - - - - - - - - - - - -
 void DEV_INA3221::readDataTask(void *arg)

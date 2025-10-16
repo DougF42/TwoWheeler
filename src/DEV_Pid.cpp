@@ -66,7 +66,7 @@ ProcessStatus DEV_Pid::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     DataPacket.timestamp = millis();    
-    sprintf(DataPacket.value, "PID|%lf|%lf|%lf", setPoint, actual, output);
+    sprintf(DataPacket.value, "PID,%lf,%lf,%lf", setPoint, actual, output);
     retVal = SUCCESS_DATA;
 
     return (retVal);
@@ -99,7 +99,7 @@ ProcessStatus DEV_Pid::ExecuteCommand()
         retVal = cmdSetSpeed();
 
     } else if (isCommand("SETP"))
-    {   // Set p parameter        
+    {   // Set parameter        
         retVal = cmdSetP();
 
     } else if (isCommand("SETI"))
@@ -123,7 +123,7 @@ ProcessStatus DEV_Pid::ExecuteCommand()
 
     else 
     {
-        sprintf(DataPacket.value, "EROR|PID|Unknown command");
+        sprintf(DataPacket.value, "EROR,PID-Unknown command");
         retVal = FAIL_DATA;
     }
 
@@ -147,13 +147,13 @@ ProcessStatus DEV_Pid::cmdSetSpeed()
         retVal=getDouble(0, &setPoint, "Speed ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERR|Wrong number of arguments in SPED command");
+        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SPED command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK|%ld", setPoint);
+        sprintf(DataPacket.value, "OK,%ld", setPoint);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -182,14 +182,14 @@ ProcessStatus DEV_Pid::cmdSetP()
         retVal=getDouble(0, &kp, "Kp ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERR|Wrong number of arguments in SETP command");
+        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SETP command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
         if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(DataPacket.value, "OK|%ld", kp);
+        sprintf(DataPacket.value, "OK,%ld", kp);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -210,14 +210,14 @@ ProcessStatus DEV_Pid::cmdSetI()
         retVal=getDouble(0, &ki, "Ki ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERR|Wrong number of arguments in SETI command");
+        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SETI command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
         if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(DataPacket.value, "OK|%ld", ki);
+        sprintf(DataPacket.value, "OK,%ld", ki);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -238,7 +238,7 @@ ProcessStatus DEV_Pid::cmdSetD()
         retVal=getDouble(0, &kd, "Kd ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERR|Wrong number of arguments in SETD command");
+        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SETD command");
         retVal=FAIL_DATA;
     }
 
@@ -274,7 +274,7 @@ ProcessStatus DEV_Pid::cmdSetMode()
     else if (argCount != 0)
     {
         // Error - wrong arg count
-        sprintf(DataPacket.value,"EROR| Wrong number of arguments");
+        sprintf(DataPacket.value,"EROR,Wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
@@ -284,7 +284,7 @@ ProcessStatus DEV_Pid::cmdSetMode()
         {
             pid->SetMode(val) ;
         }
-        sprintf(DataPacket.value, "SMOD|%s",  (pid->GetMode()==AUTOMATIC) ? "Automatic": "Manual" );
+        sprintf(DataPacket.value, "SMOD,%s",  (pid->GetMode()==AUTOMATIC) ? "Automatic": "Manual" );
         retVal=SUCCESS_DATA;
     }
 
@@ -320,7 +320,7 @@ ProcessStatus DEV_Pid::cmdSetSTime()
     } else if (argCount != 0) 
     {
         // Error - wrong arg count
-        sprintf(DataPacket.value,"ERRO| wrong number of arguments");
+        sprintf(DataPacket.value,"EROR,wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
@@ -331,7 +331,7 @@ ProcessStatus DEV_Pid::cmdSetSTime()
             setSampleClock(mySampleTime);
             mySampleTime=stime;
         }
-        sprintf(DataPacket.value,"STIM|%s",  (pid->GetMode() ? "Enabled": "Disabled" ));
+        sprintf(DataPacket.value,"STIM|%d",mySampleTime);
         retVal=SUCCESS_DATA;
     }
 
