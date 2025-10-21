@@ -124,14 +124,38 @@ ProcessStatus  DEV_Driver::ExecuteCommand ()
     } else if (strncmp(cmdPtr, "DRFT", 4) == 0)
     {
         status = cmdDrift(argCount, arglist);
+    }  else if ( isCommand("TANK") == 0)
+    {
+        status = cmdTANK(argCount, arglist);
     } else {
         sprintf(DataPacket.value, "EROR|Driver|Unknown command");
         status = FAIL_DATA;
-    }
+    } 
     // Serial.print("STATUS:  "); Serial.println(status);
     return(status);
 }
 
+/**
+ * set the speed of both wheels in a tank-like fashion.
+ * 
+ * Format:   TANK|<left-speed>|<right-speed>
+ */
+ProcessStatus DEV_Driver::cmdTANK(int argc, char **argv)
+{
+    uint8_t leftSpd, rightSpd = 0;
+    ProcessStatus status = SUCCESS_NODATA;
+    if (!getUInt8(1, &leftSpd, "Left "))
+        return (FAIL_DATA);
+
+    if (!getUInt8(2, &rightSpd, "Right "))
+        return (FAIL_DATA);
+
+    // TODO: SET THE LEFT AND RIGHT SPEED
+
+    leftMtr->setSpeed(leftSpd);
+    rightMtr->setSpeed(rightSpd);
+    return (SUCCESS_NODATA);
+}
 
 /**
  * @brief Internal - Set the speed for the two motors.

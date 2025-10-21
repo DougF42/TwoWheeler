@@ -20,7 +20,7 @@
 #pragma once
 
 #include "DEV_MotorControl.h"
-// #include "PID_v1.h"
+#include "DEV_Pid.h"
 #include "DEV_Pid.h"
 #include "DefDevice.h"
 
@@ -42,7 +42,7 @@ private:
     ProcessStatus cmdSPEED(int argcnt, char *argv[]); // Set speed (used by joystick)
     ProcessStatus cmdROTATION(int argcnt, char *argv[]);  // Set rotation rate (used by joystick)
     ProcessStatus cmdDrift(int argcnt, char *argv[]);   // disable drivers
-
+    ProcessStatus cmdTANK(int argcnt, char *argv[]);   // move like a tank
 
 public:
     DEV_Driver(const char * name, Node *_Node);

@@ -36,6 +36,7 @@ DEV_Pid::DEV_Pid( const char *_name, MotorControl_config_t *cfg,
     pid->SetMode(AUTOMATIC); // MANUAL ????
     periodicEnabled=false;
 
+
     esp_timer_create_args_t timer_cfg {
         .callback=timer_callback,        //!< Callback function to execute when timer expires
         .arg=this,                       //!< Argument to pass to callback
@@ -66,7 +67,7 @@ ProcessStatus DEV_Pid::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     DataPacket.timestamp = millis();    
-    sprintf(DataPacket.value, "PID,%lf,%lf,%lf", setPoint, actual, output);
+    sprintf(DataPacket.value, "%lf,%lf,%lf", setPoint, actual, output);
     retVal = SUCCESS_DATA;
 
     return (retVal);
@@ -132,7 +133,8 @@ ProcessStatus DEV_Pid::ExecuteCommand()
 
 
 /**
- * @brief: Set the desired speed
+ * @brief: Set the desired speed.
+ *
  *    FORMAT:  SPED|<speed>
  *        <speed in cm/sec ???>
  *    Note: This works wether we are
@@ -161,10 +163,18 @@ ProcessStatus DEV_Pid::cmdSetSpeed()
 
 /**
  * @brief set the desired motor speed
+ * IF we are in 'manual' mode, this sets
+ * both the ln298 speed AND the pidx input.
+ * Otherwise, only set the 
+ * 
  */
 void DEV_Pid::setSpeed(double speed)
 {
-    setPoint = speed;
+    if ( pid->GetMode() == MANUAL)
+    { // manual mode - tell ln298 directly
+        ln298->setPulseWidth(speed);
+    }
+    setPoint = speed; // tell the PIDX
     return;
 }
 
@@ -361,7 +371,12 @@ void DEV_Pid::setSampleClock(time_t intervalMs)
 
 /**
  * @brief Run the PID Comput function
- *    This is a callback from the high-priority timer task
+ *    This is a callback from the high-priority timer task, which
+ *  triggers the compute step of the PID controler.
+ * 
+ *    This is responsible for
+ *        (1) Setting the 'actual' speed before calling the PID controller
+ *        (2) Controling the ln298 (from the PID output).
  *    (NOTE: nothing done if ln298 is disabled, or pid is manual)
  * @param arg pointer to 'this' instance of DEV_Pid
  */
@@ -370,11 +385,10 @@ void DEV_Pid::timer_callback(void *arg)
     DEV_Pid *me = (DEV_Pid *)arg;
     if (me->ln298->isDisabled() || (me->pid->GetMode()==MANUAL)) return;
 
-    // The setpoint was previously set by calling 'setSpeed()'
     // Get the 'actual' speed value from the QUAD.
     me->actual = me->quad->getSpeed(); // get actual speed
     
-    // RUN COMPUTE, set the new output
+    // RUN COMPUTE
     if (me->pid->ComputeFromTimer())
     {
         // Now share the 'output' value...

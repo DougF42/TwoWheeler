@@ -46,7 +46,6 @@ class DEV_LN298 : public DefDevice
         ProcessStatus  setPulseWidthCommand();
         bool setPulseWidth(int pcnt); // Set the pulse width (0..100)
         int getPulseWidth();       // What pulse width was last set?
-        void setReportStatus(bool enaFlag);
         ProcessStatus enable(bool isRemoteCmd=false);
         ProcessStatus disable(bool isRemoteCmd=false);
         ProcessStatus hardStop(bool isRemoteCmd=false);

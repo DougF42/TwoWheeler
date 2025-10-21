@@ -1,14 +1,15 @@
 /**********************************************************************************************
- * This is derived directly from the following Arduino library: 
+ * This is derived directly from the
  *   Arduino PID Library - Version 1.2.1
  *     by Brett Beauregard <br3ttb@gmail.com> brettbeauregard.com
  *
- *     This Library is licensed under the MIT License
+ *     That Library was licensed under the MIT License
  * 
- * This library is Copyright (@)Doug Fajardo 7/2025
+ * This library is Copyright (@)Doug Fajardo Jully/2025
  * Changes from Arduino PID library:
  * (1) Change name from PID to PIDX.
- * (2) 
+ * (2) ComputeFromTimer - use as callback when a timer device expires 
+ *                        instead of calling Compute frequently
  **********************************************************************************************/
 
 #if ARDUINO >= 100
@@ -31,7 +32,7 @@ PIDX::PIDX(double* Input, double* Output, double* Setpoint,
     mySetpoint = Setpoint;
     inAuto = false;
 
-    PIDX::SetOutputLimits(0, 255);				//default output limit corresponds to
+    PIDX::SetOutputLimits(0, 255);	//default output limit corresponds to
 												//the arduino pwm limits
 
     SampleTime = 100;							//default Controller Sample Time is 0.1 seconds
@@ -74,11 +75,14 @@ bool PIDX::Compute()
 }
 
 /* ComputeFromTimer()**************************************************************
-*     Call from a timer once every  SampleTime milliseconds
+*     Call from a timer once every  SampleTime milliseconds.
+* This does not check that the interval is a specific time, it assumes the timer
+* took care of that!
 * @return  true if an update occured, false if not (not in 'auto' mode)
 **********************************************************************************/
 bool PIDX::ComputeFromTimer()
 {
+   if (!inAuto) return(false);
    ComputeCore();
    return(true);
 }
