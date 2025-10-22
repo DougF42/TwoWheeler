@@ -94,44 +94,6 @@ ProcessStatus DEV_MotorControl::ExecuteCommand()
     return (retVal);
 }
 
-/**
- * @brief Set the overall ground speed of the robot
- */
- ProcessStatus DEV_MotorControl::cmdSetSpeed(int argCnt, char **argv)
- {
-    // TODO:
-    return(NOT_HANDLED);
- }
-
-
-
-/**
- * @brief loop - call periodically to send status info
- * 
- */
-ProcessStatus DEV_MotorControl::DoPeriodic()
-{
-    static double last_output_val = 0;
-
-    // get current speed (from quad)
-    // TODO: input_val = getSpeed();
-
-#ifdef USE_PID
-    pidctlr->Compute(); // determine change to power setting
-#else
-    // map input directly to ouput
-    output_val = defmap<double>(input_val, -2048, 2048, -100, 100);
-#endif
-
-    if ( ISNOTEQUAL(last_output_val, output_val) )
-    { // IF there was a noticable change, then update the ln298 pulse rate
-        ln298->setPulseWidth(output_val);
-    }
-
-    last_output_val = output_val;
-    return(SUCCESS_NODATA);
-}
-
 
 /**
  * @brief Set the Speed.

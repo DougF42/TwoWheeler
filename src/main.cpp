@@ -39,7 +39,7 @@ DPacket      DataPacket;
 CPacket      CommandPacket;
 char         DataString[MAX_MESSAGE_LENGTH];
 
-Node      *ThisNode;  // The Node for this example
+Node        *ThisNode;  // The Node for this example
 DEV_Driver   *myDriver;
 
 #ifdef USE_INA3221

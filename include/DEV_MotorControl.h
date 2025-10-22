@@ -53,7 +53,7 @@ class DEV_MotorControl: public DefDevice
         void setup( MotorControl_config_t *cfg, const char *prefix);
         ~DEV_MotorControl();
 
-        ProcessStatus  DoPeriodic() override;
+        // ProcessStatus  DoPeriodic() override;
         ProcessStatus  ExecuteCommand() override;
         ProcessStatus cmdSetSpeed(int argCnt, char **argv);
 

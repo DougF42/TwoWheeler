@@ -67,7 +67,7 @@ ProcessStatus DEV_Pid::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_NODATA;
     DataPacket.timestamp = millis();    
-    sprintf(DataPacket.value, "%lf,%lf,%lf", setPoint, actual, output);
+    sprintf(DataPacket.value, "%d,%lf,%lf,%lf",  pid->GetMode(), setPoint, actual, output);
     retVal = SUCCESS_DATA;
 
     return (retVal);

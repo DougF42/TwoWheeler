@@ -216,7 +216,7 @@ void DEV_INA3221::readDataTask(void *arg)
 /**
  * @brief show all the current data values, and the count of samples
  * 
- *  FORMAT:   INAX|<readCount>|volt[0], volt[1], volt[2], current[0], current[1], current[2]
+ *  FORMAT:   <readCount>|volt[0], volt[1], volt[2], current[0], current[1], current[2]
  */
 ProcessStatus DEV_INA3221::DoPeriodic()
 {
@@ -232,7 +232,7 @@ ProcessStatus DEV_INA3221::DoPeriodic()
     timeStamp = dts_msec;
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
-    sprintf(DataPacket.value, "INAX|%llu|%f|%f|%f|%f|%f|%f",tmpCount,
+    sprintf(DataPacket.value, "%llu|%f|%f|%f|%f|%f|%f",tmpCount,
          tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
     DataPacket.timestamp = timeStamp;
     return(SUCCESS_DATA);
