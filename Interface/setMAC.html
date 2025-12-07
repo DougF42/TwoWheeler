@@ -42,7 +42,7 @@
     <div id="smacConsole">
 
       <!-- App Bar with Nav Buttons -->
-      <div id="smacTitleBar" class="themeColors">
+      <div id="smacTitleBar">
 
         <div style="display:inline-block">
 
@@ -65,7 +65,7 @@
         <br>
 
         <!-- No Serial Support -->
-        <div id="noSerial" class="setMACToolBlock" style="color:#C00000">
+        <div id="noSerial" class="setMACToolBlock" style="color:#F00000">
           <br>
           This browser does not support serial communications.<br>
           Please use the Chrome or Edge browser.
@@ -122,7 +122,7 @@
             <button class="dsButton dsSplashButton" onpointerdown="ConnectToNode()"> Connect to Node </button>
           </div>
 
-          <img src="Images/image_ConnectToNode.png" style="margin-left:20px; width:40%; vertical-align:top" /><br>
+          <img src="Images/image_ConnectToNode.png" style="margin-left:2vw; width:40vw; vertical-align:top" /><br>
 
         </div>
 
@@ -150,14 +150,14 @@
 
           <div>
             <button class="dsButton" style="vertical-align:middle" onpointerdown="Reset()">  Keep this setting  </button>
-            <div style="display:inline-block; padding:0 20px; vertical-align:middle">
-              <div class="dsDividerV" style="height:80px"></div><br>
+            <div style="display:inline-block; padding:0 2vw; vertical-align:middle">
+              <div class="dsDividerV" style="width:4px; height:100px"></div><br>
               OR<br>
-              <div class="dsDividerV" style="height:80px"></div><br>
+              <div class="dsDividerV" style="width:4px; height:100px"></div><br>
             </div>
             <div style="display:inline-block; vertical-align:middle">
               Enter New MAC Address:<br>
-              <input id="newMAC" type="text" class="dsInput" style="width:350px; font-family:font_sonoRegular; text-align:center" /><br>
+              <input id="newMAC" type="text" maxlength="17" class="dsInput" style="width:18vw; font-family:font_sonoRegular; text-align:center" /><br>
               <small>(XX:XX:XX:XX:XX:XX)</small><br>
               <br>
 

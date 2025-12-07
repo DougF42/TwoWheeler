@@ -11,7 +11,7 @@
 //               √ smac-panelbutton
 //               √ smac-switch (including E-Stop)
 //               √ smac-dial
-//               √ smac-spinner
+//               ∙ smac-spinner
 //               ∙ smac-slider     https://www.smashingmagazine.com/2021/12/create-custom-range-input-consistent-browsers/
 //               ∙ smac-dualslider
 //               ∙ smac-joystick
@@ -39,6 +39,7 @@
 //               ∙ smac-venndiagram
 //               ∙ smac-bloomfield
 //               ∙ smac-camera
+//               √ smac-dataaction
 //
 //     NOTES : To cast shadows correctly, some of these Widgets require two images - usually a base image and a knob image.
 //
@@ -380,7 +381,7 @@ class SMAC_Dial extends HTMLElement
   //--- Attributes ----------------------------------------
 
   get knobImage    (     ) { return this.KnobImage;     }
-  set knobImage    (value) { this.KbobImage = value;    }
+  set knobImage    (value) { this.KnobImage = value;    }
 
   get angles       (     ) { return this.Angles;        }
   set angles       (value) { this.Angles = value;       }
@@ -388,11 +389,11 @@ class SMAC_Dial extends HTMLElement
   get labels       (     ) { return this.Labels;        }
   set labels       (value) { this.Labels = value;       }
 
-  get changeAction (     ) { return this.ChangeAction;  }
-  set changeAction (value) { this.ChangeAction = value; }
-
   get size         (     ) { return this.Size;          }
   set size         (value) { this.Size = value;         }
+
+  get changeAction (     ) { return this.ChangeAction;  }
+  set changeAction (value) { this.ChangeAction = value; }
 
   get currentIndex (     ) { return this.CurrentIndex;  }
   set currentIndex (value) { this.CurrentIndex = value; }
@@ -412,8 +413,8 @@ class SMAC_Dial extends HTMLElement
 
       // Set optional attributes
       this.Labels       = this.hasAttribute ('labels'      ) ?           this.getAttribute ('labels'      )  : undefined;
+      this.Size         = this.hasAttribute ('size'        ) ? Number   (this.getAttribute ('size'        )) : 5;
       this.ChangeAction = this.hasAttribute ('changeAction') ?           this.getAttribute ('changeAction')  : undefined;
-      this.Size         = this.hasAttribute ('size'        ) ? Number   (this.getAttribute ('size'        )) : 10;
       this.CurrentIndex = this.hasAttribute ('currentIndex') ? parseInt (this.getAttribute ('currentIndex')) : 0;
 
       // Create angle and label arrays
@@ -429,59 +430,70 @@ class SMAC_Dial extends HTMLElement
 
       // Build the dial with a fixed drop shadow direction
       SetAsInlineBlock (this);
+      this.style.overflow = 'hidden';
 
-      // Create a knob layer to hold the dial.
-      // This is necessary to apply a drop shadow in a fixed direction
-      // without the shadow rotating with the dial.
+      // Create a knob layer to hold the dial and labels.
+      // This is necessary to apply a drop shadow in a fixed direction without the shadow rotating with the dial.
       this.knobLayer = document.createElement ('div');
-      this.knobLayer.style = 'display:inline-block; position:relative; margin:0; padding:0; filter:drop-shadow(' + this.Size/30 + 'vw ' + this.Size/30 + 'vw 0.4vh var(--dark)); vertical-align:top';
+      this.knobLayer.classList.add ('dsBlock');
+      this.knobLayer.style = 'overflow:hidden; filter:drop-shadow(' + this.Size/30 + 'vw ' + this.Size/30 + 'vw 0.4vh var(--dark))';
+      this.append (this.knobLayer);
 
       // Create knob image
-      this.imgKnob = document.createElement ('img');
-      this.imgKnob.setAttribute ('draggable', 'false');
-      this.imgKnob.style = 'position:absolute; left:0; top:0; width:' + this.Size + 'vw; cursor:pointer; vertical-align:top; user-drag:none';
-      this.imgKnob.src = this.KnobImage;
-
-      this.imgKnob.onload = () =>
+      this.knobImg = document.createElement ('img');
+      this.knobImg.setAttribute ('draggable', 'false');
+      this.knobImg.onload = () =>
       {
-        // Add knob to knob layer
-        this.knobLayer.append (this.imgKnob);
+        // Add knob image to knob layer
+        this.knobImg.style = 'position:absolute; width:' + this.Size + 'vw; user-drag:none';
+        this.knobLayer.append (this.knobImg);
 
-        // Add knobLayer to this dial
-        this.append (this.knobLayer);
+        // Outer radius for labels
+        const knobWidth  = $(this.knobImg).width();            // The knob image should be square (width = height)
+        const labelSpace = this.Size * GetBrowserWidth()/800;  // Extra space for labels
+        const radius     = knobWidth/2 + labelSpace;
 
-        // Add labels to dial
-        if (this.Labels != undefined)
+        // Set knob position
+        this.knobImg.style.left = (radius - knobWidth/2 + labelSpace  ).toString() + 'px';
+        this.knobImg.style.top  = (radius - knobWidth/2 + labelSpace/2).toString() + 'px';
+
+        // Generate labels for each angle
+        let maxLabelLength = 0;
+        for (let i=0; i<this.numAngles; i++)
         {
-          const centerX = $(this.imgKnob).width () / 2;
-          const centerY = $(this.imgKnob).height() / 2;
-          const radius  = centerY + 3*this.Size;  // Extra space for labels
+          const radAngle = (90.0 - Number(this.angleArray[i])) / 57.3;  // convert angle to radians
+          const x = radius + radius * Math.cos (radAngle);
+          const y = radius - radius * Math.sin (radAngle);
 
-          for (let i=0; i<this.numAngles; i++)
-          {
-            const radAngle = (90 - Number(this.angleArray[i])) / 57.3;  // convert angle to radians
-            const left = centerX + radius * Math.cos (radAngle);
-            const top  = centerY - radius * Math.sin (radAngle);
+          const label = document.createElement ('div');
+          this.append (label);
 
-            const label = document.createElement ('label');
+          label.classList.add ('smac-dialLabel');
+          label.style      = 'font-size:' + this.Size/8 + 'vw';
+          label.innerHTML  = this.Labels != undefined ? this.labelArray[i] : '●';  // Use dot as default label
+          label.tabIndex   = i;  // angle index
 
-            label.style = 'position:absolute; font-family:font_robotoRegular, sans-serif; font-size:' + this.Size/8 + 'em; font-weight:bold; text-shadow:1px 1px 1px var(--light); vertical-align:top';
+          const lw = $(label).width();
+          label.style.left = (x - lw               /2 + labelSpace  ) + 'px';
+          label.style.top  = (y - $(label).height()/2 + labelSpace/2) + 'px';
 
-            label.innerHTML = this.labelArray[i];
+          if (lw > maxLabelLength)
+            maxLabelLength = lw;
 
-            this.append (label);
-
-            label.style.left = (left - $(label).width ()/2) + 'px';
-            label.style.top  = (top  - $(label).height()/2) + 'px';
-          }
+          // Change angle setting when clicked
+          label.addEventListener ('pointerdown', (event) => { StopEvent(event); this.setDial(event); });
         }
 
-        // Set currentIndex angle
-        this.imgKnob.style.rotate = this.angleArray[this.CurrentIndex] + 'deg';
+        // The overall size of the knob layer and this element depend on the size of the labels.
+        this.knobLayer.style.width  = (2*radius + maxLabelLength).toString() + 'px';
+        this.knobLayer.style.height = (2*radius + labelSpace    ).toString() + 'px';
 
-        // Change angle setting when clicked
-        this.addEventListener ('pointerdown', (event) => { StopEvent(event); this.setDial(event); });
+        // Set initial knob angle
+        this.knobImg.style.rotate = this.angleArray[this.CurrentIndex] + 'deg';
       };
+
+      // Load knob image
+      this.knobImg.src = this.KnobImage;
     }
     catch (ex)
     {
@@ -495,14 +507,11 @@ class SMAC_Dial extends HTMLElement
   {
     try
     {
-      // Advance to next angle
-      if (this.CurrentIndex < this.numAngles - 1)
-        ++this.CurrentIndex;
-      else
-        this.CurrentIndex = 0;
+      // Set new angle
+      this.CurrentIndex = event.target.tabIndex;
 
       // Rotate knob to new position
-      this.imgKnob.style.rotate = this.angleArray[this.CurrentIndex] + 'deg';
+      this.knobImg.style.rotate = this.angleArray[this.CurrentIndex] + 'deg';
 
       // Execute action, if any
       if (this.ChangeAction != undefined)
@@ -536,29 +545,29 @@ class SMAC_Slider extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get width          (     ) { return this.Width;            }
-  set width          (value) { this.Width = value;           }
+  get width          (     ) { return this.Width;           }
+  set width          (value) { this.Width = value;          }
 
-  get height         (     ) { return this.Height;           }
-  set height         (value) { this.Height = value;          }
+  get height         (     ) { return this.Height;          }
+  set height         (value) { this.Height = value;         }
 
-  get knobImage      (     ) { return this.KnobImage;        }
-  set knobImage      (value) { this.KnobImage = value;       }
+  get knobImage      (     ) { return this.KnobImage;       }
+  set knobImage      (value) { this.KnobImage = value;      }
 
-  get minValue       (     ) { return this.MinValue;         }
-  set minValue       (value) { this.MinValue = value;        }
+  get minValue       (     ) { return this.MinValue;        }
+  set minValue       (value) { this.MinValue = value;       }
 
-  get maxValue       (     ) { return this.MaxValue;         }
-  set maxValue       (value) { this.MaxValue = value;        }
+  get maxValue       (     ) { return this.MaxValue;        }
+  set maxValue       (value) { this.MaxValue = value;       }
 
-  get value          (     ) { return this.Value;            }
-  set value          (value) { this.Value = value;           }
+  get value          (     ) { return this.Value;           }
+  set value          (value) { this.Value = value;          }
 
-  get backColor      (     ) { return this.BackColor;        }
-  set backColor      (value) { this.BackColor = value;       }
+  get backColor      (     ) { return this.BackColor;       }
+  set backColor      (value) { this.BackColor = value;      }
 
-  get fillColor      (     ) { return this.FillColor;        }
-  set fillColor      (value) { this.FillColor = value;       }
+  get fillColor      (     ) { return this.FillColor;       }
+  set fillColor      (value) { this.FillColor = value;      }
 
   get scaleColor     (     ) { return this.ScaleColor;      }
   set scaleColor     (value) { this.ScaleColor = value;     }
@@ -566,8 +575,15 @@ class SMAC_Slider extends HTMLElement
   get scalePlacement (     ) { return this.ScalePlacement;  }
   set scalePlacement (value) { this.ScalePlacement = value; }
 
-  get units          (     ) { return this.Units;            }
-  set units          (value) { this.Units = value;           }
+  get units          (     ) { return this.Units;           }
+  set units          (value) { this.Units = value;          }
+
+  get moveAction     (     ) { return this.MoveAction;      }
+  set moveAction     (value) { this.MoveAction = value;     }
+
+  get doneAction     (     ) { return this.DoneAction;      }
+  set doneAction     (value) { this.DoneAction = value;     }
+
 
   //--- connectedCallback ---------------------------------
 
@@ -588,11 +604,13 @@ class SMAC_Slider extends HTMLElement
       this.MinValue       = this.hasAttribute ('minValue'      ) ? Number (this.getAttribute ('minValue'      )) : 0;
       this.MaxValue       = this.hasAttribute ('maxValue'      ) ? Number (this.getAttribute ('maxValue'      )) : 4095;
       this.Value          = this.hasAttribute ('value'         ) ? Number (this.getAttribute ('value'         )) : this.MinValue;
-      this.BackColor      = this.hasAttribute ('backColor'     ) ?         this.getAttribute ('backColor'     )  : '#303030';
-      this.FillColor      = this.hasAttribute ('fillColor'     ) ?         this.getAttribute ('fillColor'     )  : '#A0A0A0';
-      this.ScaleColor     = this.hasAttribute ('scaleColor'    ) ?         this.getAttribute ('scaleColor'    )  : undefined;
-      this.ScalePlacement = this.hasAttribute ('scalePlacement') ?         this.getAttribute ('scalePlacement')  : 'left';
-      this.Units          = this.hasAttribute ('units'         ) ?         this.getAttribute ('units'         )  : '';
+      this.BackColor      = this.hasAttribute ('backColor'     ) ?         this.getAttribute ('backColor'      ) : '#303030';
+      this.FillColor      = this.hasAttribute ('fillColor'     ) ?         this.getAttribute ('fillColor'      ) : '#A0A0A0';
+      this.ScaleColor     = this.hasAttribute ('scaleColor'    ) ?         this.getAttribute ('scaleColor'     ) : undefined;
+      this.ScalePlacement = this.hasAttribute ('scalePlacement') ?         this.getAttribute ('scalePlacement' ) : 'left';
+      this.Units          = this.hasAttribute ('units'         ) ?         this.getAttribute ('units'          ) : '';
+      this.MoveAction     = this.hasAttribute ('moveAction'    ) ?         this.getAttribute ('moveAction'     ) : undefined;
+      this.DoneAction     = this.hasAttribute ('doneAction'    ) ?         this.getAttribute ('doneAction'     ) : undefined;
 
       SetAsInlineBlock (this);
 
@@ -850,9 +868,287 @@ customElements.define ('smac-slider', SMAC_Slider);
 
 
 
+
 //=============================================================================
 //  <smac-joystick> element
 //=============================================================================
+
+class SMAC_Joystick extends HTMLElement
+{
+  //--- Constructor ---------------------------------------
+
+  constructor ()
+  {
+    super ();
+
+    // Rebuild this widget on resize
+    $(document.body).on ('browserResized', () => { this.build (); });
+
+    // Right-click context menu
+    this.addEventListener ('contextmenu', function (event)
+    {
+      StopEvent (event);
+
+      // ...
+    });
+  }
+
+  //--- Attributes ----------------------------------------
+
+  get knobImage    (     ) { return this.KnobImage;     }
+  set knobImage    (value) { this.KnobImage = value;    }
+
+  get backImage    (     ) { return this.BackImage;     }
+  set backImage    (value) { this.BackImage = value;    }
+
+  get size         (     ) { return this.Size;          }
+  set size         (value) { this.Size = value;         }
+
+  get moveAction   (     ) { return this.MoveAction;    }
+  set moveAction   (value) { this.MoveAction = value;   }
+
+  get doneAction   (     ) { return this.DoneAction;    }
+  set doneAction   (value) { this.DoneAction = value;   }
+
+  get snapToCenter (     ) { return this.SnapToCenter;  }
+  set snapToCenter (value) { this.SnapToCenter = value; }
+
+//   get x            (     ) { return this.X;             }
+//   set x            (value) { this.X = value;            }
+//
+//   get y            (     ) { return this.Y;             }
+//   set y            (value) { this.Y = value;            }
+
+  //--- connectedCallback ---------------------------------
+
+  connectedCallback ()
+  {
+    try
+    {
+      // // Create shadow root
+      // this.shadow = this.attachShadow ({mode: 'open'});
+
+      SetAsInlineBlock (this);
+
+      // Set optional attributes
+      this.KnobImage    = this.hasAttribute ('knobImage'   ) ?         this.getAttribute ('knobImage'    ) : 'Images/ui_JoystickKnob1.png';
+      this.BackImage    = this.hasAttribute ('backImage'   ) ?         this.getAttribute ('backImage'    ) : 'Images/ui_JoystickBack1.png';
+      this.Size         = this.hasAttribute ('size'        ) ? Number (this.getAttribute ('size'        )) : 10;
+      this.MoveAction   = this.hasAttribute ('moveAction'  ) ?         this.getAttribute ('moveAction'   ) : undefined;
+      this.DoneAction   = this.hasAttribute ('doneAction'  ) ?         this.getAttribute ('doneAction'   ) : undefined;
+      this.SnapToCenter = this.hasAttribute ('snapToCenter');
+
+      // Build this widget
+      this.build ();
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  //--- build ---------------------------------------------
+
+  build = function ()
+  {
+    try
+    {
+      // Canvas dimensions are percentages of Browser's size
+      const cSize = Math.round (this.Size * GetBrowserWidth () / 100);
+
+      // Create a 2D data visualization canvas (dvCanvas2D)
+      this.smacCanvas = new dvCanvas2D (cSize, cSize, 'transparent');
+
+      // Check if a canvas already exists from a previous build
+      if (this.firstChild == undefined)
+        this.appendChild  (this.smacCanvas.canvas);
+      else
+        this.replaceChild (this.smacCanvas.canvas, this.firstChild);  // Replace existing canvas
+
+      // Initial center position of knob
+      this.Center = cSize / 2;
+
+      // Scale the canvas and draw back and knob images
+      this.smacCanvas.loadImage (this.BackImage, (backImg) =>
+      {
+        // Fit back image to specified width/height
+        const scale = cSize / backImg.naturalWidth;
+        this.smacCanvas.cc.scale (scale, scale);
+        this.smacCanvas.cc.drawImage (backImg, -1, -1);
+
+        // Load knob image
+        this.smacCanvas.loadImage (this.KnobImage, (knobImg) =>
+        {
+
+
+          this.KnobCenter = cSize / 2 - (scale * knobImg.naturalWidth) / 2;
+
+
+
+
+          // this.smacCanvas.drawLoadedImage (this.KnobCenter, this.KnobCenter, knobImg);
+
+
+
+
+
+// this.smacCanvas.drawRectangle (0, 0, cWidth, cHeight, '#F00000');
+
+
+
+
+
+
+
+          // Draw Joystick "Knob" (draggable)
+          this.smacCanvas.drawDraggable (this.KnobCenter, this.KnobCenter, this.KnobImage, this.MoveAction, this.doneAction);
+        });
+
+
+
+
+
+
+
+
+
+
+//       // Set initial size of graph area
+//       this.GraphWidth  = cWidth;
+//       this.GraphHeight = cHeight;
+//
+//       this.OffsetX     = 0;
+//       this.OffsetY     = 0;
+//
+//       // Reduce graph area and adjust offsets for scale, if specified
+//       if (this.ScaleColor != undefined)
+//       {
+//         this.GraphWidth  -= 80;
+//         this.GraphHeight -= 35;
+//
+//              if (this.ScalePlacement == 'leftTop'    ) { this.OffsetX = 60; this.OffsetY = 30; }
+//         else if (this.ScalePlacement == 'leftBottom' ) { this.OffsetX = 60; this.OffsetY =  7; }
+//         else if (this.ScalePlacement == 'rightTop'   ) { this.OffsetX = 20; this.OffsetY = 30; }
+//         else if (this.ScalePlacement == 'rightBottom') { this.OffsetX = 20; this.OffsetY =  7; }
+//       }
+//
+//       // Background gradient
+//       this.BackGrad = this.smacCanvas.cc.createLinearGradient (this.OffsetX, this.OffsetY, this.OffsetX, this.OffsetY+this.GraphHeight);
+//       this.BackGrad.addColorStop (0.0, this.BackColor);
+//       this.BackGrad.addColorStop (1.0, this.smacCanvas.adjustBrightness (this.BackColor, -20));  // darker
+//
+//       // Manually set scale factors if scale and grid not defined
+//       if (this.ScaleColor == undefined && this.gridColor == undefined)
+//       {
+//         // Set scale factors
+//         if (this.XMax <= this.XMin)
+//           this.ScaleFactorX = 1.0;
+//         else
+//           this.ScaleFactorX = this.GraphWidth / (this.XMax - this.XMin);
+//
+//         if (this.YMax <= this.YMin)
+//           this.ScaleFactorY = 1.0;
+//         else
+//           this.ScaleFactorY = this.GraphHeight / (this.YMax - this.YMin);
+//       }
+//       else
+//       {
+//         // x-Axis Scale
+//         if (this.ScalePlacement.endsWith ('Top'))
+//           this.ScaleFactorX = this.smacCanvas.drawLinearScale (this.OffsetX, this.OffsetY                 , this.GraphWidth, this.GraphHeight, ScaleOrientation.HorizTop   , this.XMin, this.XMax, this.XUnit, this.ScaleColor, this.GridColor);  // X-Axis
+//         else
+//           this.ScaleFactorX = this.smacCanvas.drawLinearScale (this.OffsetX, this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.HorizBottom, this.XMin, this.XMax, this.XUnit, this.ScaleColor, this.GridColor);  // X-Axis
+//
+//         // Y-Axis Scale
+//         if (this.ScalePlacement.startsWith ('right'))
+//           this.ScaleFactorY = this.smacCanvas.drawLinearScale (this.OffsetX+this.GraphWidth, this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.VertRight, this.YMin, this.YMax, this.YUnit, this.ScaleColor, this.GridColor);  // Y-Axis
+//         else
+//           this.ScaleFactorY = this.smacCanvas.drawLinearScale (this.OffsetX                , this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.VertLeft , this.YMin, this.YMax, this.YUnit, this.ScaleColor, this.GridColor);  // Y-Axis
+//       }
+//
+//       // Set clipping region
+//       this.smacCanvas.setClipRectangle (this.OffsetX, this.OffsetY, this.GraphWidth, this.GraphHeight);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      });
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+
+
+
+//   //--- updateWidget --------------------------------------
+//
+//   updateWidget = function (value)
+//   {
+//     try
+//     {
+//       // value is a string that has both x and y values separated with a comma
+//       const values = value.split (',');
+//       if (values.length < 2) return;
+//
+//       const xValue = Number (values[0]);
+//       const yValue = Number (values[1]);
+//
+//       // Calculate next graphic position
+//       const cx = this.OffsetX                    + Math.round ((xValue - this.XMin) * this.ScaleFactorX);
+//       const cy = this.OffsetY + this.GraphHeight - Math.round ((yValue - this.YMin) * this.ScaleFactorY);
+//
+//       // Draw Joystick "Handle"
+//
+//       // Draw grid if defined
+//       // No need to redraw scales, so scale color is undefined in the drawLinearScale() method
+//       if (this.gridColor != undefined)
+//       {
+//         // x-Axis Scale
+//         if (this.ScalePlacement.endsWith ('Top'))
+//           this.ScaleFactorX = this.smacCanvas.drawLinearScale (this.OffsetX, this.OffsetY                 , this.GraphWidth, this.GraphHeight, ScaleOrientation.HorizTop   , this.XMin, this.XMax, this.XUnit, undefined, this.GridColor);  // X-Axis
+//         else
+//           this.ScaleFactorX = this.smacCanvas.drawLinearScale (this.OffsetX, this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.HorizBottom, this.XMin, this.XMax, this.XUnit, undefined, this.GridColor);  // X-Axis
+//
+//         // Y-Axis Scale
+//         if (this.ScalePlacement.startsWith ('right'))
+//           this.ScaleFactorY = this.smacCanvas.drawLinearScale (this.OffsetX+this.GraphWidth, this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.VertRight, this.YMin, this.YMax, this.YUnit, undefined, this.GridColor);  // Y-Axis
+//         else
+//           this.ScaleFactorY = this.smacCanvas.drawLinearScale (this.OffsetX                , this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.VertLeft , this.YMin, this.YMax, this.YUnit, undefined, this.GridColor);  // Y-Axis
+//       }
+//
+//       // Draw "orb" indicator
+//       this.smacCanvas.drawLine    (cx   , cy-15, cx   , cy+15, this.ForeColor, 1);
+//       this.smacCanvas.drawLine    (cx-15, cy   , cx+15, cy   , this.ForeColor, 1);
+//       this.smacCanvas.drawEllipse (cx   , cy   , 5    , 5    , this.ForeColor, fill);
+//     }
+//     catch (ex)
+//     {
+//       ShowException (ex);
+//     }
+//   }
+
+
+
+
+};
+
+customElements.define ('smac-joystick', SMAC_Joystick);
 
 
 
@@ -896,14 +1192,20 @@ class SMAC_LED extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device (     ) { return this.Device;               }
-  set device (value) { this.Device = value;              }
+  get device       (     ) { return this.Device;               }
+  set device       (value) { this.Device = value;              }
 
-  get color  (     ) { return this.Color;                }
-  set color  (value) { this.Color = value;               }
+  get valueIndex   (     ) { return this.ValueIndex;           }
+  set valueIndex   (value) { this.ValueIndex = value;          }
 
-  get on     (     ) { return this.On;                   }
-  set on     (value) { this.On = (value ? true : false); }
+  get color        (     ) { return this.Color;                }
+  set color        (value) { this.Color = value;               }
+
+  get on           (     ) { return this.On;                   }
+  set on           (value) { this.On = (value ? true : false); }
+
+  get changeAction (     ) { return this.ChangeAction;         }
+  set changeAction (value) { this.ChangeAction = value;        }
 
   //--- connectedCallback ---------------------------------
 
@@ -916,13 +1218,15 @@ class SMAC_LED extends HTMLElement
         throw '(smac-led): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
       // Set optional attributes
-      this.Color = this.hasAttribute ('color') ? this.getAttribute ('color') : 'green';
+      this.ValueIndex   = this.hasAttribute ('valueIndex'  ) ? this.getAttribute ('valueIndex'  ) : 0;
+      this.Color        = this.hasAttribute ('color'       ) ? this.getAttribute ('color'       ) : 'green';
+      this.ChangeAction = this.hasAttribute ('changeAction') ? this.getAttribute ('changeAction') : undefined;
 
       // Set class for when LED is on (default is green)
       this.onClass = 'smac-ledGreen';
@@ -934,12 +1238,13 @@ class SMAC_LED extends HTMLElement
       else if (this.Color == 'purple') this.onClass = 'smac-ledPurple';
       else if (this.Color == 'white' ) this.onClass = 'smac-ledWhite' ;
 
-      // Initial display
-      this.updateWidget ('0');
+      // Intially off
+      this.On = false;
+      this.classList = 'smac-ledOff';
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -951,7 +1256,7 @@ class SMAC_LED extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (value));
+          window.requestAnimationFrame.bind (self.updateWidget (values, timestamp));
         }
       });
     }
@@ -963,15 +1268,22 @@ class SMAC_LED extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values, timestamp)
   {
     try
     {
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = valueFields[this.ValueIndex];
+
       // value = '0' : off
       // value = '1' : on
 
       // Set state and display color
-      if (value == '1')
+      if (newValue == '1')
       {
         this.On = true;
         this.classList.remove ('smac-ledOff');
@@ -983,6 +1295,10 @@ class SMAC_LED extends HTMLElement
         this.classList.remove (this.onClass);
         this.classList.add ('smac-ledOff');
       }
+
+      // Execute action, if any
+      if (this.ChangeAction != undefined)
+        window[this.ChangeAction]();  // (this.On, timestamp)
     }
     catch (ex)
     {
@@ -1009,14 +1325,20 @@ class SMAC_PanelLight extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device (     ) { return this.Device;               }
-  set device (value) { this.Device = value;              }
+  get device       (     ) { return this.Device;               }
+  set device       (value) { this.Device = value;              }
 
-  get color  (     ) { return this.Color;                }
-  set color  (value) { this.Color = value;               }
+  get valueIndex   (     ) { return this.ValueIndex;           }
+  set valueIndex   (value) { this.ValueIndex = value;          }
 
-  get on     (     ) { return this.On;                   }
-  set on     (value) { this.On = (value ? true : false); }
+  get color        (     ) { return this.Color;                }
+  set color        (value) { this.Color = value;               }
+
+  get on           (     ) { return this.On;                   }
+  set on           (value) { this.On = (value ? true : false); }
+
+  get changeAction (     ) { return this.ChangeAction;         }
+  set changeAction (value) { this.ChangeAction = value;        }
 
   //--- connectedCallback ---------------------------------
 
@@ -1029,13 +1351,15 @@ class SMAC_PanelLight extends HTMLElement
         throw '(smac-panellight): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
       // Set optional attributes
-      this.Color = this.hasAttribute ('color') ? this.getAttribute ('color') : 'green';
+      this.ValueIndex   = this.hasAttribute ('valueIndex'  ) ? this.getAttribute ('valueIndex'  ) : 0;
+      this.Color        = this.hasAttribute ('color'       ) ? this.getAttribute ('color'       ) : 'green';
+      this.ChangeAction = this.hasAttribute ('changeAction') ? this.getAttribute ('changeAction') : undefined;
 
       // Initially off
       this.On = false;
@@ -1051,12 +1375,13 @@ class SMAC_PanelLight extends HTMLElement
       else if (this.Color == 'purple') this.onClass = 'smac-panellightPurple';
       else if (this.Color == 'white' ) this.onClass = 'smac-panellightWhite' ;
 
-      // Initial display
-      this.updateWidget ('0');
+      // Initially off
+      this.On = false;
+      this.classList = 'smac-panellightOff';
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -1068,7 +1393,7 @@ class SMAC_PanelLight extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (value));
+          window.requestAnimationFrame.bind (self.updateWidget (values, timestamp));
         }
       });
     }
@@ -1080,15 +1405,22 @@ class SMAC_PanelLight extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values, timestamp)
   {
     try
     {
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = valueFields[this.ValueIndex];
+
       // value = '0' : off
       // value = '1' : on
 
       // Set state and display color
-      if (value == '1')
+      if (newValue == '1')
       {
         this.On = true;
         this.classList.remove ('smac-panellightOff');
@@ -1100,6 +1432,10 @@ class SMAC_PanelLight extends HTMLElement
         this.classList.remove (this.onClass);
         this.classList.add ('smac-panellightOff');
       }
+
+      // Execute action, if any
+      if (this.ChangeAction != undefined)
+        window[this.ChangeAction](this.On, timestamp);
     }
     catch (ex)
     {
@@ -1126,8 +1462,11 @@ class SMAC_RawValue extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device (     ) { return this.Device;  }
-  set device (value) { this.Device = value; }
+  get device     (     ) { return this.Device;      }
+  set device     (value) { this.Device = value;     }
+
+  get valueIndex (     ) { return this.ValueIndex;  }
+  set valueIndex (value) { this.ValueIndex = value; }
 
   //--- connectedCallback ---------------------------------
 
@@ -1140,21 +1479,22 @@ class SMAC_RawValue extends HTMLElement
         throw '(smac-rawvalue): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
-      // Set alarm ranges if specified
-      this.AlarmLow  = this.hasAttribute ('alarmLow' ) ? Number (this.getAttribute ('alarmLow' )) : undefined;
-      this.AlarmHigh = this.hasAttribute ('alarmHigh') ? Number (this.getAttribute ('alarmHigh')) : undefined;
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      // Set optional attributes
+      this.ValueIndex = this.hasAttribute ('valueIndex') ?         this.getAttribute ('valueIndex') : 0;
+      this.AlarmLow   = this.hasAttribute ('alarmLow'  ) ? Number (this.getAttribute ('alarmLow' )) : undefined;
+      this.AlarmHigh  = this.hasAttribute ('alarmHigh' ) ? Number (this.getAttribute ('alarmHigh')) : undefined;
+      this.OrgBorder  = this.style.border;  // To restore after alarm conditions
 
       this.innerHTML = '-';  // initial value
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -1166,7 +1506,7 @@ class SMAC_RawValue extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (value));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -1178,12 +1518,19 @@ class SMAC_RawValue extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = valueFields[this.ValueIndex];
+
       // Set value
-      this.innerHTML = value;
+      this.innerHTML = newValue;
     }
     catch (ex)
     {
@@ -1219,14 +1566,17 @@ class SMAC_Digital extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device    (     ) { return this.Device;     }
-  set device    (value) { this.Device = value;    }
+  get device     (     ) { return this.Device;      }
+  set device     (value) { this.Device = value;     }
 
-  get alarmLow  (     ) { return this.AlarmLow;   }
-  set alarmLow  (value) { this.AlarmLow = value;  }
+  get valueIndex (     ) { return this.ValueIndex;  }
+  set valueIndex (value) { this.ValueIndex = value; }
 
-  get alarmHigh (     ) { return this.AlarmHigh;  }
-  set alarmHigh (value) { this.AlarmHigh = value; }
+  get alarmLow   (     ) { return this.AlarmLow;    }
+  set alarmLow   (value) { this.AlarmLow = value;   }
+
+  get alarmHigh  (     ) { return this.AlarmHigh;   }
+  set alarmHigh  (value) { this.AlarmHigh = value;  }
 
   //--- connectedCallback ---------------------------------
 
@@ -1239,22 +1589,23 @@ class SMAC_Digital extends HTMLElement
         throw '(smac-digital): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
-      // Set alarm ranges if specified
-      this.AlarmLow  = this.hasAttribute ('alarmLow' ) ? Number (this.getAttribute ('alarmLow' )) : undefined;
-      this.AlarmHigh = this.hasAttribute ('alarmHigh') ? Number (this.getAttribute ('alarmHigh')) : undefined;
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      // Set optional attributes
+      this.ValueIndex = this.hasAttribute ('valueIndex') ?         this.getAttribute ('valueIndex') : 0;
+      this.AlarmLow   = this.hasAttribute ('alarmLow'  ) ? Number (this.getAttribute ('alarmLow' )) : undefined;
+      this.AlarmHigh  = this.hasAttribute ('alarmHigh' ) ? Number (this.getAttribute ('alarmHigh')) : undefined;
+      this.OrgBorder  = this.style.border;  // To restore after alarm conditions
 
       this.classList.add ('smac-digital');
       this.innerHTML = '-';  // initial value
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -1266,7 +1617,7 @@ class SMAC_Digital extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (value));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -1278,16 +1629,23 @@ class SMAC_Digital extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = Number (valueFields[this.ValueIndex]);
+
       // Set value
-      this.innerHTML = value;
+      this.innerHTML = newValue;
 
       // Check alarm ranges
-      if ((this.AlarmLow  != undefined && value <= this.AlarmLow ) ||
-          (this.AlarmHigh != undefined && value >= this.AlarmHigh))
+      if ((this.AlarmLow  != undefined && newValue <= this.AlarmLow ) ||
+          (this.AlarmHigh != undefined && newValue >= this.AlarmHigh))
         this.style.border = '0.5vw solid #FF0000';
       else
         this.style.border = this.OrgBorder;
@@ -1325,17 +1683,20 @@ class SMAC_Display extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device    (     ) { return this.Device;    }
-  set device    (value) { this.Device = value;   }
+  get device     (     ) { return this.Device;      }
+  set device     (value) { this.Device = value;     }
 
-  get width     (     ) { return this.Width;     }
-  set width     (value) { this.Width = value;    }
+  get valueIndex (     ) { return this.ValueIndex;  }
+  set valueIndex (value) { this.ValueIndex = value; }
 
-  get height    (     ) { return this.Height;    }
-  set height    (value) { this.Height = value;   }
+  get width      (     ) { return this.Width;       }
+  set width      (value) { this.Width = value;      }
 
-  get maxLines  (     ) { return this.MaxLines;  }
-  set maxLines  (value) { this.MaxLines = value; }
+  get height     (     ) { return this.Height;      }
+  set height     (value) { this.Height = value;     }
+
+  get maxLines   (     ) { return this.MaxLines;    }
+  set maxLines   (value) { this.MaxLines = value;   }
 
   //--- connectedCallback ---------------------------------
 
@@ -1348,16 +1709,17 @@ class SMAC_Display extends HTMLElement
         throw '(smac-display): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
-      // Set attributes if specified
-      this.Width    = this.hasAttribute ('width'   ) ? Number   (this.getAttribute ('width'   )) : 3;
-      this.Height   = this.hasAttribute ('height'  ) ? Number   (this.getAttribute ('height'  )) : 10;
-      this.MaxLines = this.hasAttribute ('maxLines') ? parseInt (this.getAttribute ('maxLines')) : 100;
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      // Set optional attributes
+      this.ValueIndex = this.hasAttribute ('valueIndex') ?         this.getAttribute ('valueIndex' ) : 0;
+      this.Width      = this.hasAttribute ('width'     ) ? Number (this.getAttribute ('width'     )) : 3;
+      this.Height     = this.hasAttribute ('height'    ) ? Number (this.getAttribute ('height'    )) : 10;
+      this.MaxLines   = this.hasAttribute ('maxLines'  ) ? Number (this.getAttribute ('maxLines'  )) : 100;
+      this.OrgBorder  = this.style.border;  // To restore after alarm conditions
 
       // Display width/height are percentages of browser's size
       // const w = this.Width  * GetBrowserWidth () / 100;
@@ -1372,7 +1734,7 @@ class SMAC_Display extends HTMLElement
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -1384,7 +1746,7 @@ class SMAC_Display extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (value));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -1396,19 +1758,26 @@ class SMAC_Display extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = valueFields[this.ValueIndex];
+
       if (this.numLines < this.MaxLines)
       {
-        this.innerHTML += value + '<br>';  // Add new value line
+        this.innerHTML += newValue + '<br>';  // Add new value line
         this.scroll (0, 100000);           // Auto-scroll to bottom
         ++this.numLines;
       }
       else
       {
-        this.innerHTML = value + '<br>';  // Reset
+        this.innerHTML = newValue + '<br>';  // Reset
         this.numLines  = 1;
       }
     }
@@ -1450,6 +1819,9 @@ class SMAC_Growbar extends HTMLElement
 
   get device         (     ) { return this.Device;          }
   set device         (value) { this.Device = value;         }
+
+  get valueIndex     (     ) { return this.ValueIndex;      }
+  set valueIndex     (value) { this.ValueIndex = value;     }
 
   get width          (     ) { return this.Width;           }
   set width          (value) { this.Width = value;          }
@@ -1498,24 +1870,25 @@ class SMAC_Growbar extends HTMLElement
         throw '(smac-growbar): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
       // Set optional attributes
+      this.ValueIndex     = this.hasAttribute ('valueIndex'    ) ?         this.getAttribute ('valueIndex'     ) : 0;
       this.Width          = this.hasAttribute ('width'         ) ? Number (this.getAttribute ('width'         )) : 3;
       this.Height         = this.hasAttribute ('height'        ) ? Number (this.getAttribute ('height'        )) : 20;
       this.MinValue       = this.hasAttribute ('minValue'      ) ? Number (this.getAttribute ('minValue'      )) : 0;
       this.MaxValue       = this.hasAttribute ('maxValue'      ) ? Number (this.getAttribute ('maxValue'      )) : 4095;
       this.AlarmLow       = this.hasAttribute ('alarmLow'      ) ? Number (this.getAttribute ('alarmLow'      )) : undefined;
       this.AlarmHigh      = this.hasAttribute ('alarmHigh'     ) ? Number (this.getAttribute ('alarmHigh'     )) : undefined;
-      this.BackColor      = this.hasAttribute ('backColor'     ) ?         this.getAttribute ('backColor'     )  : '#303030';
-      this.FillColor      = this.hasAttribute ('fillColor'     ) ?         this.getAttribute ('fillColor'     )  : '#A0A0A0';
-      this.ScaleColor     = this.hasAttribute ('scaleColor'    ) ?         this.getAttribute ('scaleColor'    )  : undefined;
-      this.ScalePlacement = this.hasAttribute ('scalePlacement') ?         this.getAttribute ('scalePlacement')  : 'left';
-      this.Units          = this.hasAttribute ('units'         ) ?         this.getAttribute ('units'         )  : '';
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      this.BackColor      = this.hasAttribute ('backColor'     ) ?         this.getAttribute ('backColor'      ) : '#303030';
+      this.FillColor      = this.hasAttribute ('fillColor'     ) ?         this.getAttribute ('fillColor'      ) : '#A0A0A0';
+      this.ScaleColor     = this.hasAttribute ('scaleColor'    ) ?         this.getAttribute ('scaleColor'     ) : undefined;
+      this.ScalePlacement = this.hasAttribute ('scalePlacement') ?         this.getAttribute ('scalePlacement' ) : 'left';
+      this.Units          = this.hasAttribute ('units'         ) ?         this.getAttribute ('units'          ) : '';
+      this.OrgBorder      = this.style.border;  // To restore after alarm conditions
 
       // Default orientation is vertical with scale on left side
       this.Horizontal = false;
@@ -1534,7 +1907,7 @@ class SMAC_Growbar extends HTMLElement
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -1546,7 +1919,7 @@ class SMAC_Growbar extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (Number(value)));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -1662,11 +2035,18 @@ class SMAC_Growbar extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
-      let level = Math.round ((value - this.MinValue) * this.ScaleFactor);
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = Number (valueFields[this.ValueIndex]);
+
+      let level = Math.round ((newValue - this.MinValue) * this.ScaleFactor);
       if (level < 0) level = 0;
 
       this.smacCanvas.drawRectangle (this.OffsetX, this.OffsetY, this.BarWidth, this.BarHeight, this.BackGrad, fill);
@@ -1677,8 +2057,8 @@ class SMAC_Growbar extends HTMLElement
         this.smacCanvas.drawRectangle (this.OffsetX, this.OffsetY + this.BarHeight - level, this.BarWidth, level, this.FillGrad, fill);
 
       // Check alarm ranges
-      if ((this.AlarmLow  != undefined && value <= this.AlarmLow ) ||
-          (this.AlarmHigh != undefined && value >= this.AlarmHigh))
+      if ((this.AlarmLow  != undefined && newValue <= this.AlarmLow ) ||
+          (this.AlarmHigh != undefined && newValue >= this.AlarmHigh))
         this.style.border = '0.5vw solid #FF0000';
       else
         this.style.border = this.OrgBorder;
@@ -1721,6 +2101,9 @@ class SMAC_Gauge extends HTMLElement
 
   get device      (     ) { return this.Device;       }
   set device      (value) { this.Device = value;      }
+
+  get valueIndex  (     ) { return this.ValueIndex;   }
+  set valueIndex  (value) { this.ValueIndex = value;  }
 
   get diameter    (     ) { return this.Diameter;     }
   set diameter    (value) { this.Diameter = value;    }
@@ -1769,12 +2152,13 @@ class SMAC_Gauge extends HTMLElement
         throw '(smac-gauge): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
       // Set optional attributes
+      this.ValueIndex  = this.hasAttribute ('valueIndex' ) ?         this.getAttribute ('valueIndex' ) : 0;
       this.Diameter    = this.hasAttribute ('diameter'   ) ? Number (this.getAttribute ('diameter'  )) : 30;
       this.StartAngle  = this.hasAttribute ('startAngle' ) ? Number (this.getAttribute ('startAngle')) : -150;
       this.StopAngle   = this.hasAttribute ('stopAngle'  ) ? Number (this.getAttribute ('stopAngle' )) : 150;
@@ -1785,16 +2169,16 @@ class SMAC_Gauge extends HTMLElement
       this.BackColor   = this.hasAttribute ('backColor'  ) ?         this.getAttribute ('backColor'  ) : '#303030';
       this.NeedleColor = this.hasAttribute ('needleColor') ?         this.getAttribute ('needleColor') : '#C0C0C0';
       this.ScaleColor  = this.hasAttribute ('scaleColor' ) ?         this.getAttribute ('scaleColor' ) : undefined;
-      this.Units       = this.hasAttribute ('units'      ) ?         this.getAttribute ('units'     )  : undefined;
+      this.Units       = this.hasAttribute ('units'      ) ?         this.getAttribute ('units'      ) : undefined;
       this.Fill        = this.hasAttribute ('fill'       );
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      this.OrgBorder   = this.style.border;  // To restore after alarm conditions
 
       // Build this widget
       this.build ();
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -1806,7 +2190,7 @@ class SMAC_Gauge extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (Number(value)));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -1898,14 +2282,19 @@ class SMAC_Gauge extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
-      // Clamp to min/max values
-      value = Clamp (value, this.MinValue, this.MaxValue);
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
 
-      const valueAngle = (value - this.MinValue) * this.ScaleFactor + this.StartAngle;
+      // Clamp to min/max values
+      const newValue = Clamp (Number (valueFields[this.ValueIndex]), this.MinValue, this.MaxValue);
+
+      const valueAngle = (newValue - this.MinValue) * this.ScaleFactor + this.StartAngle;
 
       // Clear gauge
       this.smacCanvas.drawPie (this.CenterX, this.CenterY, this.Radius, this.BackGrad, this.StartAngle, this.StopAngle);
@@ -1929,8 +2318,8 @@ class SMAC_Gauge extends HTMLElement
       this.smacCanvas.drawPie (this.CenterX, this.CenterY, this.PivotRadius, this.PivotGrad, 0, 360);
 
       // Check alarm ranges
-      if ((this.AlarmLow  != undefined && value <= this.AlarmLow ) ||
-          (this.AlarmHigh != undefined && value >= this.AlarmHigh))
+      if ((this.AlarmLow  != undefined && newValue <= this.AlarmLow ) ||
+          (this.AlarmHigh != undefined && newValue >= this.AlarmHigh))
         this.style.border = '0.5vw solid #FF0000';
       else
         this.style.border = this.OrgBorder;
@@ -1971,14 +2360,17 @@ class SMAC_Compass extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device    (     ) { return this.Device;     }
-  set device    (value) { this.Device = value;    }
+  get device     (     ) { return this.Device;      }
+  set device     (value) { this.Device = value;     }
 
-  get diameter  (     ) { return this.Diameter;   }
-  set diameter  (value) { this.Diameter = value;  }
+  get valueIndex (     ) { return this.ValueIndex;  }
+  set valueIndex (value) { this.ValueIndex = value; }
 
-  get faceColor (     ) { return this.FaceColor;  }
-  set faceColor (value) { this.FaceColor = value; }
+  get diameter   (     ) { return this.Diameter;    }
+  set diameter   (value) { this.Diameter = value;   }
+
+  get faceColor  (     ) { return this.FaceColor;   }
+  set faceColor  (value) { this.FaceColor = value;  }
 
   //--- connectedCallback ---------------------------------
 
@@ -1994,22 +2386,23 @@ class SMAC_Compass extends HTMLElement
         throw '(smac-compass): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
       // Set optional attributes
-      this.Diameter  = this.hasAttribute ('diameter' ) ? Number (this.getAttribute ('diameter' )) : 30;
-      this.FaceColor = this.hasAttribute ('faceColor') ?         this.getAttribute ('faceColor' ) : '#202030';
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      this.ValueIndex = this.hasAttribute ('valueIndex') ?         this.getAttribute ('valueIndex') : 0;
+      this.Diameter   = this.hasAttribute ('diameter'  ) ? Number (this.getAttribute ('diameter' )) : 30;
+      this.FaceColor  = this.hasAttribute ('faceColor' ) ?         this.getAttribute ('faceColor' ) : '#202030';
+      this.OrgBorder  = this.style.border;  // To restore after alarm conditions
 
       // Build this widget
       this.build ();
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -2021,7 +2414,7 @@ class SMAC_Compass extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (Number(value)));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -2094,15 +2487,15 @@ class SMAC_Compass extends HTMLElement
       this.smacCanvas.drawCircularScale (this.Center, this.Center, this.NeedleRadius, 0, 360, 0, 360, '°', '#F0F0F0');
 
       // N, E, S, W
-      const fontSize   = Math.floor (cSize / 18);
-      const font       = fontSize.toString() + 'px font_beamweaponCondensed';
+      const fontSize = Math.floor (cSize / 18);
+      const font     = fontSize.toString() + 'px font_beamweaponCondensed';
       this.smacCanvas.drawText (this.Center-fontSize*0.3        , this.Center-innerRadius+1       , 'n', '#FFFF00', font);
       this.smacCanvas.drawText (this.Center-fontSize*0.3        , this.Center+innerRadius-fontSize, 's', '#FFFF00', font);
       this.smacCanvas.drawText (this.Center-innerRadius+1       , this.Center-fontSize*0.5        , 'w', '#FFFF00', font);
       this.smacCanvas.drawText (this.Center+innerRadius-fontSize, this.Center-fontSize*0.5        , 'e', '#FFFF00', font);
 
       // First draw
-      this.updateWidget (0, 255);
+      this.updateWidget ('0');
     }
     catch (ex)
     {
@@ -2112,18 +2505,23 @@ class SMAC_Compass extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
       // Clamp to min/max values
-      value = Clamp (value, 0, 359.999);
+      const newValue = Clamp (Number (valueFields[this.ValueIndex]), 0, 359.999);
 
       // Clear compass
       this.smacCanvas.drawEllipse (this.Center, this.Center, this.NeedleRadius-1, this.NeedleRadius-1, this.FaceGrad, fill);
 
       // Draw Needle
-      let needleAngle = (90 - value) * deg2rad;
+      let needleAngle = (90 - newValue) * deg2rad;
       let needleX     = this.NeedleRadius     * Math.cos (needleAngle);
       let needleY     = this.NeedleRadius     * Math.sin (needleAngle);
       let pivotX      = this.PivotRadius*0.75 * Math.cos (needleAngle + piOver2);
@@ -2193,6 +2591,12 @@ class SMAC_TimeGraph extends HTMLElement
   get devices        (     ) { return this.Devices;         }
   set devices        (value) { this.Devices = value;        }
 
+  get width          (     ) { return this.Width;           }
+  set width          (value) { this.Width = value;          }
+
+  get height         (     ) { return this.Height;          }
+  set height         (value) { this.Height = value;         }
+
   get minValue       (     ) { return this.MinValue;        }
   set minValue       (value) { this.MinValue = value;       }
 
@@ -2210,12 +2614,6 @@ class SMAC_TimeGraph extends HTMLElement
 
   get timeSpan       (     ) { return this.TimeSpan;        }
   set timeSpan       (value) { this.TimeSpan = value;       }
-
-  get width          (     ) { return this.Width;           }
-  set width          (value) { this.Width = value;          }
-
-  get height         (     ) { return this.Height;          }
-  set height         (value) { this.Height = value;         }
 
   get backColor      (     ) { return this.BackColor;       }
   set backColor      (value) { this.BackColor = value;      }
@@ -2244,52 +2642,58 @@ class SMAC_TimeGraph extends HTMLElement
 
       // Build multi-device arrays
       const deviceArray = this.getAttribute ('devices').replaceAll (' ', '').split ('|');
-      // deviceArray[0] = 'nodeID,deviceID,plotColor'
-      // deviceArray[1] = 'nodeID,deviceID,plotColor'
+      // deviceArray[0] = 'nodeID,deviceID,valueIndex,plotColor'
+      // deviceArray[1] = 'nodeID,deviceID,valueIndex,plotColor'
       //  :
 
-      this.NodeID    = [];
-      this.DeviceID  = [];
-      this.PlotColor = [];
+      this.NodeID     = [];
+      this.DeviceID   = [];
+      this.ValueIndex = [];
+      this.PlotColor  = [];
 
       let deviceInfo;
       const self = this;
       deviceArray.forEach ((item) =>
       {
         deviceInfo = item.split (',');
-        self.NodeID   .push (parseInt (deviceInfo[0]));
-        self.DeviceID .push (parseInt (deviceInfo[1]));
-        self.PlotColor.push (          deviceInfo[2]);
+        self.NodeID    .push (Number (deviceInfo[0]));
+        self.DeviceID  .push (Number (deviceInfo[1]));
+        self.ValueIndex.push (Number (deviceInfo[2]));
+        self.PlotColor .push (        deviceInfo[3] );
       });
 
       SetAsInlineBlock (this);
 
       // Set optional attributes
+      this.Width          = this.hasAttribute ('width'         ) ? Number (this.getAttribute ('width'        )) : 32;
+      this.Height         = this.hasAttribute ('height'        ) ? Number (this.getAttribute ('height'       )) : 18;
       this.MinValue       = this.hasAttribute ('minValue'      ) ? Number (this.getAttribute ('minValue'     )) : 0;
       this.MaxValue       = this.hasAttribute ('maxValue'      ) ? Number (this.getAttribute ('maxValue'     )) : 4095;
       this.AlarmLow       = this.hasAttribute ('alarmLow'      ) ? Number (this.getAttribute ('alarmLow'     )) : undefined;
       this.AlarmHigh      = this.hasAttribute ('alarmHigh'     ) ? Number (this.getAttribute ('alarmHigh'    )) : undefined;
-      this.TimeUnit       = this.hasAttribute ('timeUnit'      ) ?         this.getAttribute ('timeUnit'     )  : 'sec';
+      this.TimeUnit       = this.hasAttribute ('timeUnit'      ) ?         this.getAttribute ('timeUnit'      ) : 'sec';
       this.TimeSpan       = this.hasAttribute ('timeSpan'      ) ? Number (this.getAttribute ('timeSpan'     )) : 60;
-      this.Width          = this.hasAttribute ('width'         ) ? Number (this.getAttribute ('width'        )) : 32;
-      this.Height         = this.hasAttribute ('height'        ) ? Number (this.getAttribute ('height'       )) : 18;
       this.BackColor      = this.hasAttribute ('backColor'     ) ?         this.getAttribute ('backColor'     ) : '#303030';
       this.GridColor      = this.hasAttribute ('gridColor'     ) ?         this.getAttribute ('gridColor'     ) : undefined;
       this.ScaleColor     = this.hasAttribute ('scaleColor'    ) ?         this.getAttribute ('scaleColor'    ) : undefined;
       this.ScalePlacement = this.hasAttribute ('scalePlacement') ?         this.getAttribute ('scalePlacement') : 'leftBottom';
-      this.OrgBorder = this.style.border;  // To restore after alarm conditions
+      this.OrgBorder      = this.style.border;  // To restore after alarm conditions
 
       // Build this widget
       this.build ();
 
       //--- React to device data ---
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // This is a multi-device display
         // Match this UI widget to any of its devices
-        for (let i=0; i<self.NodeID.length; i++)
+        const valueFields     = values.split (',');
+        const timestampNumber = Number (timestamp);
+
+        let newValue;
+        for (let plotIndex=0; plotIndex<self.NodeID.length; plotIndex++)
         {
-          if (nodeID == self.NodeID[i] && deviceID == self.DeviceID[i])
+          if (nodeID == self.NodeID[plotIndex] && deviceID == self.DeviceID[plotIndex])
           {
             // // Show current sampling rate on hover
             // if (!self.hasAttribute ('title'))
@@ -2298,8 +2702,9 @@ class SMAC_TimeGraph extends HTMLElement
             //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
             // Update this widget
-            window.requestAnimationFrame.bind (self.updateWidget (i, Number(timestamp), Number(value)));
-            break;
+            // Get new value from values array
+            newValue = Number (valueFields[self.ValueIndex[plotIndex]]);
+            window.requestAnimationFrame.bind (self.updateWidget (plotIndex, newValue, timestampNumber));
           }
         }
       });
@@ -2368,11 +2773,11 @@ class SMAC_TimeGraph extends HTMLElement
       this.StartStamp = [];
       this.PrevX      = [];
       this.PrevY      = [];
-      for (let i=0; i<this.NodeID.length; i++)
+      for (let plotIndex=0; plotIndex<this.NodeID.length; plotIndex++)
       {
-        this.StartStamp[i] = -1;
-        this.PrevX     [i] = 0;
-        this.PrevY     [i] = 0;
+        this.StartStamp[plotIndex] = -1;
+        this.PrevX     [plotIndex] = 0;
+        this.PrevY     [plotIndex] = 0;
       }
 
       // Background gradient
@@ -2381,7 +2786,7 @@ class SMAC_TimeGraph extends HTMLElement
       this.BackGrad.addColorStop (1.0, this.smacCanvas.adjustBrightness (this.BackColor, -20));  // darker
 
       // Initial drawing
-      this.updateWidget (0, 0, 0);
+      this.updateWidget (0, '0', 0);
 
       // Draw X-Y Scales
       if (this.ScaleColor != undefined)
@@ -2410,7 +2815,7 @@ class SMAC_TimeGraph extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (i, timestamp, value)
+  updateWidget = function (plotIndex, newValue, timestamp)
   {
     try
     {
@@ -2419,11 +2824,11 @@ class SMAC_TimeGraph extends HTMLElement
       let cy = 0;
 
       // Check flag to refresh grid
-      if (this.StartStamp[i] < 0)
+      if (this.StartStamp[plotIndex] < 0)
         refreshGrid = true;
       else
       {
-        cx = Math.round ((timestamp - this.StartStamp[i]) / this.TimeFactor * this.ScaleFactorX);
+        cx = Math.round ((timestamp - this.StartStamp[plotIndex]) / this.TimeFactor * this.ScaleFactorX);
 
         // Check if past end of graph
         if (cx > this.GraphWidth)
@@ -2431,13 +2836,13 @@ class SMAC_TimeGraph extends HTMLElement
       }
 
       // Calculate next graphic y value
-      cy = this.GraphHeight - Math.round ((value - this.MinValue) * this.ScaleFactorY);
+      cy = this.GraphHeight - Math.round ((newValue - this.MinValue) * this.ScaleFactorY);
       // if (cy < 0) cy = 0;
 
       // Does grid need refreshing?
       if (refreshGrid)
       {
-        this.StartStamp[i] = timestamp;
+        this.StartStamp[plotIndex] = timestamp;
         this.smacCanvas.drawRectangle (this.OffsetX, this.OffsetY, this.GraphWidth, this.GraphHeight, this.BackGrad, fill);
 
         // Do not redraw scales
@@ -2457,20 +2862,20 @@ class SMAC_TimeGraph extends HTMLElement
             this.smacCanvas.drawLinearScale (this.OffsetX                , this.OffsetY+this.GraphHeight, this.GraphWidth, this.GraphHeight, ScaleOrientation.VertLeft , this.MinValue, this.MaxValue, '', undefined, this.GridColor);  // Y-Axis
         }
 
-        this.PrevX[i] = 0;
-        this.PrevY[i] = cy;
+        this.PrevX[plotIndex] = 0;
+        this.PrevY[plotIndex] = cy;
       }
       else
       {
-        this.smacCanvas.drawLine (this.PrevX[i]+this.OffsetX, this.PrevY[i]+this.OffsetY, cx+this.OffsetX, cy+this.OffsetY, this.PlotColor[i], 2);
+        this.smacCanvas.drawLine (this.PrevX[plotIndex]+this.OffsetX, this.PrevY[plotIndex]+this.OffsetY, cx+this.OffsetX, cy+this.OffsetY, this.PlotColor[plotIndex], 2);
 
-        this.PrevX[i] = cx;
-        this.PrevY[i] = cy;
+        this.PrevX[plotIndex] = cx;
+        this.PrevY[plotIndex] = cy;
       }
 
       // Check alarm ranges
-      if ((this.AlarmLow  != undefined && value <= this.AlarmLow ) ||
-          (this.AlarmHigh != undefined && value >= this.AlarmHigh))
+      if ((this.AlarmLow  != undefined && newValue <= this.AlarmLow ) ||
+          (this.AlarmHigh != undefined && newValue >= this.AlarmHigh))
         this.style.border = '0.5vw solid #FF0000';
       else
         this.style.border = this.OrgBorder;
@@ -2567,8 +2972,8 @@ class SMAC_XYGraph extends HTMLElement
         throw '(smac-xygraph): Missing device attribute';
 
       const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       SetAsInlineBlock (this);
 
@@ -2597,7 +3002,7 @@ class SMAC_XYGraph extends HTMLElement
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Match this UI widget to its Node and device
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -2609,7 +3014,7 @@ class SMAC_XYGraph extends HTMLElement
           //       self.setAttribute ('title', 'Current rate: ' + Nodes[nodeID].devices[deviceID].rate.toString() + ' s/hour');
 
           // Update this widget
-          window.requestAnimationFrame.bind (self.updateWidget (value));
+          window.requestAnimationFrame.bind (self.updateWidget (values));
         }
       });
     }
@@ -2707,16 +3112,16 @@ class SMAC_XYGraph extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
-      // value is a string that has both x and y values separated with a comma
-      const values = value.split (',');
-      if (values.length < 2) return;
+      // values is a string that has both x and y values separated with a comma
+      const valueFields = values.split (',');
+      if (valueFields.length < 2) return;
 
-      const xValue = Number (values[0]);
-      const yValue = Number (values[1]);
+      const xValue = Number (valueFields[0]);
+      const yValue = Number (valueFields[1]);
 
       // Calculate next graphic position
       const cx = this.OffsetX                    + Math.round ((xValue - this.XMin) * this.ScaleFactorX);
@@ -2788,4 +3193,85 @@ class SMAC_XYGraph extends HTMLElement
 };
 
 customElements.define ('smac-xygraph', SMAC_XYGraph);
+
+
+//=============================================================================
+//  <smac-dataaction> element
+//=============================================================================
+
+class SMAC_DataAction extends HTMLElement
+{
+  //--- Constructor ---------------------------------------
+
+  constructor ()
+  {
+    super ();
+  }
+
+  //--- Attributes ----------------------------------------
+
+  get device     (     ) { return this.Device;      }
+  set device     (value) { this.Device = value;     }
+
+  get valueIndex (     ) { return this.ValueIndex;  }
+  set valueIndex (value) { this.ValueIndex = value; }
+
+  get action     (     ) { return this.Action;      }
+  set action     (value) { this.Action = value;     }
+
+  //--- connectedCallback ---------------------------------
+
+  connectedCallback ()
+  {
+    try
+    {
+      // Check for required attribute
+      if (!this.hasAttribute ('device'))
+        throw '(smac-dataaction): Missing device attribute';
+
+      const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
+
+      SetAsInlineBlock (this);
+      this.style = "display:none";  // nothing to display
+
+      // Set optional attributes
+      this.ValueIndex = this.hasAttribute ('valueIndex') ? this.getAttribute ('valueIndex') : 0;
+      this.Action     = this.hasAttribute ('action'    ) ? this.getAttribute ('action'    ) : undefined;
+
+      //--- React to device data ---
+      const self = this;
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
+      {
+        // Match this UI widget to its Node and device
+        if (nodeID == self.NodeID && deviceID == self.DeviceID)
+        {
+          // Call the specified action function
+          if (self.Action != undefined)
+            window[self.Action](values, timestamp);
+        }
+      });
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  //  //--- Sample Action function ---
+  //  myActionFunction (values, timestamp)
+  //  {
+  //    // Get new value from values array
+  //    const valueFields = values.split (',');
+  //    const newValue = valueFields[$('#myDataActionElementID').valueIndex];
+  //
+  //    // Do something with newValue and timestamp
+  //    // ...
+  //
+  //  }
+
+};
+
+customElements.define ('smac-dataaction', SMAC_DataAction);
 

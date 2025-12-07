@@ -22,20 +22,20 @@
   <!--  SMAC System                                     -->
   <!--  Content is dynamically added as Nodes connect.  -->
   <!--==================================================-->
-  <div class="dsGroupBox" style="margin:0 15px 0 30px">
+  <div class="dsGroupBox" style="margin:0 1vw 0 2vw">
 
-    <div class="dsGroupBoxTitle themeColors">
+    <div class="dsGroupBoxTitle">
       <div>SMAC System Nodes</div>
     </div>
 
     <div class="dsGroupBoxContent dsScrollable" id="diagSystemGroup">
       <div id="noNodes">
-        <span style="color:#C00020; font-size:24px; text-shadow:1px 1px 2px var(--dark)">No Nodes have connected.</span><br>
+        <span style="color:#C00020; font-size:1.5vw; text-shadow:1px 1px 2px var(--dark)">No Nodes have connected.</span><br>
         <br>
 
         Make sure all Nodes are powered on and Status LED's are green.<br>
         If Nodes still do not connect, use the<br>
-        <a href="setMAC.html" target="_self" style="font-size:24px; font-weight:bold" onpointerdown="Unload()">Set MAC Tool</a><br>
+        <a href="setMAC.html" target="_self" style="font-size:1.5vw; font-weight:bold" onpointerdown="Unload()">Set MAC Tool</a><br>
         to ensure all Nodes have the Relayer's MAC address.<br>
         Then reload this app.<br>
       </div>
@@ -47,16 +47,16 @@
   <!--  Node Monitor                                    -->
   <!--  Content is dynamically added as Nodes connect.  -->
   <!--==================================================-->
-  <div id="nodeMonitorGroup" class="dsGroupBox" style="display:none; flex:1; margin:0 30px 0 15px">
+  <div id="nodeMonitorGroup" class="dsGroupBox" style="display:none; flex:1; margin:0 2vw 0 1vw">
 
-    <div class="dsGroupBoxTitle themeColors">
+    <div class="dsGroupBoxTitle">
       <div>Node Monitor</div>
-      <div style="font-size:small; text-align:left">
-        <input id="dataLogging" type="checkbox" class="dsInput" onchange="Diagnostics.DataLogging=this.checked" />
+      <div style="font-size:0.6vw; text-align:left">
+        <input id="dataLogging" type="checkbox" class="dsSwitch" style="font-size:0.8vw" onchange="Diagnostics.DataLogging=this.checked" />
         <label for="dataLogging">Show Data</label><br>
-        <input id="autoScroll" type="checkbox" class="dsInput" checked />
+        <input id="autoScroll" type="checkbox" class="dsSwitch" style="font-size:0.8vw" checked />
         <label for="autoScroll">Auto Scroll</label><br>
-        <button class="dsButton monitorButton" title="Clear monitor data"     onclick="Diagnostics.ClearMonitor(false)">Clear</button>
+        <button class="dsButton monitorButton" title="Clear monitor data"     onclick="Diagnostics.ClearMonitor(false)">&nbsp;Clear&nbsp;</button>
         <button class="dsButton monitorButton" title="Clear all monitor data" onclick="Diagnostics.ClearMonitor(true) ">Clear All</button>
       </div>
     </div>
@@ -72,8 +72,8 @@
       </div>
 
       <!-- Send command box -->
-      <div class="dsGridForm" style="font-size:20px">
-        <label class="dsLabelS">Node Command :</label>
+      <div class="dsGridForm" style="font-size:1vw">
+        <label class="dsLabelS">Node/Device Command :</label>
         <input id="UserCommandBox" type="text" class="dsInput" title="Enter a command to send to the selected Node above. Press [Enter] to send.
   Format:
       deviceID (00-99) | command (4-chars) | optional params" onkeyup="Diagnostics.UserCommandBox_keyup(event)" />

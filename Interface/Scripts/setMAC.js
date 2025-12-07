@@ -20,7 +20,7 @@
 
 //--- Globals ---------------------------------------------
 
-const AppVersion = '─── Version 2025.05.05 ───';
+const AppVersion = '─── Version 2025.11.03 ───';
 
 const SerialPortSettings =
 {
@@ -49,7 +49,7 @@ try
 
   // Check if this browser supports serial communication
   if (!('serial' in navigator) || navigator.serial == undefined)
-    $('#smacPageArea').html ('<h1 style="color:#C00000; text-shadow:1px 1px 1px #000000; text-align:center">' +
+    $('#smacPageArea').html ('<h1 style="color:#F00000; text-shadow:1px 1px 1px #000000; text-align:center">' +
                              'This browser does not support serial communications.<br>Please use the Chrome or Edge browser.</h1>');
   else
   {
@@ -90,7 +90,7 @@ async function ConnectToRelayer ()
       console.info ('Sending GMAC Request ...');
 
       // Send a request for the MAC address
-      await SMACPort.Send ('--|--|GMAC' + EOL);
+      await SMACPort.Send ('C|--|--|GMAC' + EOL);
     }, 2000);
   }
   catch (ex)

@@ -131,14 +131,17 @@ class SMAC_DataView extends HTMLElement
 
   //--- Attributes ----------------------------------------
 
-  get device  (     ) { return this.Device;   }  // required attribute
-  set device  (value) { this.Device = value;  }
+  get device     (     ) { return this.Device;      }  // required attribute
+  set device     (value) { this.Device = value;     }
 
-  get attrib1 (     ) { return this.Attrib1;  }  // Required attribute
-  set attrib1 (value) { this.Attrib1 = value; }
+  get valueIndex (     ) { return this.ValueIndex;  }
+  set valueIndex (value) { this.ValueIndex = value; }
 
-  get attrib2 (     ) { return this.Attrib2;  }  // Optional attribute
-  set attrib2 (value) { this.Attrib2 = value; }
+  get attrib1    (     ) { return this.Attrib1;     }
+  set attrib1    (value) { this.Attrib1 = value;    }
+
+  get attrib2    (     ) { return this.Attrib2;     }
+  set attrib2    (value) { this.Attrib2 = value;    }
 
   //--- connectedCallback ---------------------------------
 
@@ -149,16 +152,15 @@ class SMAC_DataView extends HTMLElement
       // Check and set required attributes
       if (!this.hasAttribute ('device'))
         throw '(smac-growbar): Missing device attribute';
-      const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
-      this.NodeID   = parseInt (deviceInfo[0]);
-      this.DeviceID = parseInt (deviceInfo[1]);
 
-      if (!this.hasAttribute ('attrib1'))
-        throw '(smac-widget): Missing attrib1 attribute';
-      this.Attrib1 = this.getAttribute ('attrib1');
+      const deviceInfo = this.getAttribute ('device').replaceAll (' ', '').split (',');
+      this.NodeID   = Number (deviceInfo[0]);
+      this.DeviceID = Number (deviceInfo[1]);
 
       // Set optional attributes
-      this.Attrib2 = this.hasAttribute ('attrib2') ? this.getAttribute ('attrib2') : undefined;
+      this.ValueIndex = this.hasAttribute ('valueIndex') ? this.getAttribute ('valueIndex') : 0;
+      this.Attrib1    = this.hasAttribute ('attrib1'   ) ? this.getAttribute ('attrib1'   ) : undefined;
+      this.Attrib2    = this.hasAttribute ('attrib2'   ) ? this.getAttribute ('attrib2'   ) : undefined;
 
       SetAsInlineBlock (this);
 
@@ -167,7 +169,7 @@ class SMAC_DataView extends HTMLElement
 
       //--- React to device data ---
       const self = this;
-      $(document.body).on ('deviceData', function (event, nodeID, deviceID, timestamp, value)
+      $(document.body).on ('deviceData', function (event, nodeID, deviceID, values, timestamp)
       {
         // Update this widget if its NodeID and DeviceID match
         if (nodeID == self.NodeID && deviceID == self.DeviceID)
@@ -286,11 +288,27 @@ class SMAC_DataView extends HTMLElement
 
   //--- updateWidget --------------------------------------
 
-  updateWidget = function (value)
+  updateWidget = function (values)
   {
     try
     {
-      let level = Math.round ((value - this.MinValue) * this.ScaleFactor);
+
+
+
+
+      // Get new value from values array
+      const valueFields = values.split (',');
+      if (this.ValueIndex >= valueFields.length)
+        return;
+
+      const newValue = Number (valueFields[valueIndex]);
+
+
+
+
+
+
+      let level = Math.round ((newValue - this.MinValue) * this.ScaleFactor);
       if (level < 0) level = 0;
 
       this.smacCanvas.drawRectangle (this.OffsetX, this.OffsetY, this.BarWidth, this.BarHeight, this.BackGrad, fill);

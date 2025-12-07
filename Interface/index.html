@@ -1,18 +1,9 @@
 <!doctype html>
 <!--=======================================================
 //
-//      FILE : index.html
+//     FILE : index.html
 //
-//   PROJECT : SMAC Framework (System Monitor and Control):
-//             - Visualize data from factory/lab equipment in a browser
-//             - Control that equipment through browser interaction
-//             - Fast, Wireless communication
-//
-//  FUNCTION : SMAC Interface Template/Example
-//
-//    AUTHOR : Bill Daniels
-//             Copyright 2014-2025, D+S Tech Labs, Inc.
-//             All Rights Reserved
+//  PROJECT : SMAC Framework for Doug's Two-Wheeler Bot
 //
 //======================================================-->
 
@@ -54,7 +45,7 @@
     <div id="smacConsole">
 
       <!-- Title Bar with Nav Buttons -->
-      <div id="smacTitleBar" class="themeColors">
+      <div id="smacTitleBar">
 
         <div style="display:inline-block">
 
@@ -74,7 +65,7 @@
           <!--    of the corresponding content page below          -->
           <!--=====================================================-->
           <div id="navButtons">
-            <button class="navButton" onpointerdown="ShowPage ('powerMonitor', this)"> Power Monitor </button>
+            <button class="navButton" onpointerdown="ShowPage ('twoWheeler', this)"> Two-Wheeler </button>
           </div>
 
 
@@ -94,7 +85,7 @@
 
         </div>
 
-      </div>  <!-- Title Bar -->
+      </div>  <!-- End Title Bar -->
 
 
       <!-- Tabbed Display Page Area -->
@@ -108,11 +99,10 @@
           <div id="dsSplashVersion"></div>
           <br>
 
-          <img src="Images/image_ConnectToRelayer.png" style="width:50%" /><br>
+          <img src="Images/image_ConnectToRelayer.png" style="width:40vw" /><br>
           <br>
 
-          <!-- <h1 style="line-height:1.1; text-shadow:1px 1px 1px #000000"> -->
-          <div class="dsLabelM">
+          <div class="dsLabelM" style="line-height:1.1; text-shadow:1px 1px 1px #000000">
             This interface requires a USB connection to the SMAC Relayer Module.<br>
             Please connect the Relayer Module to this computer<br>
             and click the button below.
@@ -134,7 +124,8 @@
         <!--    into the div with id="myPage"                 -->
         <!--  They must have the class 'contentPage'.         -->
         <!--==================================================-->
-        <div id="powerMonitor" class="contentPage"></div>
+        <!-- <div id="example1" class="contentPage"></div> -->
+        <div id="twoWheeler" class="contentPage"></div>
 
 
 
@@ -152,13 +143,13 @@
 
         <div class="statusBlock">
           <div class="statusLabel">State:</div>
-          <div class="statusItem" id="statusBar_State">Running</div>
+          <div class="statusItem" id="statusBar_State"></div>
         </div>
         <div class="statusDivider"></div>
 
         <div class="statusBlock" style="flex:1">  <!-- Use remaining width of screen -->
           <div class="statusLabel">Messages:</div>
-          <div class="statusItem" id="statusBar_Message">No issues</div>
+          <div class="statusItem" id="statusBar_Message"></div>
         </div>
         <div class="statusDivider"></div>
 
@@ -195,13 +186,13 @@
     <!--================================================-->
 
     <!-- SMAC Interface Scripts -->
-    <script src="Scripts/serialPort.js"></script>
-    <script src="Scripts/SMAC_Interface.js"></script>
-    <script src="Scripts/diagnostics.js"></script>
+    <script src="Scripts/serialPort.js?r=Math.random()"></script>
+    <script src="Scripts/SMAC_Interface.js?r=Math.random()"></script>
+    <script src="Scripts/diagnostics.js?r=Math.random()"></script>
 
     <!-- dvCanvas2D and SMAC GUI Widgets -->
-    <script src="Scripts/dvCanvas2D.js"></script>
-    <script src="Scripts/SMAC_Widgets.js"></script>
+    <script src="Scripts/dvCanvas2D.js?r=Math.random()"></script>
+    <script src="Scripts/SMAC_Widgets.js?r=Math.random()"></script>
 
     <!-- Optional User Startup Code -->
     <script>
@@ -210,6 +201,8 @@
       {
         try
         {
+          // Place optional User startup code here
+          // ...
         }
         catch (ex)
         {

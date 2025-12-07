@@ -60,7 +60,7 @@ const Diagnostics =
       }
 
       // Update status bar Node count
-      $("#statusBar_Nodes").html (nodeCount.toString());
+      StatusBar.SetNumNodes (nodeCount);
     }
     catch (ex)
     {
@@ -121,7 +121,7 @@ const Diagnostics =
       const tabButton = '<input type="radio" class="dsTabButton" id="' + tbID + '" name="nmTabControl" '
                       + 'onclick="SelectTab(this); Diagnostics.CurrentNodeIndex=' + nodeIndexString + ';" />';
 
-      const tabButtonLabel = '<label for="' + tbID + '">Node ' + nodeIndexString + '</label>';  // .padLeft ('0', 2)
+      const tabButtonLabel = '<label for="' + tbID + '">' + Nodes[nodeIndex].name + '</label>';  // nodeIndexString.padLeft ('0', 2)
 
       tBar.append (tabButton);
       tBar.append (tabButtonLabel);
@@ -142,7 +142,7 @@ const Diagnostics =
     }
     catch (ex)
     {
-      console.info ('AddNode() exception: ' + ex.message);
+      console.info ('AddNode(): ' + ex.message);
       ShowException (ex);
     }
   },
@@ -166,7 +166,7 @@ const Diagnostics =
         const sph            = deviceArray[devIndex].rate;
         const sps            = Math.round (sph/360) / 10;
 
-        $('#deviceInfo' + nodeIndexString).append ('<div>▐══ ' + (devIndex > 9 ? '':'0') + devIndexString + ': ' + deviceArray[devIndex].name + ' </div>');
+        $('#deviceInfo' + nodeIndexString).append ('<div>▐══ ' + (devIndex > 9 ? '':'0') + devIndexString + ': ' + deviceArray[devIndex].name + ' &nbsp; </div>');
         $('#deviceInfo' + nodeIndexString).append ('<div>ip:<input type="checkbox" class="dsSwitch" title="Turn On/Off Immediate Processing" ' + (deviceArray[devIndex].ipEnabled=='Y' ? 'checked':'') + ' onchange="Diagnostics.ToggleImmediate(this, ' + nodeIndexString + ', ' + devIndexString + ')" />   ' +
                                                         'pp:<input type="checkbox" class="dsSwitch" title="Turn On/Off Periodic Processing" '  + (deviceArray[devIndex].ppEnabled=='Y' ? 'checked':'') + ' onchange="Diagnostics.TogglePeriodic (this, ' + nodeIndexString + ', ' + devIndexString + ')" />   ' +
                                                    '<input type="range" class="dsInput" style="width:6vw; font-size:0.6vw" min="1" max="72000" step="1" value="' + sph.toString() + '" title="Set rate of Periodic Processing\nRate = ' + sph + ' samples per hour\n        ~' + sps.toString() +
@@ -178,6 +178,7 @@ const Diagnostics =
 //         // $('#deviceOnOff'      + nodeIndexString).append ('<input type="number" class="dsInput" style="width:3vw; font-size:.6vw" min="0" max="72000" step="3600" value="3600" title="Rate of Periodic Processing: (samples per hour)\nClick, then use ↑↓ arrow keys to change." onkeydown="Diagnostics.SetPPRate (this, ' + nodeIndex + ', ' + devIndex + ')" /><br>');
 //         // $('#deviceInfoValues' + nodeIndexString).append ('Rate = ' + deviceArray[devIndex].rate.toString() + ' samples/hour<br>');
 //         //                                                  <input type="number" class="dsInput" style="width:4vw; font-size:medium" min="1" step="1" value="' + deviceArray[devIndex].rate.toString() + '" />
+
 
 
       }
@@ -227,7 +228,7 @@ const Diagnostics =
       if (slider != undefined)
       {
         // Don't allow a zero rate
-        if (parseInt (slider.value) < 1)
+        if (Number (slider.value) < 1)
           slider.value = '1';
 
         await Send_UItoRelayer (nodeIndex, devIndex, 'SRAT', slider.value);
@@ -268,7 +269,7 @@ const Diagnostics =
     }
     catch (ex)
     {
-      console.info ('LogToMonitor() exception: ' + ex.message);
+      console.info ('LogToMonitor(): ' + ex.message);
       ShowException (ex);
     }
   },
@@ -281,18 +282,19 @@ const Diagnostics =
     {
       if (clearAll)
       {
-        Nodes.forEach ((node) =>
+        for (let i=0; i<MaxNodes; i++)
         {
-          if (node.monitor != undefined)
-            // node.monitor.empty ();
-            node.monitor.val ('');
-        });
+          if (Nodes[i] != undefined)
+          {
+            if (Nodes[i].monitor != undefined)
+              Nodes[i].monitor.val ('');
+          }
+        }
       }
       else
       {
         const node = Nodes[this.CurrentNodeIndex];
         if (node != undefined)
-          // node.monitor.empty ();
           node.monitor.val ('');
       }
     }
@@ -313,9 +315,18 @@ const Diagnostics =
       if (keyEvent.which === 13)
       {
         const commandString = $('#UserCommandBox').val();
-        const commandParams = commandString.split ('|');
+        const commandFields = commandString.split ('|');
 
-        await Send_UItoRelayer (Diagnostics.CurrentNodeIndex, parseInt (commandParams[0]), commandParams[1], commandParams[2]);
+        if (commandFields.length < 2)
+          PopupBubble (keyEvent, 'Invalid command');
+        else
+        {
+          let devIndex = Number(commandFields[0]);
+          if (isNaN(devIndex)) devIndex = 0;
+
+          //                                                   deviceIndex   command            params
+          await Send_UItoRelayer (Diagnostics.CurrentNodeIndex, devIndex, commandFields[1], commandFields[2]);
+        }
       }
     }
     catch (ex)

@@ -40,9 +40,8 @@ body
 #smacTitleBar
 {
   margin     : 0;
-  padding    : 0.2vw 0.5vw;
+  padding    : 0.2vw 0.5vw 0.1vw 0.5vw;
   width      : 100%;
-  /* height     : 50px; */
   box-sizing : border-box;
   overflow   : hidden;
   z-index    : 10;
@@ -74,19 +73,19 @@ body
 #appTitle
 {
   font-family    : font_ethnocentric, serif;
-  font-size      : 20px;
+  font-size      : 0.8vw;
   font-kerning   : none;
-  letter-spacing : 2px;
-  text-shadow    : 4px 4px 4px var(--dark);
+  letter-spacing : 0.1vw;
+  text-shadow    : 0 0 1vw #0080F0;
 }
 
 #title_Version
 {
-  margin-top : -2px;
+  margin-top : -6px;
 
   font-family : serif;
-  font-size   : 16px;
-  text-shadow : 1px 1px 0px #202020;
+  font-size   : 0.6vw;
+  text-shadow : 1px 1px 0px var(--dark);
 }
 
 .setMACToolBlock
@@ -107,22 +106,22 @@ body
 #navButtons
 {
   display        : none;
-  margin-left    : 20px;
+  margin-left    : 1vw;
   vertical-align : middle;
 }
 
 .navButton
 {
-  margin  : 0 5px;
-  padding : 5px 10px;
+  margin  : 0 0.2vw;
+  padding : 4px 0.5vw;
 
   color            : #00C0C0;
   background-color : transparent;
   border           : 1px solid transparent;
-  border-radius    : 10px;
+  border-radius    : 0.5vw 0.5vw 0 0;
 
   font-family : sans-serif;
-  font-size   : 20px;
+  font-size   : 1.2vw;
   font-weight : normal;
   white-space : nowrap;
 
@@ -167,17 +166,16 @@ body
 #connectionBox
 {
   display     : inline-block;
-  margin-left : 10px;
-  padding     : 0 20px 1px 20px;
+  margin-left : 0.5vw;
+  padding     : 0 0.8vw 4px 0.8vw;
 
   color            : #808080;
   background-color : #303030;
-  border-radius    : 10px;
-  box-shadow       : 5px 5px 2px var(--dark);
+  border-radius    : 0.5vw;
+  box-shadow       : 0.5vw 0.5vw 0.4vw var(--dark);
 
   font-family : Verdana, sans-serif;
-  font-size   : 20px;
-  font-weight : bold;
+  font-size   : 0.8vw;
   text-align  : center;
   white-space : nowrap;
 
@@ -187,7 +185,7 @@ body
 #cbLine2
 {
   margin-top  : -4px;
-  font-size   : 16px;
+  font-size   : 0.6vw;
   font-weight : normal;
 }
 
@@ -260,7 +258,7 @@ body
 {
   color       : #F0F000;
   font-family : sans-serif;
-  font-size   : 12px;
+  font-size   : 0.5vw;
   line-height : 1;
   text-shadow : 1px 1px #000000;
   text-align  : left;
@@ -284,7 +282,7 @@ body
   padding     : 2vw 4vw;
 
   color            : var(--light);
-  background-color : #800000;
+  background-color : #A00000;
   border-radius    : 1vw;
 
   font-family : font_airstrike;
@@ -300,7 +298,7 @@ body
 
 #diagSystemGroup
 {
-  max-height  : 80vh;
+  max-height  : 75vh;
   overflow-x  : hidden;
   overflow-y  : auto;
   text-align  : center;
@@ -329,7 +327,7 @@ body
 
 .nodeBox  /* image */
 {
-  margin-left    : -1.5vw;
+  margin-left    : -1vw;
   width          : 13vw;
   vertical-align : top;
 }
@@ -356,7 +354,7 @@ body
 .nodeReset
 {
   color       : #F0F0F0;
-  background  : linear-gradient(to bottom, #C00000, #800000);
+  background  : linear-gradient(to bottom, #F00000, #800000);
   text-shadow : 1px 1px 2px #202020;
 }
 
@@ -384,7 +382,6 @@ body
   background-color : #F0F0F0;
 
   font-family : sans-serif;
-  font-size   : 12px;
   text-shadow : none;
 }
 
@@ -399,8 +396,8 @@ body
   margin     : 0;
   padding    : 0.5vw;
   width      : 100%;
-  height     : 60vh;
-  max-height : 60vh;
+  height     : 50vh;
+  max-height : 50vh;
   resize     : none;
   overflow   : auto;
 

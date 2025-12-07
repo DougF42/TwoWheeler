@@ -1,0 +1,419 @@
+<!--=======================================================
+//
+//     FILE : twoWheeler.html
+//
+//  PROJECT : SMAC Framework for Doug's Two-Wheeler Bot
+//
+//======================================================-->
+
+<!--====================================================-->
+<!--  Styles                                            -->
+<!--====================================================-->
+
+<style>
+
+  #motorPIDControls
+  {
+    display               : grid;
+    grid-template-columns : auto auto auto;
+    column-gap            : 0.5vw;
+    justify-items         : center;
+    align-items           : flex-start;
+  }
+
+  .mpidColumnTitle
+  {
+    display       : inline-block;
+    width         : 4vw;
+    margin-bottom : 0.8vh;
+    border-bottom : 2px solid #F0F0F0;
+    text-align    : center;
+  }
+
+  .mpidRowTitle
+  {
+    display    : inline-block;
+    width      : 7vw;
+    text-align : right;
+  }
+
+  .valueInput
+  {
+    width : 5vw;
+  }
+
+  .speedSlider
+  {
+    width : 30vw;
+  }
+
+</style>
+
+
+<!--====================================================-->
+<!--  HTML                                              -->
+<!--====================================================-->
+
+<!-- Reload Button -->
+<button class="dsButton" style="position:absolute; left:0.2vw; top:5vh" onpointerdown="reload()"> ↻ </button>
+
+
+<!--====================================================-->
+<!--  Top Row                                           -->
+<!--====================================================-->
+<div class="flexRow" style="justify-content:center; align-items:center; gap:0 2vw">
+
+  <div class="dsBlock">
+    <div class="dsSubtitle" style="font-size:2.5vw; text-align:center">
+      two-wheeler<br>
+      robot
+    </div>
+  </div>
+
+  <div class="dsBlockLowered bgDark" style="text-align:center">
+
+    <div id="motorPIDControls">
+
+      <label></label>
+      <div class="mpidColumnTitle">LEFT</div>
+      <div class="mpidColumnTitle">RIGHT</div>
+
+      <div class="mpidRowTitle">Motor Enable:</div>
+      <div style="font-size:1.2vw">
+        <input type="checkbox" class="dsSwitch" onchange="Send_UItoRelayer (1, 1, this.checked ? 'ENAB':'DISA')" /><smac-led device="1,1" color="green"></smac-led>
+      </div>
+      <div style="font-size:1.2vw">
+        <input type="checkbox" class="dsSwitch" onchange="Send_UItoRelayer (1, 5, this.checked ? 'ENAB':'DISA')" /><smac-led device="1,5" color="green"></smac-led>
+      </div>
+
+      <div class="mpidRowTitle">PID Auto:</div>
+      <div style="font-size:1.2vw">
+        <input type="checkbox" class="dsSwitch" onchange="Send_UItoRelayer (1, 2, this.checked ? 'ENAB':'DISA')" /><smac-led device="1,1" color="green"></smac-led>
+      </div>
+      <div style="font-size:1.2vw">
+        <input type="checkbox" class="dsSwitch" onchange="Send_UItoRelayer (1, 6, this.checked ? 'ENAB':'DISA')" /><smac-led device="1,5" color="green"></smac-led>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="dsBlockLowered bgDark" style="text-align:center">
+
+    <div class="mpidColumnTitle" style="width:8vw">REBOOT</div><br>
+    <button class="dsButton" style="width:7vw; color:#F0F0F0; background:#800000" onpointerdown="Send_UItoRelayer (1, 0, 'RSET')"> Two Wheeler </button><br>
+    <button class="dsButton" style="width:7vw; color:#F0F0F0; background:#800000" onpointerdown="Send_UItoRelayer (2, 0, 'RSET')"> Joystick    </button>
+
+  </div>
+
+  <div class="dsBlockLowered bgDark" style="text-align:center">
+
+    <div class="mpidColumnTitle" style="width:17vw">STATUS</div><br>
+    <div>
+      <div class="mpidRowTitle" style="width:4vw">Battery:</div>
+      <div class="dsBlock" style="margin-left:-1vw; vertical-align:top">
+        <smac-growbar
+          device         = "1,9"
+          width          = "15"
+          height         = "4.5"
+          minValue       = "10.0"
+          maxValue       = "13.0"
+          fillColor      = "#A00000"
+          scaleColor     = "#F0F0F0"
+          scalePlacement = "bottom"
+          units          = " volts">
+        </smac-growbar>
+      </div>
+    </div>
+
+    <label style="vertical-align:top">Joystick Enabled:</label>
+    <smac-led style="margin-left:0.5vw; font-size:1.2vw; vertical-align:middle"
+      device       = "2,0"
+      color        = "green"
+      changeAction = "joystickChanged">
+    </smac-led>
+
+  </div>
+
+</div>
+<br>
+
+
+<!--====================================================-->
+<!--  PID Monitors                                      -->
+<!--====================================================-->
+<div>
+
+  <!--==============-->
+  <!--  Left        -->
+  <!--==============-->
+  <div class="dsBlockLowered bgDark" style="text-align:center">
+
+    <div class="dsSubtitle" style="background:#C06030">LEFT</div>
+
+    <!-- Values -->
+    <div class="dsBlock">
+      <div class="dsGridForm">
+        <label>P:&nbsp;</label> <input id="left_PValue" type="number" class="smac-digital valueInput" value="0.0" onchange="Send_UItoRelayer (1, 2, 'SETP', $('#left_PValue').val())" />
+        <label>I:&nbsp;</label> <input id="left_IValue" type="number" class="smac-digital valueInput" value="0.0" onchange="Send_UItoRelayer (1, 2, 'SETI', $('#left_IValue').val())" />
+        <label>D:&nbsp;</label> <input id="left_DValue" type="number" class="smac-digital valueInput" value="0.0" onchange="Send_UItoRelayer (1, 2, 'SETD', $('#left_DValue').val())" />
+      </div>
+    </div>
+
+    <div class="dsBlock" style="margin-left:1vw">
+      <div class="dsBlock dsGridForm">
+        <label>Scan Rate:&nbsp;</label>   <div><input id="left_ScanRate"   type="number" class="smac-digital valueInput" value="20" onchange="Send_UItoRelayer (1, 2, 'STIM', $('#left_ScanRate'  ).val()     )" /> ms</div>
+        <label>Report Rate:&nbsp;</label> <div><input id="left_ReportRate" type="number" class="smac-digital valueInput" value="10" onchange="Send_UItoRelayer (1, 2, 'SRAT', $('#left_ReportRate').val()*3600)" /> per sec</div>
+      </div>
+    </div><br>
+
+    <div id="left_SpeedBlock">
+      <div class="dsBlock" style="vertical-align:top">
+        <div class="dsGridForm">
+          <label>Speed:&nbsp;</label>
+          <input id="left_SpeedDigital" type="number" class="smac-digital valueInput" min="-100" max="100" value="0" onmousewheel="updateSpeedSlider('L')" onchange="updateSpeedSlider('L')" />  <!--  onkeyup="updateSpeedSlider('L')" />  -->
+        </div>
+      </div>
+      <div class="dsBlock" style="vertical-align:top; margin-top:0.5vh">
+        <input id="left_SpeedSlider" class="dsInput speedSlider" type="range" min="-100" max="100" step="1" value="0" oninput="updateSpeedDigital('L')" /><br>
+        <div class="flexRow" style="font-size:0.8vw; justify-content:space-between">
+          <span>-100</span><span>-75</span><span>-50</span><span>-25</span><span>0</span><span>+25</span><span>+50</span><span>+75</span><span>+100</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Speed Graph -->
+    <div style="margin-top:0.5vh; padding-left:3vw; text-align:left">
+      <span style="color:#0000F0">██</span> Target
+      &nbsp;&nbsp;
+      <span style="color:#0080F0">██</span> Actual
+      &nbsp;&nbsp;
+      <span style="color:#C06030">██</span> Commanded
+    </div>
+
+    <smac-timegraph
+      devices    = "1,1,2,#0000F0|1,0,3,#0080F0|1,0,4,#C06030"
+      width      = "45"
+      height     = "45"
+      minValue   = "-100"
+      maxValue   = "100"
+      backColor  = "#D0C0A0"
+      gridColor  = "#909090"
+      scaleColor = "#F0F0F0">
+    </smac-timegraph><br>
+    <br>
+
+
+
+    <!-- Correction Graph
+    <div style="margin-top:-1vh; padding-left:3vw; text-align:left">
+      <span style="color:#C00000">██</span> Correction
+      &nbsp;&nbsp;
+    </div>
+
+    <smac-timegraph
+      devices    = "0,2,#C00000"
+      width      = "40"
+      height     = "18"
+      minValue   = "-10"
+      maxValue   = "10"
+      backColor  = "#606060"
+      gridColor  = "#404040"
+      scaleColor = "#F0F0F0">
+    </smac-timegraph><br>
+    -->
+
+
+
+  </div>
+
+  <!--===============-->
+  <!--  Right        -->
+  <!--===============-->
+  <div class="dsBlockLowered bgDark" style="margin-left:2vw; text-align:center">
+
+    <div class="dsSubtitle" style="background:#C06030">RIGHT</div>
+
+    <!-- Values -->
+    <div class="dsBlock">
+      <div class="dsGridForm">
+        <label>P:&nbsp;</label> <input id="right_PValue" type="number" class="smac-digital valueInput" value="0.0" onchange="Send_UItoRelayer (1, 6, 'SETP', $('#right_PValue').val())" />
+        <label>I:&nbsp;</label> <input id="right_IValue" type="number" class="smac-digital valueInput" value="0.0" onchange="Send_UItoRelayer (1, 6, 'SETI', $('#right_IValue').val())" />
+        <label>D:&nbsp;</label> <input id="right_DValue" type="number" class="smac-digital valueInput" value="0.0" onchange="Send_UItoRelayer (1, 6, 'SETD', $('#right_DValue').val())" />
+      </div>
+    </div>
+
+    <div class="dsBlock" style="margin-left:1vw">
+      <div class="dsBlock dsGridForm">
+        <label>Scan Rate:&nbsp;</label>   <div><input id="right_ScanRate"   type="number" class="smac-digital valueInput" value="20" onchange="Send_UItoRelayer (1, 6, 'STIM', $('#right_ScanRate'  ).val()     )" /> ms</div>
+        <label>Report Rate:&nbsp;</label> <div><input id="right_ReportRate" type="number" class="smac-digital valueInput" value="10" onchange="Send_UItoRelayer (1, 6, 'SRAT', $('#right_ReportRate').val()*3600)" /> per sec</div>
+      </div>
+    </div><br>
+
+    <div id="right_SpeedBlock">
+      <div class="dsBlock" style="vertical-align:top">
+        <div class="dsGridForm">
+          <label>Speed:&nbsp;</label>
+          <input id="right_SpeedDigital" type="number" class="smac-digital valueInput" min="-100" max="100" value="0" onmousewheel="updateSpeedSlider('R')" onchange="updateSpeedSlider('R')" />  <!--  onkeyup="updateSpeedSlider('R')" />  -->
+        </div>
+      </div>
+      <div class="dsBlock" style="vertical-align:top; margin-top:0.5vh">
+        <input id="right_SpeedSlider" class="dsInput speedSlider" type="range" min="-100" max="100" step="1" value="0" oninput="updateSpeedDigital('R')" /><br>
+        <div class="flexRow" style="font-size:0.8vw; justify-content:space-between">
+          <span>-100</span><span>-75</span><span>-50</span><span>-25</span><span>0</span><span>+25</span><span>+50</span><span>+75</span><span>+100</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Speed Graph -->
+    <div style="margin-top:0.5vh; padding-left:3vw; text-align:left">
+      <span style="color:#0000F0">██</span> Target
+      &nbsp;&nbsp;
+      <span style="color:#0080F0">██</span> Actual
+      &nbsp;&nbsp;
+      <span style="color:#C06030">██</span> Commanded
+    </div>
+
+    <smac-timegraph
+      devices    = "1,5,2,#0000F0|1,4,3,#0080F0|1,4,4,#C06030"
+      width      = "45"
+      height     = "45"
+      minValue   = "-100"
+      maxValue   = "100"
+      backColor  = "#D0C0A0"
+      gridColor  = "#909090"
+      scaleColor = "#F0F0F0">
+    </smac-timegraph><br>
+    <br>
+
+
+
+    <!-- Correction Graph
+    <div style="margin-top:-1vh; padding-left:3vw; text-align:left">
+      <span style="color:#C00000">██</span> Correction
+      &nbsp;&nbsp;
+    </div>
+
+    <smac-timegraph
+      devices    = "0,2,#C00000"
+      width      = "40"
+      height     = "18"
+      minValue   = "-10"
+      maxValue   = "10"
+      backColor  = "#606060"
+      gridColor  = "#404040"
+      scaleColor = "#F0F0F0">
+    </smac-timegraph><br>
+    -->
+
+
+
+  </div>
+
+</div>
+
+
+<!--====================================================-->
+<!--  Scripts                                           -->
+<!--====================================================-->
+
+<script>
+
+  //--- Globals -------------------------------------------
+
+  let joystickEnabled = false;
+
+  //--- reload --------------------------------------------
+  function reload ()
+  {
+    try
+    {
+      $('#twoWheeler').load ('twoWheeler.html?r=' + Math.random().toString());
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  //--- joystickChanged -----------------------------------
+  function joystickChanged ()  // on=true, off=false
+  {
+    try
+    {
+
+
+
+      PopupBubble (undefined, 'joystickChanged() was called', 2000);
+
+
+
+
+//       joystickEnabled = state;
+//
+//       $("#left_SpeedDigital" ).prop ('disabled', !joystickEnabled);
+//       $("#left_SpeedSlider"  ).prop ('disabled', !joystickEnabled);
+//
+//       $("#right_SpeedDigital").prop ('disabled', !joystickEnabled);
+//       $("#right_SpeedSlider" ).prop ('disabled', !joystickEnabled);
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  //--- updateSpeedSlider ---------------------------------
+  function updateSpeedSlider (side)
+  {
+    try
+    {
+      if (side == 'L')
+      {
+        const digitalValue = $("#left_SpeedDigital").val();
+        $("#left_SpeedSlider").val (digitalValue);
+
+        Send_UItoRelayer (1, 3, "MSPD", digitalValue.toString());
+      }
+      else
+      {
+        const digitalValue = $("#right_SpeedDigital").val();
+        $("#right_SpeedSlider").val (digitalValue);
+
+        Send_UItoRelayer (1, 7, "MSPD", digitalValue.toString());
+      }
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+  //--- updateSpeedDigital --------------------------------
+  function updateSpeedDigital (side)
+  {
+    try
+    {
+      if (side == 'L')
+      {
+        const sliderValue = $("#left_SpeedSlider").val();
+        $("#left_SpeedDigital").val (sliderValue);
+
+        Send_UItoRelayer (1, 3, "MSPD", sliderValue.toString());
+      }
+      else
+      {
+        const sliderValue = $("#right_SpeedSlider").val();
+        $("#right_SpeedDigital").val (sliderValue);
+
+        Send_UItoRelayer (1, 7, "MSPD", sliderValue.toString());
+      }
+    }
+    catch (ex)
+    {
+      ShowException (ex);
+    }
+  }
+
+
+</script>
