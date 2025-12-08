@@ -11,10 +11,9 @@
 #include "SMAC/Node.h"
 #include "DEV_MotorControl.h"
 
-DEV_MotorControl::DEV_MotorControl(const char * InName, Node *_nodePtr) : DefDevice(InName)
+DEV_MotorControl::DEV_MotorControl(const char * InName) : DefDevice(InName)
 {
     piddev = nullptr;
-    myNode = _nodePtr;
  }
 
 
@@ -30,32 +29,13 @@ DEV_MotorControl::~DEV_MotorControl()
  * @param cfg       - pointer to the config structure
  * @param prefix    - A prefix for 'names' of the created devices
  */
-void DEV_MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
+void DEV_MotorControl::setup( MotorControl_config_t *cfg, DEV_QuadDecoder *_quad, DEV_LN298 * _ln298, DEV_Pid * _pid)
 {
     char name[20];  // for building the actual device name
-    
-    // Create and add the quadrature decoder driver
-    strcpy(name, prefix);
-    strcpy(name+strlen(name), "QUAD");
-    // quadDecoder    = new QuadDecoder(myNode, name);
-    // quadDecoder->setupQuad(cfg);
-    myQuadDecoder = new DEV_QuadDecoder(name);
-    myQuadDecoder->setup(cfg);
-    node->AddDevice(myQuadDecoder);
+    myQuadDecoder = _quad;
+    ln298         = _ln298;
+    piddev        = _pid;
 
-    // Create and add the ln298 driver
-    strcpy(name, prefix);
-    strcpy(name+strlen(name), "LN298");
-    ln298   = new DEV_LN298(name);
-    ln298->setupLN298(cfg);
-    node->AddDevice(ln298);
-
-    // Create and add the pid controler
-    // Set up new PID. THIS IS NOT (currently) A DEVICE!
-    //  Input, Output Setpoint, Kp, Ki, Kd, P_ON_E Flag,   controlerDirection
-    sprintf(name, "%s%s", prefix,"PID");
-    piddev = new DEV_Pid(name, cfg, myQuadDecoder, ln298);
-    node->AddDevice(piddev);
     periodicEnabled=false;
 }
 

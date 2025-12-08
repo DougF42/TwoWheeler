@@ -31,7 +31,6 @@ private:
     int nextMotorIdx;
     int mySpeed;
     int myDirect;
-    Node *myNode;
         
     DEV_MotorControl  *leftMtr;
     DEV_MotorControl  *rightMtr;
@@ -45,9 +44,9 @@ private:
     ProcessStatus cmdTANK(int argcnt, char *argv[]);   // move like a tank
 
 public:
-    DEV_Driver(const char * name, Node *_Node);
+    DEV_Driver(const char * name);
     ~DEV_Driver();
-    void setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg); // Instantiate all the subtasks...
+    void setup(DEV_MotorControl *_left, DEV_MotorControl *_right);
     ProcessStatus  ExecuteCommand (char *command, char *params=NULL); // Override this method to handle custom commands
     ProcessStatus  DoPeriodic() override;       
 

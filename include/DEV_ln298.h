@@ -38,7 +38,7 @@ class DEV_LN298 : public DefDevice
         
     public:
         DEV_LN298(const char * Name);
-        void setupLN298(MotorControl_config_t *cfg);
+        void setup(MotorControl_config_t *cfg);
         ~DEV_LN298();
         bool isDisabled();    // is the motor disabled?
         ProcessStatus  ExecuteCommand (char *command, char *params) override;

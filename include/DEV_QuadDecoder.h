@@ -35,7 +35,7 @@ class DEV_QuadDecoder : public DefDevice
     public:
     DEV_QuadDecoder( const char * InName);
     ~DEV_QuadDecoder();
-    void setup(MotorControl_config_t*cfg);
+    void setup(MotorControl_config_t *cfg);
     ProcessStatus  ExecuteCommand(char *command, char *params=NULL) override;    // Override this method to handle custom commands
     ProcessStatus  DoPeriodic() override;         // Override this method to periodically send reports
 

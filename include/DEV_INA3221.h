@@ -159,7 +159,7 @@ private:
      // = = = = = = = = = = = = = = = = = = = = = = = = = 
 
 public:
-    DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire);
+    DEV_INA3221(const char *inName, int _i2CAddr,  TwoWire *theWire);
     ~DEV_INA3221();
     bool initStatusOk;                   // True if init was okay. false if any error
     ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically

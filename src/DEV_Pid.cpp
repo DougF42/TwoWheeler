@@ -18,14 +18,19 @@
 
 #include "DEV_Pid.h"
 
-DEV_Pid::DEV_Pid( const char *_name, MotorControl_config_t *cfg, 
-        DEV_QuadDecoder *_quad, DEV_LN298 *_ln298 ) : DefDevice( _name)
+DEV_Pid::DEV_Pid( const char *_name)  : DefDevice( _name)
 {
+    name = strdup(_name);
     pid = nullptr;
+    ln298 = nullptr;
+    quad  = nullptr;
+}
+    
+void DEV_Pid::setup (MotorControl_config_t *cfg, DEV_QuadDecoder * _quad, DEV_LN298 * _ln298 )
+{
     ln298 = _ln298;
     quad  = _quad;
 
-    name = strdup(_name);
         //PID(double*, double*, double*,        // * constructor.  links the PID to the actual, Output, and 
         // double, double, double, int, int);   //   Setpoint.  Initial tuning parameters are also set here.
                                                 //   (overload for specifying proportional mode)

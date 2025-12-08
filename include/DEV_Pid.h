@@ -39,8 +39,10 @@ class DEV_Pid : public DefDevice
         double ki;
         double kd;
 
-        DEV_Pid(const char *_name, MotorControl_config_t *cfg,
+        DEV_Pid(const char *_name);
+        void setup(MotorControl_config_t *cfg,
              DEV_QuadDecoder *_quad, DEV_LN298 *_ln298);
+
         ~DEV_Pid();
         static void timer_callback(void *arg);
         ProcessStatus DoPeriodic() override;

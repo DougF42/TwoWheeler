@@ -5,7 +5,6 @@
 class PIDX
 {
 
-
   public:
 
   //Constants used in some of the functions below

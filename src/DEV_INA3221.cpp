@@ -72,7 +72,7 @@ ProcessStatus DEV_INA3221::INA3221DeviceChannel::DoPeriodic()
 // @param _i2CAddr - adress on the I2C bus of the IAN3221
 // @param theWire  - pointer to the 'Wire' class instance to use for I2C communication.
 // - - - - - - - - - - - - - - - - - - - - -
-DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire *theWire) : DefDevice(inName)
+DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr,  TwoWire *theWire) : DefDevice(inName)
 {    
     // Device default condition
     initStatusOk=false;

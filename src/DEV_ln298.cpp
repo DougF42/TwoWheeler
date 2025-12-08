@@ -44,7 +44,7 @@ DEV_LN298::~DEV_LN298()
  * @param chnlNo - the LEDC channel number to use.
  */
 // void LN298::setupLN298(ledc_channel_t chnlNo, gpio_num_t _ena_pin, gpio_num_t _dir_pin_a, gpio_num_t _dir_pin_b)
-void DEV_LN298::setupLN298(MotorControl_config_t *cfg)
+void DEV_LN298::setup(MotorControl_config_t *cfg)
 {
     led_channel = cfg->chnlNo;
     ena_pin   = cfg->ena_pin;

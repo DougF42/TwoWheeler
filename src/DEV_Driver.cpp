@@ -22,9 +22,8 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-DEV_Driver::DEV_Driver( const char *_name, Node *_myNode) : DefDevice(_name)
+DEV_Driver::DEV_Driver( const char *_name) : DefDevice(_name)
 {
-    myNode = _myNode;
     nextMotorIdx=0;   
     mySpeed=0;
     myDirect=0; 
@@ -48,16 +47,10 @@ DEV_Driver::~DEV_Driver()
  * @param left_cfg 
  * @param right_cfg 
  */
-void DEV_Driver::setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg)
+void DEV_Driver::setup(DEV_MotorControl *_left, DEV_MotorControl *_right)
 {
-    leftMtr  = new DEV_MotorControl("leftMotor", myNode);
-    leftMtr->setup(left_cfg, "left_");
-    myNode->AddDevice(leftMtr);
-    
-    rightMtr = new DEV_MotorControl("rightMotor", myNode);
-    rightMtr->setup(right_cfg, "right_");
-    myNode->AddDevice(rightMtr);
-    periodicEnabled = false; 
+    leftMtr  = _left;
+    rightMtr = _right;
 }
 
 

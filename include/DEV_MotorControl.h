@@ -35,25 +35,24 @@
 class DEV_MotorControl: public DefDevice
 {
     private:
-        Node *myNode;
         
     public:
+        DEV_MotorControl(const char * Name);
+        void setup( MotorControl_config_t *cfg, DEV_QuadDecoder *_quad, DEV_LN298 *_ln298, DEV_Pid  *_pid);
+
         // These are used by PID
         double input_val;   // the actual speed (mm/sec)
         double output_val;  // PWM percentage to set the motor(0..100)
         double setpoint;    // The target string (mm/sec)
 
         DEV_QuadDecoder *myQuadDecoder;
-        DEV_LN298   *ln298;     // The ln298 instance
-        DEV_Pid     *piddev;    // The PID controler instance
+        DEV_LN298       *ln298;     // The ln298 instance
+        DEV_Pid         *piddev;    // The PID controler instance
 
-    
-        DEV_MotorControl(const char * Name, Node *_nodePtr);
-        void setup( MotorControl_config_t *cfg, const char *prefix);
         ~DEV_MotorControl();
 
         // ProcessStatus  DoPeriodic() override;
-        ProcessStatus  ExecuteCommand(char *command, char *params=NULL) override;
+        ProcessStatus ExecuteCommand(char *command, char *params=NULL) override;
         ProcessStatus cmdSetSpeed();
 
         // Operations - make it go
