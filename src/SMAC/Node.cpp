@@ -3,12 +3,6 @@
 //     FILE : Node.cpp
 //
 //  PROJECT : SMAC Framework
-//              │
-//              └── Publish
-//                    │
-//                    └── Firmware
-//                          │
-//                          └── Node
 //
 //    NOTES : Node base class:
 //            Derive your custom Node from this class.
@@ -24,25 +18,14 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
+#include <esp_wifi.h>
 #include "Node.h"
+#include "Device.h"
 
 //--- Declarations ----------------------------------------
 
-// ESP-NOW v2 Receive Method has changed !!!
-// (https://forum.dronebotworkshop.com/esp32-esp8266/problem-compiling/)
-//
-// In esp32 v2.x library, the function OnDataRecv has the format:
-//
-//   void OnDataRecv (const uint8_t* mac, const uint8_t* incomingData, int len)
-//
-// In the v3.x library the format has been changed to:
-//
-//   void OnDataRecv (const esp_now_recv_info_t* esp_now_info, const uint8_t* data, int data_len)
-
-// void onCommandReceived (const uint8_t *relayerMAC, const uint8_t *inCommandString, int commandlength);  // ESP-NOW v1
-void onCommandReceived (const esp_now_recv_info_t *info, const uint8_t *inCommandString, int commandlength);  // ESP-NOW v2
-
-// void onDataPacketSent  (const uint8_t *mac_addr, esp_now_send_status_t status);  // Not used in SMAC
+void ESPNOW_Receiver (const esp_now_recv_info_t *info, const uint8_t *espnowString, int stringLength);
+// void onESPNOWSent     (const uint8_t *mac_addr, esp_now_send_status_t status);  // Not used in SMAC
 
 extern bool  WaitingForRelayer;
 
@@ -61,9 +44,13 @@ Node::Node (const char *inName, int inNodeID)
   strncpy (name, inName, MAX_NAME_LENGTH-1);
   name[MAX_NAME_LENGTH-1] = 0;
 
+  // Names cannot have commas
+  for (int i=0; i<strlen(name); i++)
+    if (name[i] == ',') name[i] = '.';
+
   sprintf (nodeID, "%02d", inNodeID);
 
-  strcpy (version, "2025.07.21b");  // no more than 11 chars
+  strcpy (version, "3.0.0");  // no more than 9 chars
 
 
   //================================================
@@ -72,27 +59,18 @@ Node::Node (const char *inName, int inNodeID)
 
   Serial.println ("Starting ESP-NOW communication ...");
 
-  // Set this device as a Wi-Fi Station
-  if (!WiFi.mode (WIFI_STA))
+
+  // Set this device as both an Access Point and a Wi-Fi Station
+  if (!WiFi.mode (WIFI_AP_STA))
   {
     Serial.println ("ERROR: Unable to set WiFi mode");
     return;
   }
   delay (100);
 
-  // Load this Node's MAC address
+  Serial.print ("WiFi Channel is "); Serial.println (WiFi.channel());
 
-  // // ESP-NOW v1 (deprecated)
-  // uint8_t  macAddress[MAC_SIZE+2];
-  // for (int i=0; i<MAC_SIZE+2; i++) macAddress[i] = 0;  // Clear result first
-  // esp_efuse_mac_get_default (macAddress);  // System-programmed by Espressif, 6 bytes
-  //
-  // // Set this Node's MAC Address string (for the Interface to show)
-  // sprintf (macAddressString, "%02X:%02X:%02X:%02X:%02X:%02X", macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
-  // Serial.print   ("Node MAC = ");
-  // Serial.println (macAddressString);
-
-  // ESP-NOW v2
+  // Load this Node's MAC address (ESP-NOW v2)
   WiFi.macAddress().toCharArray (macAddressString, sizeof(macAddressString));
 
 
@@ -116,25 +94,24 @@ Node::Node (const char *inName, int inNodeID)
   // <RelayerMAC> was loaded from non-volatile memory and set in <main.cpp>
   esp_now_peer_info_t  peerInfo = {};
   memcpy (peerInfo.peer_addr, RelayerMAC, MAC_SIZE);
-  peerInfo.channel = 0;
+  peerInfo.channel = 0;  // 0 = Auto-select channel
   peerInfo.encrypt = false;
 
   Serial.println ("Adding Node as ESP-NOW Peer ...");
   ESPNOW_Result = esp_now_add_peer (&peerInfo);
   if (ESPNOW_Result != ESP_OK)
   {
-    Serial.print   ("ERROR: Unable to add Relayer as ESP-NOW peer: ");
+    Serial.print   ("ERROR: Unable to add this Node as ESP-NOW peer: ");
     Serial.println (ESPNOW_Result);
     return;
   }
 
   // Register receive event
-  ESPNOW_Result = esp_now_register_recv_cb (onCommandReceived);
+  ESPNOW_Result = esp_now_register_recv_cb (ESPNOW_Receiver);
   if (ESPNOW_Result != ESP_OK)
   {
     Serial.print   ("ERROR: Unable to register ESP-NOW Command handler: ");
     Serial.println (ESPNOW_Result);
-    return;
   }
 }
 
@@ -150,54 +127,115 @@ void Node::AddDevice (Device *device)
     // Add Device to the devices array
     devices[numDevices++] = device;
 
+    // Set the Node object for the device
+    device->SetNode (this);
+
     Serial.print   ("Added ");
     Serial.print   (device->GetName());
     Serial.println (" device");
   }
 }
 
-//--- SendDataPacket --------------------------------------
+//--- SendData --------------------------------------------
 
-IRAM_ATTR void Node::SendDataPacket ()
+IRAM_ATTR void Node::SendData (const char *sourceDeviceID, bool broadcast)
 {
-  // Convert the <DataPacket> to a Data string.
-  // The <DataPacket> structure must be populated with deviceID, timestamp and value fields.
-  //
-  // A Data string has four fields separated with the '|' char:
-  //
-  //   ┌──────────────────── 2-char nodeID (00-19)
-  //   │  ┌───────────────── 2-char deviceID (00-99)
-  //   │  │     ┌─────────── variable length timestamp (usually millis())
-  //   │  │     │        ┌── variable length value string (including NULL terminating char)
-  //   │  │     │        │   this can be a numerical value or a text message
-  //   │  │     │        │
-  //   nn|dd|timestamp|value
-  //
-  // Data Strings must be NULL terminated.
+  // The global SMACData.values field should be filled.
 
-  // Build the Data String
-  memset (DataString + 2, '|', 4);
-  memcpy (DataString, nodeID, ID_SIZE);
-  memcpy (DataString + 3, DataPacket.deviceID, ID_SIZE);
-  ltoa   (DataPacket.timestamp, DataString + 6, 10);
-  strcat (DataString, "|");
-  strcat (DataString, DataPacket.value);
+  // Build an ESPNOW Data string.  It has four fields separated with the '|' char:
+  //
+  //   ┌──────────── 1-char packet type ('D' for Data)
+  //   │ ┌────────── 2-char source nodeID (00-19)
+  //   │ │  ┌─────── 2-char source deviceID (00-99)
+  //   │ │  │    ┌── variable length string of values (multiple values are comma delimited)
+  //   │ │  │    │
+  //   D|nn|dd|values
+  //
+  // ESPNOW strings must be NULL terminated.
+  // A '|' and timestamp is appended to all Data Strings by the Relayer
+
+  memcpy (ESPNOW_String, "D|--|--|", 8);  // Start with 'D' for Data
+  memcpy (ESPNOW_String + 2, nodeID, ID_SIZE);
+  memcpy (ESPNOW_String + 5, sourceDeviceID, ID_SIZE);
+  ESPNOW_String[8] = 0;
+  strcat (ESPNOW_String, SMACData.values);
 
   //=============================
   // Send Data String to Relayer
-  //=============================                                                              ┌─ include string terminator
-  ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) DataString, strlen(DataString) + 1);
+  //=============================
+  if (broadcast)                                                                                   //  ┌─ include string terminator
+    ESPNOW_Result = esp_now_send (NULL      , (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
+  else
+    ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
   if (ESPNOW_Result != ESP_OK)
   {
-    Serial.print   ("ERROR: Unable to send Data String: ");
+    Serial.print   ("ERROR: esp_now_send() returned ");
     Serial.println (ESPNOW_Result);
   }
+
+  // Save last send packet time (time of silence)
+  lastPacketTime = millis ();
 
   if (Debugging)
   {
     // Show the outgoing Data String
     Serial.print   ("Node --> Relayer : ");
-    Serial.println (DataString);
+    Serial.println (ESPNOW_String);
+  }
+}
+
+//--- SendCommand -----------------------------------------
+
+IRAM_ATTR void Node::SendCommand (const char *targetNodeID, const char *targetDeviceID, const char *command, const char *params, bool broadcast)
+{
+  // Build an ESPNOW Command string.  It has four or five fields separated with the '|' char:
+  //
+  //   ┌───────────────── 1-char packet type ('C' for Command)
+  //   │ ┌─────────────── 2-char target nodeID (00-19)
+  //   │ │  ┌──────────── 2-char target deviceID (00-99)
+  //   │ │  │   ┌──────── 4-char command (usually capital letters)
+  //   │ │  │   │     ┌── optional variable length string of parameters (multiple params are comma delimited)
+  //   │ │  │   │     │
+  //   C|nn|dd|cccc|params
+  //
+  // ESPNOW strings must be NULL terminated.
+
+  memcpy (ESPNOW_String, "C|--|--|CCCC|", 13);  // Start with 'C' for Command
+  if (!broadcast)
+  {
+    memcpy (ESPNOW_String + 2, targetNodeID, ID_SIZE);
+    memcpy (ESPNOW_String + 5, targetDeviceID, ID_SIZE);
+  }
+  memcpy (ESPNOW_String + CommandOffset, command, COMMAND_SIZE);
+  if (params == NULL)
+    ESPNOW_String[12] = 0;
+  else
+  {
+    ESPNOW_String[13] = 0;
+    strcat (ESPNOW_String, params);
+  }
+
+  //================================
+  // Send Command String to Relayer
+  //================================
+  if (broadcast)                                                                                   //  ┌─ include string terminator
+    ESPNOW_Result = esp_now_send (NULL      , (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
+  else
+    ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
+  if (ESPNOW_Result != ESP_OK)
+  {
+    Serial.print   ("ERROR: esp_now_send() returned ");
+    Serial.println (ESPNOW_Result);
+  }
+
+  // Save last send packet time (time of silence)
+  lastPacketTime = millis ();
+
+  if (Debugging)
+  {
+    // Show the outgoing Command String
+    Serial.print   ("Node --> Relayer : ");
+    Serial.println (ESPNOW_String);
   }
 }
 
@@ -226,11 +264,7 @@ void Node::Run ()
 
       // Any data to send?
       if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-      {
-        // Populate DeviceID and send it
-        memcpy (DataPacket.deviceID, devices[deviceIndex]->GetID(), ID_SIZE);
-        SendDataPacket ();
-      }
+        SendData (devices[deviceIndex]->GetID());
     }
 
     //--- Periodic Processing ---
@@ -241,96 +275,120 @@ void Node::Run ()
 
       // Any data to send?
       if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-      {
-        // Populate DeviceID and send it
-        memcpy (DataPacket.deviceID, devices[deviceIndex]->GetID(), ID_SIZE);
-        SendDataPacket ();
-      }
+        SendData (devices[deviceIndex]->GetID());
     }
   }
 
   //===================================
-  //  Check for any commands
+  //  Check for any Commands
   //===================================
-  if (CommandBuffer->GetNumElements() < 1)
-    return;
-
-  //--- Process next command ---
-  commandString = CommandBuffer->PopString ();  // Remember to free() this "popped" string
-
-  if (commandString != NULL)
+  if (CommandBuffer->GetNumElements() > 0)
   {
-    if (Debugging)
+    //--- Process next command ---
+    commandString = CommandBuffer->PopString ();  // Remember to free() this "popped" string
+
+    // ESPNOW Command string format:
+    //
+    //   C|nn|dd|cccc[|params]
+    //
+    // The last '|' and params are optional and may not exist
+
+    if (commandString != NULL)
     {
-      Serial.print   ("commandString=");
-      Serial.println (commandString);
-    }
-
-    int cLength = strlen (commandString);
-
-    // Check length
-    if (cLength < MIN_COMMAND_LENGTH)
-      Serial.println ("ERROR: Invalid command");
-    else
-    {
-      // Populate the global <CommandPacket>
-      CommandPacket.deviceIndex = deviceIndex = 10*((int)(commandString[0])-48) + ((int)(commandString[1])-48);
-
-      memcpy (CommandPacket.command, commandString + 3, COMMAND_SIZE);
-      CommandPacket.command[COMMAND_SIZE] = 0;
-
-      if (cLength > MIN_COMMAND_LENGTH + 1)
-        strcpy (CommandPacket.params, commandString + 8);
-      else
-        CommandPacket.params[0] = 0;
-
-      // Execute the command
-      pStatus = ExecuteCommand ();
-
-      // Check if command is still not handled
-      if (pStatus == NOT_HANDLED)
+      if (Debugging)
       {
-        //=================================================
-        // Not a Node command, so pass to Device to handle
-        //=================================================
+        Serial.print   ("commandString=");
+        Serial.println (commandString);
+      }
 
-        // Check deviceIndex range
-        if (deviceIndex >= numDevices)
+      // Check for valid length
+      int cLength = strlen (commandString);
+      if (cLength < MIN_COMMAND_LENGTH)
+        Serial.println ("ERROR: Invalid command");
+      else
+      {
+        //--- Execute Node Command ---
+        if (cLength == MIN_COMMAND_LENGTH)
+          pStatus = ExecuteCommand (commandString + CommandOffset);  // Command only
+        else
         {
-          if (Debugging)
+          commandString[MIN_COMMAND_LENGTH] = 0;  // Terminate Command string
+          pStatus = ExecuteCommand (commandString + CommandOffset, commandString + ParamsOffset);  // Command with parameters
+        }
+
+        // Start with any Data coming from the Node, not a Device
+        deviceIndex = -1;
+
+        // Check if command is still not handled
+        if (pStatus == NOT_HANDLED)
+        {
+          //=================================================
+          // Not a Node command, so pass to Device to handle
+          //=================================================
+
+          // Get the numeric value of DeviceID
+          deviceIndex = 10*((int)(commandString[5])-48) + ((int)(commandString[6])-48);
+
+          // Check deviceIndex range
+          if (deviceIndex >= numDevices)
           {
-            Serial.print ("Command targeted for unknown device: ");
-            Serial.print ("deviceIndex="); Serial.print (deviceIndex);
-            Serial.print (", numDevices="); Serial.println (numDevices);
+            if (Debugging)
+            {
+              Serial.print ("Command targeted for unknown device: ");
+              Serial.print ("deviceIndex="); Serial.print (deviceIndex);
+              Serial.print (", numDevices="); Serial.println (numDevices);
+            }
+
+            Serial.print ("ERROR: Command targeted for unknown device: "); Serial.println (deviceIndex);
+            pStatus = FAIL_NODATA;
+
+            // sprintf (SMACData.values, "ERROR: Command targeted for unknown device '%02d'", deviceIndex);
+            // pStatus = FAIL_DATA;
+          }
+          else
+          {
+            //--- Execute Device Command ---
+            if (cLength == MIN_COMMAND_LENGTH)
+              pStatus = devices[deviceIndex]->ExecuteCommand (commandString + CommandOffset);  // Command only
+            else
+            {
+              commandString[MIN_COMMAND_LENGTH] = 0;  // Terminate Command string
+              pStatus = devices[deviceIndex]->ExecuteCommand (commandString + CommandOffset, commandString + ParamsOffset);  // Command with parameters
+            }
           }
 
-          strcpy (DataPacket.value, "ERROR: Command targeted for unknown device");
-          pStatus = FAIL_DATA;
+          // Check if still not handled
+          if (pStatus == NOT_HANDLED)
+          {
+            sprintf (SMACData.values, "ERROR: Unknown command '%s'", commandString + CommandOffset);
+            pStatus = FAIL_DATA;
+          }
         }
-        else
-          pStatus = devices[deviceIndex]->ExecuteCommand ();
+
+        // Any data to send?
+        if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
+          SendData ((deviceIndex < 0 || deviceIndex >= numDevices) ? "--" : devices[deviceIndex]->GetID());
       }
 
-      // Any data to send?
-      if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-      {
-        // Populate deviceID
-        memcpy (DataPacket.deviceID, commandString, ID_SIZE);
-
-        SendDataPacket ();
-      }
+      //====================================
+      // Free the Popped string from buffer
+      //====================================
+      free (commandString);
     }
+  }
 
-    //====================================
-    // Free the Popped string from buffer
-    //====================================
-    free (commandString);
+  // Check if this Node has been silent for some time.
+  // If so, send a PONG to let the Interface know it is still alive.
+  if (millis() - lastPacketTime > MAX_SILENT_DURATION)
+  {
+    strcpy (SMACData.values, "PONG");
+    SendData ("--");
   }
 }
 
 //--- GetVersion ------------------------------------------
 
-const char * Node::GetVersion ()
+char * Node::GetVersion ()
 {
   return version;
 }
@@ -343,48 +401,46 @@ const char * Node::GetVersion ()
 //  child Node class to handle custom Node commands.
 //  Your method should first call this base class method,
 //  then handle custom commands.
-//  If the command is not handled by the Node, then pass
-//  it to the Device's ExecuteCommand() method.
+//  If the command is not handled by the Node, it will
+//  get passed to the Device's ExecuteCommand() method.
 //=========================================================
 
-ProcessStatus Node::ExecuteCommand ()
+ProcessStatus Node::ExecuteCommand (char *command, char *params)
 {
   // Init ProcessStatus
   pStatus = NOT_HANDLED;
 
   //--- Set Node Name (SNNA) ------------------------------
-  if (strncmp (CommandPacket.command, "SNNA", COMMAND_SIZE) == 0)
+  if (strncmp (command, "SNNA", COMMAND_SIZE) == 0)
   {
     // Set this Node's name
-    strncpy (name, CommandPacket.params, MAX_NAME_LENGTH-1);
+    strncpy (name, params, MAX_NAME_LENGTH-1);
     name[MAX_NAME_LENGTH-1] = 0;
 
     // Acknowledge new name
-    strcpy (DataPacket.value, "NONAME=");
-    strcat (DataPacket.value, name);
+    strcpy (SMACData.values, "NONAME=");
+    strcat (SMACData.values, name);
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Get Node Info (GNOI) ----------------------------
-  else if (strncmp (CommandPacket.command, "GNOI", COMMAND_SIZE) == 0)
+  else if (strncmp (command, "GNOI", COMMAND_SIZE) == 0)
   {
-    // Send Node info
-    sprintf (DataPacket.value, "NOINFO=%s|%s|%s|%d", name, version, macAddressString, numDevices);
+    // Send Node info with fields delimited with commas
+    sprintf (SMACData.values, "NOINFO=%s,%s,%s,%d", name, version, macAddressString, numDevices);
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Get Device Info (GDEI) ----------------------------
-  else if (strncmp (CommandPacket.command, "GDEI", COMMAND_SIZE) == 0)
+  else if (strncmp (command, "GDEI", COMMAND_SIZE) == 0)
   {
-    // For each Device, send a Device Data Packet with value = name|ipEnabled(Y/N)|ppEnabled(Y/N)|periodic data rate
+    // For each Device, send a Data Packet with values = name,version,ipEnabled(Y/N),ppEnabled(Y/N),periodic data rate
     for (int i=0; i<numDevices; i++)
     {
-      sprintf (DataPacket.deviceID, "%02d", i);
-      DataPacket.timestamp = millis ();
-      sprintf (DataPacket.value, "DEINFO=%s|%s|%c|%c|%lu|", devices[i]->GetName(), devices[i]->GetVersion(), devices[i]->IsIPEnabled() ? 'Y':'N', devices[i]->IsPPEnabled() ? 'Y':'N', devices[i]->GetRate());
-      SendDataPacket ();
+      sprintf (SMACData.values, "DEINFO=%s,%s,%c,%c,%lu", devices[i]->GetName(), devices[i]->GetVersion(), devices[i]->IsIPEnabled() ? 'Y':'N', devices[i]->IsPPEnabled() ? 'Y':'N', devices[i]->GetRate());
+      SendData (devices[i]->GetID());
     }
 
     // All Device data has been sent, no need to send anything else
@@ -392,16 +448,47 @@ ProcessStatus Node::ExecuteCommand ()
   }
 
   //--- Ping (PING) ---------------------------------------
-  else if (strncmp (CommandPacket.command, "PING", COMMAND_SIZE) == 0)
+  else if (strncmp (command, "PING", COMMAND_SIZE) == 0)
   {
     // Got PINGed from Interface, Respond with PONG
-    strcpy (DataPacket.value, "PONG");
+    strcpy (SMACData.values, "PONG");
 
     pStatus = SUCCESS_DATA;
   }
 
+  //--- Change WiFi Channel (WFCH) ------------------------
+  else if (strncmp (command, "WFCH", COMMAND_SIZE) == 0)
+  {
+    if (strlen (params) > 0)
+    {
+      // Get new channel
+      uint8_t newChannel = (uint8_t) atoi (params);
+
+      if (newChannel >= 0 && newChannel <= 14)
+      {
+        // Acknowledge change
+        sprintf (SMACData.values, "New WiFi Channel rquested; Changing to channel %d", newChannel);
+
+        // Change ESP-NOW WiFi Channel to new channel
+        esp_wifi_set_channel (newChannel, WIFI_SECOND_CHAN_NONE);
+
+        pStatus = SUCCESS_DATA;
+      }
+    }
+
+    // Check for invalid channel
+    if (pStatus == NOT_HANDLED)
+    {
+      Serial.println ("ERROR: Invalid WiFi Channel");
+      pStatus = FAIL_NODATA;
+
+      // strcpy (SMACData.values, "ERROR: Invalid WiFi Channel");
+      // pStatus = FAIL_DATA;
+    }
+  }
+
   //--- Blink (BLIN) --------------------------------------
-  else if (strncmp (CommandPacket.command, "BLIN", COMMAND_SIZE) == 0)
+  else if (strncmp (command, "BLIN", COMMAND_SIZE) == 0)
   {
     // Blink the Status LED
     for (int i=0; i<10; i++)
@@ -417,14 +504,14 @@ ProcessStatus Node::ExecuteCommand ()
   }
 
   //--- Get Version (GNVR) --------------------------------
-  else if (strncmp (CommandPacket.command, "GNVR", COMMAND_SIZE) == 0)
+  else if (strncmp (command, "GNVR", COMMAND_SIZE) == 0)
   {
-    sprintf (DataPacket.value, "NVER=%s", version);
+    sprintf (SMACData.values, "NVER=%s", version);
     pStatus = SUCCESS_DATA;
   }
 
   //--- Reset (RSET) --------------------------------------
-  else if (strncmp (CommandPacket.command, "RSET", COMMAND_SIZE) == 0)
+  else if (strncmp (command, "RSET", COMMAND_SIZE) == 0)
   {
     // Acknowledge Reset
     Serial.println ("Resetting Node ... ");
@@ -435,10 +522,6 @@ ProcessStatus Node::ExecuteCommand ()
     //  o
   }
 
-  // Populate timestamp if data to return
-  if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-    DataPacket.timestamp = millis();
-
   // Return the resulting ProcessStatus
   return pStatus;
 }
@@ -446,25 +529,27 @@ ProcessStatus Node::ExecuteCommand ()
 
 
 //=========================================================
-// External ESP-NOW "C" Functions
+// External "C" Functions
 //=========================================================
 
-//--- onCommandReceived -----------------------------------
+//--- ESPNOW_Receiver -------------------------------------
 
-// void onCommandReceived (const uint8_t *relayerMAC, const uint8_t *commandString, int commandLength)  // ESP-NOW v1
-void onCommandReceived (const esp_now_recv_info_t *info, const uint8_t *commandString, int commandLength)  // ESP-NOW v2
+void ESPNOW_Receiver (const esp_now_recv_info_t *info, const uint8_t *espnowString, int stringLength)
 {
   if (Debugging)
   {
-    // Show the incoming Command string
+    // Show the incoming message string
     Serial.print   ("Node <-- Relayer : ");
-    Serial.println ((char *) commandString);
+    Serial.println ((char *) espnowString);
   }
 
-  // Check if Relayer responded to initial Node PING
-  if (strncmp ((char *) commandString, "PONG", 4) == 0)
+  // Check if Relayer responded to initial PING
+  if (strncmp ((char *) espnowString, "PONG", COMMAND_SIZE) == 0)
     WaitingForRelayer = false;
-  else
-    // Add this ESP-NOW message to the command buffer
-    CommandBuffer->PushString ((char *) commandString);
+
+  else if ((char)(espnowString[0]) == 'C')  // Data messages are ignored
+  {
+    // Add this command to the Command buffer
+    CommandBuffer->PushString ((char *) espnowString);
+  }
 }

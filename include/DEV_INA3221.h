@@ -110,8 +110,7 @@
 
 #pragma once
 #include <atomic>
-#include "Node.h"
-#include "DefDevice.h"
+#include "SMAC/DefDevice.h"
 #include "Adafruit_INA3221.h"
 #include <Wire.h>
 #include "FreeRTOS.h"
@@ -165,7 +164,7 @@ public:
     bool initStatusOk;                   // True if init was okay. false if any error
     ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
     // ProcessStatus DoImmediate()    override;
-    ProcessStatus ExecuteCommand() override;
+    ProcessStatus ExecuteCommand(char *command, char *params=NULL) override;
     ProcessStatus gpowerCommand();
     ProcessStatus setAveragingModeCommand();
     ProcessStatus setTimePerSampleCommand();

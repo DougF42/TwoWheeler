@@ -21,8 +21,7 @@
  * TODO: Should we vary the K-factors depending on current power level?
  */
 #pragma once
-#include "Node.h"
-#include "DefDevice.h"
+#include "SMAC/DefDevice.h"
 #include "DEV_Pid.h"
 #include "DEV_ln298.h"
 #include "DEV_QuadDecoder.h"
@@ -54,8 +53,8 @@ class DEV_MotorControl: public DefDevice
         ~DEV_MotorControl();
 
         // ProcessStatus  DoPeriodic() override;
-        ProcessStatus  ExecuteCommand() override;
-        ProcessStatus cmdSetSpeed(int argCnt, char **argv);
+        ProcessStatus  ExecuteCommand(char *command, char *params=NULL) override;
+        ProcessStatus cmdSetSpeed();
 
         // Operations - make it go
         void setSpeed(dist_t ratemm_sec);

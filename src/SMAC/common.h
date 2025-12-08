@@ -37,7 +37,7 @@
 #define STATUS_LED_GOOD        (digitalWrite (STATUS_LED_PIN, HIGH))
 
 #elif (defined(USE_RGB_LED))
-#define STATUS_LED_PIN         48  // GPIO-48 for v1.0 boards, GPIO-38 for v1.1 boards
+#define STATUS_LED_PIN         38  // GPIO-48 for v1.0 boards, GPIO-38 for v1.1 boards
 #define STATUS_LED_BRIGHTNESS  20  // Not recommended above 64
 #define STATUS_LED_BAD         (rgbLedWrite (STATUS_LED_PIN, STATUS_LED_BRIGHTNESS, 0, 0))
 #define STATUS_LED_GOOD        (rgbLedWrite (STATUS_LED_PIN, 0, STATUS_LED_BRIGHTNESS, 0))
@@ -46,51 +46,47 @@
 //--- Common Stuff ---
 #define SERIAL_BAUDRATE      115200
 #define SERIAL_MAX_LENGTH        80
-#define MAX_VERSION_LENGTH       12  // Suggested format: yyyy.mm.dd(a-z)
 #define MAX_NODES                20  // Maximum number of ESP-NOW peers
 #define MAX_DEVICES             100  // Maximum number of Devices that can connect to a Node
-#define ID_SIZE                   2  // Size of nodeID and deviceID
-#define MAX_NAME_LENGTH          32
-#define MAX_MESSAGE_LENGTH      250  // Max message size for ESP-NOW protocol
 #define MAC_SIZE                  6  // Size of ESP32 MAC Address
-#define MAX_VALUE_LENGTH        240
-#define MAX_PARAMS_LENGTH       240
-#define MIN_COMMAND_LENGTH        7  // Minimum Input Command String: dd|cccc
+#define ID_SIZE                   2  // Number of chars in nodeID and deviceID
 #define COMMAND_SIZE              4
+#define MAC_STRING_SIZE          17  // Size of MAC Address string including colons (XX:XX:XX:XX:XX:XX)
+#define MIN_COMMAND_LENGTH       12  // Minimum Input Command String: C|nn|dd|cccc
+#define MAX_VERSION_LENGTH       10  // Suggested format: MM.mm.pp (Major.minor.patch)
+#define MAX_NAME_LENGTH          32
+#define MAX_ESPNOW_LENGTH       250  // Max message size for ESP-NOW protocol
+#define MAX_VALUES_LENGTH       230  // Need to leave room for appended timestamp
+// #define MAX_PARAMS_LENGTH       236
+#define MAX_SILENT_DURATION   30000  // Maximum millis of silence while testing for dead Node
 
 //--- Types -----------------------------------------------
 
-typedef struct DPacket
+typedef struct SMACDataPacket
 {
-  char           deviceID[ID_SIZE + 1];
-  unsigned long  timestamp;
-  char           value[MAX_VALUE_LENGTH + 1];
-} DPacket;
-
-typedef struct CPacket
-{
-  int   deviceIndex;
-  char  command[COMMAND_SIZE + 1];
-  char  params[MAX_PARAMS_LENGTH + 1];
-} CPacket;
+  char  nodeID   [ID_SIZE+1];
+  char  deviceID [ID_SIZE+1];
+  char  values   [MAX_VALUES_LENGTH+1];  // Can hold multiple data values separated by commas
+} SMACDataPacket;
 
 enum ProcessStatus
 {
-  SUCCESS_DATA,    // Process performed successfully, send <DataPacket> to Relayer
+  SUCCESS_DATA,    // Process performed successfully, send SMACData to Relayer
   SUCCESS_NODATA,  // Process performed successfully, no data to send to Relayer
-  FAIL_DATA,       // Process failed, error code or message stored in value field of <DataPacket>, send <DataPacket> to Relayer
+  FAIL_DATA,       // Process failed, error code or message stored in SMACData.values field
   FAIL_NODATA,     // Process failed, no data to send to Relayer
   NOT_HANDLED      // Command was not handled by base class ExecuteCommand(), child Node or Device class should handle the command
 };
 
 //--- Externs ---------------------------------------------
 
-extern bool        Debugging;
-extern esp_err_t   ESPNOW_Result;
-extern uint8_t     RelayerMAC[];
-extern RingBuffer  *CommandBuffer;
-extern DPacket     DataPacket;
-extern CPacket     CommandPacket;
-extern char        DataString[];
+extern bool            Debugging;
+extern uint8_t         RelayerMAC[];
+extern RingBuffer      *CommandBuffer;
+extern const int       CommandOffset;
+extern const int       ParamsOffset;
+extern SMACDataPacket  SMACData;
+extern char            ESPNOW_String[];
+extern esp_err_t       ESPNOW_Result;
 
 #endif

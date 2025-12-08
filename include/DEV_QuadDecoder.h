@@ -12,7 +12,7 @@
 #include <Arduino.h>
 #include "config.h"
 #include "config.h"
-#include "DefDevice.h"
+#include "SMAC/DefDevice.h"
 #include "ESP32Encoder.h"
 #include "esp_timer.h"
 
@@ -36,7 +36,7 @@ class DEV_QuadDecoder : public DefDevice
     DEV_QuadDecoder( const char * InName);
     ~DEV_QuadDecoder();
     void setup(MotorControl_config_t*cfg);
-    ProcessStatus  ExecuteCommand () override;    // Override this method to handle custom commands
+    ProcessStatus  ExecuteCommand(char *command, char *params=NULL) override;    // Override this method to handle custom commands
     ProcessStatus  DoPeriodic() override;         // Override this method to periodically send reports
 
     ProcessStatus qsetCommand();

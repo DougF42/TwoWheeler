@@ -8,7 +8,7 @@
  * @copyright Copyright (c) 2025
  *
  */
-
+#include "SMAC/Node.h"
 #include "DEV_MotorControl.h"
 
 DEV_MotorControl::DEV_MotorControl(const char * InName, Node *_nodePtr) : DefDevice(InName)
@@ -41,21 +41,21 @@ void DEV_MotorControl::setup( MotorControl_config_t *cfg, const char *prefix)
     // quadDecoder->setupQuad(cfg);
     myQuadDecoder = new DEV_QuadDecoder(name);
     myQuadDecoder->setup(cfg);
-    myNode->AddDevice(myQuadDecoder);
+    node->AddDevice(myQuadDecoder);
 
     // Create and add the ln298 driver
     strcpy(name, prefix);
     strcpy(name+strlen(name), "LN298");
     ln298   = new DEV_LN298(name);
     ln298->setupLN298(cfg);
-    myNode->AddDevice(ln298);
+    node->AddDevice(ln298);
 
     // Create and add the pid controler
     // Set up new PID. THIS IS NOT (currently) A DEVICE!
     //  Input, Output Setpoint, Kp, Ki, Kd, P_ON_E Flag,   controlerDirection
     sprintf(name, "%s%s", prefix,"PID");
     piddev = new DEV_Pid(name, cfg, myQuadDecoder, ln298);
-    myNode->AddDevice(piddev);
+    node->AddDevice(piddev);
     periodicEnabled=false;
 }
 
@@ -72,28 +72,44 @@ A defmap(A x, A in_min, A in_max, A out_min, A out_max)
  *  REPT <Y|N>   - enable periodic reports
  * @return ProcessStatus 
  */
-ProcessStatus DEV_MotorControl::ExecuteCommand()
+ProcessStatus DEV_MotorControl::ExecuteCommand(char *command, char *params)
 {
     ProcessStatus retVal;
-    DataPacket.timestamp = millis();
-    retVal = Device::ExecuteCommand();
+    retVal = Device::ExecuteCommand(command, params);
     if (retVal == NOT_HANDLED)
     {
-        scanParam();
+        scanParam(params);
         if (isCommand("MSPD"))
         { // Set motor speed
-            retVal = cmdSetSpeed(argCount, arglist);
+            retVal = cmdSetSpeed();
         }
 
         else
         {
-            sprintf(DataPacket.value, "EROR|DEV_MotorControl|Unknown command");
+            sprintf(SMACData.values, "EROR|DEV_MotorControl|Unknown command");
             retVal = FAIL_DATA;
         }
     }
     return (retVal);
 }
 
+
+/**
+ * @brief handle the commmand to set speed.
+   MSPD <speed> - set motor speed  +/- 2048
+ * @return ProcessStatus 
+ */
+ProcessStatus DEV_MotorControl::cmdSetSpeed()
+{
+    ProcessStatus retVal=SUCCESS_NODATA;
+    double result;
+    retVal = getDouble(1,&result, "Speed value - ");
+    if (retVal == SUCCESS_NODATA)
+    {
+        setSpeed(result);
+    }
+    return(retVal);
+}
 
 /**
  * @brief Set the Speed.
@@ -118,7 +134,9 @@ void DEV_MotorControl::setDrift()
 
 /**
  * @brief Stop the robot (Work in progress)
- *    The motor has  motors engaged, but stopped.
+ * Format:   MSPD|<speed>
+ *    The motor has  motors engaged, but st
+ * opped.
  * (Later, we will ramp the speed down at the 'stopRate')
  *  
  * @param stopRate  - TBD:

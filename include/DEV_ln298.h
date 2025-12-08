@@ -18,7 +18,7 @@
 #include <atomic>
 #include "config.h"
 #include "driver/ledc.h"
-#include "DefDevice.h"
+#include "SMAC/DefDevice.h"
 
 
 class DEV_LN298 : public DefDevice
@@ -41,7 +41,7 @@ class DEV_LN298 : public DefDevice
         void setupLN298(MotorControl_config_t *cfg);
         ~DEV_LN298();
         bool isDisabled();    // is the motor disabled?
-        ProcessStatus  ExecuteCommand () override;
+        ProcessStatus  ExecuteCommand (char *command, char *params) override;
         ProcessStatus  DoPeriodic()  override;
         ProcessStatus  setPulseWidthCommand();
         bool setPulseWidth(int pcnt); // Set the pulse width (0..100)

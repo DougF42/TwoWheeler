@@ -3,10 +3,6 @@
 //     FILE : Device.cpp
 //
 //  PROJECT : SMAC Framework
-//              │
-//              └── Firmware
-//                    │
-//                    └── Node
 //
 //    NOTES : Device base class:
 //            Derive custom Devices from this class.
@@ -19,6 +15,7 @@
 
 #include <Arduino.h>
 #include "Device.h"
+#include "Node.h"
 
 //--- Constructor -----------------------------------------
 
@@ -28,8 +25,12 @@ Device::Device (const char *inName)
   strncpy (name, inName, MAX_NAME_LENGTH-1);
   name[MAX_NAME_LENGTH-1] = 0;
 
+  // Names cannot have commas
+  for (int i=0; i<strlen(name); i++)
+    if (name[i] == ',') name[i] = '.';
+
   // Set version
-  strcpy (version, "2025.07.21b");  // no more than 11 chars
+  strcpy (version, "3.0.0");  // no more than 9 chars
 }
 
 //--- SetID -----------------------------------------------
@@ -45,14 +46,22 @@ void Device::SetID (int inDeviceID)
 
 //--- GetID -----------------------------------------------
 
-const char * Device::GetID ()
+char * Device::GetID ()
 {
   return deviceID;
 }
 
+//--- SetNode ---------------------------------------------
+
+void Device::SetNode (Node *parentNode)
+{
+  // Set the Node object for this Device
+  node = parentNode;
+}
+
 //--- GetName ---------------------------------------------
 
-const char * Device::GetName ()
+char * Device::GetName ()
 {
   return name;
 }
@@ -91,7 +100,7 @@ void Device::SetRate (double newRate)
 
 //--- GetVersion ------------------------------------------
 
-const char * Device::GetVersion ()
+char * Device::GetVersion ()
 {
   return version;
 }
@@ -122,8 +131,7 @@ IRAM_ATTR ProcessStatus Device::DoImmediate ()
   // a continuous (as fast as possible) process.
   //
   // If there is data to return, then this method should populate this Device's
-  // timestamp and value strings of the global <DataPacket> structure
-  // and return SUCCESS_DATA or FAIL_DATA.
+  // values string of the global <SMACData> structure and return SUCCESS_DATA or FAIL_DATA.
 
   return SUCCESS_NODATA;
 }
@@ -136,146 +144,143 @@ IRAM_ATTR ProcessStatus Device::DoPeriodic ()
   // a timed periodic process.
   //
   // If there is data to return, then this method should populate this Device's
-  // timestamp and value strings of the global <DataPacket> structure
-  // and return SUCCESS_DATA or FAIL_DATA.
+  // values string of the global <SMACData> structure and return SUCCESS_DATA or FAIL_DATA.
 
   return SUCCESS_NODATA;
 }
 
 //--- ExecuteCommand --------------------------------------
 
-ProcessStatus Device::ExecuteCommand ()
+ProcessStatus Device::ExecuteCommand (char *command, char *params)
 {
   // If your child Device class needs to handle custom commands, then override this method:
   //
-  // The global <CommandPacket> will have the command definition.
   // First call this base class method to handle the built-in Device commands:
   //
-  //   Device::ExecuteCommand ();
+  //   Device::ExecuteCommand (command, params);
   //
   // If this call returns NOT_HANDLED, then your child class should handle the command.
   //
   // If your ExecuteCommand() method has data to return, it should populate the
-  // global <DataPacket> and return an appropriate ProcessStatus.
+  // global SMACData.values field and return an appropriate ProcessStatus.
   //
-  // When populating the global <DataPacket>, value strings that start with a dash or a digit
-  // will be interpreted by the Interface as periodic process data, say from a sensor reading.
+  // If SMACData.values starts with a dash or a digit, then the Interface will
+  // interpret it as data, say from a sensor reading.
+  //
+  // Multiple values can be separated with commas.
 
   // Initial Process Status
   pStatus = NOT_HANDLED;
 
   //--- Get Device Name (GDNA) ------------------
-  if (strcmp (CommandPacket.command, "GDNA") == 0)
+  if (strcmp (command, "GDNA") == 0)
   {
     // Return Device's name
-    strcpy (DataPacket.value, "DENAME=");
-    strcat (DataPacket.value, name);
+    strcpy (SMACData.values, "DENAME=");
+    strcat (SMACData.values, name);
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Set Device Name (SDNA) ------------------
-  else if (strcmp (CommandPacket.command, "SDNA") == 0)
+  else if (strcmp (command, "SDNA") == 0)
   {
     // Set this Device's name
-    strncpy (name, CommandPacket.params, MAX_NAME_LENGTH-1);
+    strncpy (name, params, MAX_NAME_LENGTH-1);
     name[MAX_NAME_LENGTH-1] = 0;
 
     // Acknowledge new name
-    strcpy (DataPacket.value, "DENAME=");
-    strcat (DataPacket.value, name);
+    strcpy (SMACData.values, "DENAME=");
+    strcat (SMACData.values, name);
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Enable Immediate Processing (ENIP) ------
-  else if (strcmp (CommandPacket.command, "ENIP") == 0)
+  else if (strcmp (command, "ENIP") == 0)
   {
     immediateEnabled = true;
 
     // Acknowledge
-    strcpy (DataPacket.value, "IP Enabled");
+    strcpy (SMACData.values, "IP Enabled");
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Disable Immediate Processing (DIIP) -----
-  else if (strcmp (CommandPacket.command, "DIIP") == 0)
+  else if (strcmp (command, "DIIP") == 0)
   {
     immediateEnabled = false;
 
     // Acknowledge
-    strcpy (DataPacket.value, "IP Disabled");
+    strcpy (SMACData.values, "IP Disabled");
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Do Immediate Process one time (DOIP) ----
-  else if (strcmp (CommandPacket.command, "DOIP") == 0)
+  else if (strcmp (command, "DOIP") == 0)
     return DoImmediate ();
 
   //--- Enable Periodic Processing (ENPP) -------
-  else if (strcmp (CommandPacket.command, "ENPP") == 0)
+  else if (strcmp (command, "ENPP") == 0)
   {
     periodicEnabled = true;
     nextPeriodicTime = millis();
 
     // Acknowledge
-    strcpy (DataPacket.value, "PP Enabled");
+    strcpy (SMACData.values, "PP Enabled");
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Disable Periodic Processing (DIPP) ------
-  else if (strcmp (CommandPacket.command, "DIPP") == 0)
+  else if (strcmp (command, "DIPP") == 0)
   {
     periodicEnabled = false;
 
     // Acknowledge
-    strcpy (DataPacket.value, "PP Disabled");
+    strcpy (SMACData.values, "PP Disabled");
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Do Periodic Process one time (DOPP) -----
-  else if (strcmp (CommandPacket.command, "DOPP") == 0)
+  else if (strcmp (command, "DOPP") == 0)
     return DoPeriodic ();
 
   //--- Get Rate (GRAT) -------------------------
-  else if (strcmp (CommandPacket.command, "GRAT") == 0)
+  else if (strcmp (command, "GRAT") == 0)
   {
     // Return this Device's current periodic process rate (calls per hour)
-    strcpy (DataPacket.value, "RATE=");
-    ltoa (GetRate(), DataPacket.value + 5, 10);
+    strcpy (SMACData.values, "RATE=");
+    ltoa (GetRate(), SMACData.values + 5, 10);
 
     pStatus = SUCCESS_DATA;
   }
 
   //--- Set Rate (SRAT) -------------------------
-  else if (strcmp (CommandPacket.command, "SRAT") == 0)
+  else if (strcmp (command, "SRAT") == 0)
   {
     // Set this Device's periodic process rate (calls per hour)
-    double newRate = atof (CommandPacket.params);
+    double newRate = atof (params);
     SetRate (newRate);
 
     // Acknowledge new periodic rate
-    strcpy (DataPacket.value, "RATE=");
-    ltoa (GetRate(), DataPacket.value + 5, 10);
+    strcpy (SMACData.values, "RATE=");
+    ltoa (GetRate(), SMACData.values + 5, 10);
 
     nextPeriodicTime = millis();  // start new rate now
     pStatus = SUCCESS_DATA;
   }
 
   //--- Get Version (GDVR) ----------------------
-  else if (strcmp (CommandPacket.command, "GDVR") == 0)
+  else if (strcmp (command, "GDVR") == 0)
   {
-    sprintf (DataPacket.value, "DVER=%s", version);
+    strcpy (SMACData.values, "DVER=");
+    strcat (SMACData.values, version);
     pStatus = SUCCESS_DATA;
   }
-
-  // Set timestamp if data to return
-  if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-    DataPacket.timestamp = millis();
 
   // Return the resulting ProcessStatus
   return pStatus;

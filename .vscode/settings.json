@@ -71,5 +71,6 @@
         "*.pcpp": "cpp",
         "*.inc": "cpp"
     },
-    "idf.port": "/dev/ttyACM0"
+    "idf.port": "/dev/ttyACM0",
+    "ros.distro": "kilted"
 }

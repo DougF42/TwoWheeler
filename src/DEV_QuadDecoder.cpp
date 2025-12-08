@@ -111,16 +111,15 @@ void DEV_QuadDecoder::update_speed_cb(void *arg)
  *
  * @return ProcessStatus
  */
-ProcessStatus DEV_QuadDecoder::ExecuteCommand()
+ProcessStatus DEV_QuadDecoder::ExecuteCommand(char *command, char *params)
 {
     ProcessStatus retVal = NOT_HANDLED;
     dist_t wheelDia;
     uint32_t pulseCnt;
-    DataPacket.timestamp = millis();
-    retVal = Device::ExecuteCommand();
+    retVal = Device::ExecuteCommand(command, params);
     if (retVal != NOT_HANDLED )  return(retVal);
 
-    scanParam();
+    scanParam(params);
    if (isCommand("QSET")) 
     {   // set wheel dia and pulses. 
         retVal = qsetCommand();
@@ -135,13 +134,13 @@ ProcessStatus DEV_QuadDecoder::ExecuteCommand()
         retVal = qsckCommand();        
     } else 
     {
-        sprintf(DataPacket.value, "EROR|Quad|Unknown command:%s", CommandPacket.command);
+        sprintf(SMACData.values, "EROR|Quad|Unknown command:%s", command);
         retVal=FAIL_DATA;
     }
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK");
+        sprintf(SMACData.values, "OK");
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -156,7 +155,7 @@ ProcessStatus DEV_QuadDecoder::ExecuteCommand()
 ProcessStatus DEV_QuadDecoder::DoPeriodic()
 {
     ProcessStatus retVal = SUCCESS_DATA;
-    sprintf(DataPacket.value, "%f,%f,%s", getPosition(), last_speed, name);
+    sprintf(SMACData.values, "%f,%f,%s", getPosition(), last_speed, name);
 
     return(retVal);
 }
@@ -195,12 +194,12 @@ ProcessStatus DEV_QuadDecoder::qsetCommand()
         {
             if (pulses < 0)
             {
-                sprintf(DataPacket.value, "EROR,Pulse count must be >0");
+                sprintf(SMACData.values, "EROR,Pulse count must be >0");
                 retVal = FAIL_DATA;
             }
             else if (wheel < 0)
             {
-                sprintf(DataPacket.value, "EROR,WheelDiam must be >0");
+                sprintf(SMACData.values, "EROR,WheelDiam must be >0");
                 retVal = FAIL_DATA;
             }
             else
@@ -212,14 +211,14 @@ ProcessStatus DEV_QuadDecoder::qsetCommand()
 
     } else if (argCount !=0 )
     {
-        sprintf(DataPacket.value, "EROR, wrong number of arguments");
+        sprintf(SMACData.values, "EROR, wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
     if (retVal == SUCCESS_NODATA)
     {
         // Show the current parameters
-        sprintf(DataPacket.value, "QSET,%f,%lld,%8.5f", wheelDiam, pulsesPerRev, pulsesToDist);
+        sprintf(SMACData.values, "QSET,%f,%lld,%8.5f", wheelDiam, pulsesPerRev, pulsesToDist);
         retVal = SUCCESS_DATA;
     }
 
@@ -250,14 +249,14 @@ ProcessStatus DEV_QuadDecoder::qsckCommand()
 
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "EROR,wrong number of arguments");
+        sprintf(SMACData.values, "EROR,wrong number of arguments");
         retVal = FAIL_DATA;
 
     }
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK,SCLK,%lld", currentSpdCheckRate);
+        sprintf(SMACData.values, "OK,SCLK,%lld", currentSpdCheckRate);
         retVal=SUCCESS_DATA;
     }
     return (retVal);

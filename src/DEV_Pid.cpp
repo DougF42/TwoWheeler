@@ -65,9 +65,8 @@ DEV_Pid::~DEV_Pid()
  */
 ProcessStatus DEV_Pid::DoPeriodic()
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
-    DataPacket.timestamp = millis();    
-    sprintf(DataPacket.value, "%d,%lf,%lf,%lf",  pid->GetMode(), setPoint, actual, output);
+    ProcessStatus retVal = SUCCESS_NODATA;  
+    sprintf(SMACData.values, "%d,%lf,%lf,%lf",  pid->GetMode(), setPoint, actual, output);
     retVal = SUCCESS_DATA;
 
     return (retVal);
@@ -85,16 +84,15 @@ ProcessStatus DEV_Pid::DoPeriodic()
  * FORMAT:  STIM <time_ms>      (sample time rate - via DOIMMEDIATE)
  * @return ProcessStatus 
  */
-ProcessStatus DEV_Pid::ExecuteCommand()
+ProcessStatus DEV_Pid::ExecuteCommand(char *command, char *params)
 {
     ProcessStatus retVal = SUCCESS_DATA;
-    DataPacket.timestamp = millis();
-    retVal = Device::ExecuteCommand();
+    retVal = Device::ExecuteCommand(command,params);
     if (retVal != NOT_HANDLED)
         return (retVal);
     retVal = NOT_HANDLED;
 
-    scanParam();
+    scanParam(params);
     if (isCommand("SPED"))
     {   // Set speed
         retVal = cmdSetSpeed();
@@ -124,7 +122,7 @@ ProcessStatus DEV_Pid::ExecuteCommand()
 
     else 
     {
-        sprintf(DataPacket.value, "EROR,PID-Unknown command");
+        sprintf(SMACData.values, "EROR,PID-Unknown command");
         retVal = FAIL_DATA;
     }
 
@@ -149,13 +147,13 @@ ProcessStatus DEV_Pid::cmdSetSpeed()
         retVal=getDouble(0, &setPoint, "Speed ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SPED command");
+        sprintf(SMACData.values, "EROR,Wrong number of arguments in SPED command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK,%ld", setPoint);
+        sprintf(SMACData.values, "OK,%ld", setPoint);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -192,14 +190,14 @@ ProcessStatus DEV_Pid::cmdSetP()
         retVal=getDouble(0, &kp, "Kp ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SETP command");
+        sprintf(SMACData.values, "EROR,Wrong number of arguments in SETP command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
         if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(DataPacket.value, "OK,%ld", kp);
+        sprintf(SMACData.values, "OK,%ld", kp);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -220,14 +218,14 @@ ProcessStatus DEV_Pid::cmdSetI()
         retVal=getDouble(0, &ki, "Ki ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SETI command");
+        sprintf(SMACData.values, "EROR,Wrong number of arguments in SETI command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
         if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(DataPacket.value, "OK,%ld", ki);
+        sprintf(SMACData.values, "OK,%ld", ki);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -248,14 +246,14 @@ ProcessStatus DEV_Pid::cmdSetD()
         retVal=getDouble(0, &kd, "Kd ");
     } else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "EROR,Wrong number of arguments in SETD command");
+        sprintf(SMACData.values, "EROR,Wrong number of arguments in SETD command");
         retVal=FAIL_DATA;
     }
 
     if (retVal==SUCCESS_NODATA)
     {
         if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(DataPacket.value, "OK|%ld", kd);
+        sprintf(SMACData.values, "OK|%ld", kd);
         retVal = SUCCESS_DATA;
     }
     return(retVal);
@@ -284,7 +282,7 @@ ProcessStatus DEV_Pid::cmdSetMode()
     else if (argCount != 0)
     {
         // Error - wrong arg count
-        sprintf(DataPacket.value,"EROR,Wrong number of arguments");
+        sprintf(SMACData.values,"EROR,Wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
@@ -294,7 +292,7 @@ ProcessStatus DEV_Pid::cmdSetMode()
         {
             pid->SetMode(val) ;
         }
-        sprintf(DataPacket.value, "SMOD,%s",  (pid->GetMode()==AUTOMATIC) ? "Automatic": "Manual" );
+        sprintf(SMACData.values, "SMOD,%s",  (pid->GetMode()==AUTOMATIC) ? "Automatic": "Manual" );
         retVal=SUCCESS_DATA;
     }
 
@@ -330,7 +328,7 @@ ProcessStatus DEV_Pid::cmdSetSTime()
     } else if (argCount != 0) 
     {
         // Error - wrong arg count
-        sprintf(DataPacket.value,"EROR,wrong number of arguments");
+        sprintf(SMACData.values,"EROR,wrong number of arguments");
         retVal = FAIL_DATA;
     }
 
@@ -341,7 +339,7 @@ ProcessStatus DEV_Pid::cmdSetSTime()
             setSampleClock(mySampleTime);
             mySampleTime=stime;
         }
-        sprintf(DataPacket.value,"STIM|%d",mySampleTime);
+        sprintf(SMACData.values,"STIM|%d",mySampleTime);
         retVal=SUCCESS_DATA;
     }
 

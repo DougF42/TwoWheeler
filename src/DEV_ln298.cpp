@@ -120,15 +120,15 @@ bool DEV_LN298::isDisabled()
  * 
  * @return ProcessStatus 
  */
-ProcessStatus DEV_LN298::ExecuteCommand()
+ProcessStatus DEV_LN298::ExecuteCommand(char *command, char *params)
 {
 
     ProcessStatus retVal = SUCCESS_NODATA;
-    retVal = Device::ExecuteCommand();
+    retVal = Device::ExecuteCommand(command, params);
     if (retVal == NOT_HANDLED)
     {
 
-        scanParam();
+        scanParam(params);
 
         if (isCommand("SPWM"))
         { 
@@ -145,14 +145,14 @@ ProcessStatus DEV_LN298::ExecuteCommand()
         }
         else
         {
-            sprintf(DataPacket.value, "EROR|LN298|Unknown command");
+            sprintf(SMACData.values, "EROR|LN298|Unknown command");
             retVal = FAIL_DATA;
         }
     }
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "%d,%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus = MOTOR_DIS) ? "DIS" : "ENA");
+        sprintf(SMACData.values, "%d,%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus = MOTOR_DIS) ? "DIS" : "ENA");
         retVal = SUCCESS_DATA;
     }
 
@@ -166,8 +166,7 @@ ProcessStatus DEV_LN298::ExecuteCommand()
  */
  ProcessStatus DEV_LN298::DoPeriodic()
  {
-        DataPacket.timestamp = millis();
-        sprintf(DataPacket.value, "%d,%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
+        sprintf(SMACData.values, "%d,%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
         return (SUCCESS_DATA);
  }
 
@@ -186,13 +185,13 @@ ProcessStatus DEV_LN298::setPulseWidthCommand()
     {
         if ((val < -100) || (val > 100))
         {
-            sprintf(DataPacket.value, "EROR|SPWM|%s|Value must be 0 +/- 100", GetName());
+            sprintf(SMACData.values, "EROR|SPWM|%s|Value must be 0 +/- 100", GetName());
             retVal = FAIL_DATA;
         }
 
         else if (motorStatus == MOTOR_DIS)
         {
-            sprintf(DataPacket.value, "EROR|SPWM|%s is not enabled", GetName());
+            sprintf(SMACData.values, "EROR|SPWM|%s is not enabled", GetName());
             retVal = FAIL_DATA;
         }
     }
@@ -204,10 +203,9 @@ ProcessStatus DEV_LN298::setPulseWidthCommand()
             setPulseWidth((int)val);
         }
  
-        sprintf(DataPacket.value, "OK|SPWM|Pulse width is %d", lastPcnt);
+        sprintf(SMACData.values, "OK|SPWM|Pulse width is %d", lastPcnt);
         retVal = SUCCESS_DATA;
     }
-    DataPacket.timestamp = millis();
     return (retVal);
 }
 
@@ -293,9 +291,8 @@ ProcessStatus DEV_LN298::disable(bool isRemoteCmd)
     ledc_stop(LEDC_MODE, led_channel, 0 );
     if (isRemoteCmd)
     {
-        DataPacket.timestamp = millis();
         retVal = SUCCESS_DATA;
-        sprintf(DataPacket.value, "OK|DISA|%s Disabled", GetName());    
+        sprintf(SMACData.values, "OK|DISA|%s Disabled", GetName());    
     }
     return(retVal);
 }
@@ -320,8 +317,7 @@ ProcessStatus DEV_LN298::enable(bool isRemoteCmd)
 
     if (isRemoteCmd)
     {
-        DataPacket.timestamp = millis();
-        sprintf(DataPacket.value, "OK|ENAB|%s enabled", GetName());
+        sprintf(SMACData.values, "OK|ENAB|%s enabled", GetName());
         retVal = SUCCESS_DATA;
     }
     

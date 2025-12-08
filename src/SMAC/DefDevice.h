@@ -23,6 +23,10 @@
 // This is the max number of arguments allowed. It defines the size of 
 //   the arglist array, so should be kept to a rasonable size.
 #define  DEFDEVICE_MAX_ARGS  5
+
+// NOTE: This assumes the 1st parameter to ExecuteCommand is 'command' !
+#define isCommand(cmd)  (0==strcasecmp(cmd, command))
+
 class DefDevice : public Device
 {
     private:
@@ -31,8 +35,8 @@ class DefDevice : public Device
     protected:
         char *arglist[DEFDEVICE_MAX_ARGS];
         int argCount;
-        int   scanParam();  // scan the parameter list
-        bool  isCommand(const char *cmd);
+        int   scanParam(char *params);  // scan the parameter list
+       // bool  isCommand(const char *cmd);
 
         ProcessStatus   getUInt8(int arg, uint8_t *result, const char *msg);
 

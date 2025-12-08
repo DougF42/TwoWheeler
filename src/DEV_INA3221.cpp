@@ -14,7 +14,7 @@
 //
 //  See INA3221Device.h for implementation and usage notes
 // - - - - - - - - - - - - - - - - - - - - -
-
+#include "SMAC/Node.h"
 #include "DEV_INA3221.h"
 #include "cmath"
 #include "esp_log.h"
@@ -58,8 +58,9 @@ DEV_INA3221::INA3221DeviceChannel::INA3221DeviceChannel(const char *inName, DEV_
 ProcessStatus DEV_INA3221::INA3221DeviceChannel::DoPeriodic()
 {    
     float val=0;
-    me->getDataReading(dataPointNo, &val, &DataPacket.timestamp);
-    sprintf(DataPacket.value, "%f",val,  &DataPacket.timestamp);
+    // Note: No more timestamp?
+    // me->getDataReading(dataPointNo, &val, &DataPacket.timestamp);
+    // sprintf(DataPacket.value, "%f",val,  &DataPacket.timestamp);
     return (SUCCESS_DATA);
 }
 
@@ -96,12 +97,12 @@ DEV_INA3221::DEV_INA3221(const char *inName, int _i2CAddr, Node *myNode, TwoWire
         return;
     }
 
-    myNode->AddDevice(new INA3221DeviceChannel("Volt0",   this, 0));
-    myNode->AddDevice(new INA3221DeviceChannel("Volt1",   this, 1));
-    myNode->AddDevice(new INA3221DeviceChannel("Volt2",   this, 2));
-    myNode->AddDevice(new INA3221DeviceChannel("Current0", this, 3));
-    myNode->AddDevice(new INA3221DeviceChannel("Current1", this, 4));
-    myNode->AddDevice(new INA3221DeviceChannel("Current2", this, 5));
+    node->AddDevice(new INA3221DeviceChannel("Volt0",   this, 0));
+    node->AddDevice(new INA3221DeviceChannel("Volt1",   this, 1));
+    node->AddDevice(new INA3221DeviceChannel("Volt2",   this, 2));
+    node->AddDevice(new INA3221DeviceChannel("Current0", this, 3));
+    node->AddDevice(new INA3221DeviceChannel("Current1", this, 4));
+    node->AddDevice(new INA3221DeviceChannel("Current2", this, 5));
 
  // Start the read task, configure the INA3221
     ESP_ERROR_CHECK(xTaskCreate(readDataTask, "ReadINA3221", 4096, this, 3, &readtask));
@@ -232,9 +233,8 @@ ProcessStatus DEV_INA3221::DoPeriodic()
     timeStamp = dts_msec;
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
-    sprintf(DataPacket.value, "%llu|%f|%f|%f|%f|%f|%f",tmpCount,
+    sprintf(SMACData.values, "%llu|%f|%f|%f|%f|%f|%f",tmpCount,
          tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
-    DataPacket.timestamp = timeStamp;
     return(SUCCESS_DATA);
 }
 
@@ -243,14 +243,14 @@ ProcessStatus DEV_INA3221::DoPeriodic()
 // Handle any SMAC commands 
 // FORMAT: GPOW   ( get all 6 current values)
 // - - - - - - - - - - - - - - - - - - - - -
-ProcessStatus  DEV_INA3221::ExecuteCommand () 
+ProcessStatus  DEV_INA3221::ExecuteCommand (char *command, char *params) 
 {
     ProcessStatus retVal=SUCCESS_NODATA;
-    DataPacket.timestamp=millis();
-    retVal = Device::ExecuteCommand();
+
+    retVal = Device::ExecuteCommand(command, params);
     if (retVal == NOT_HANDLED)
     {
-        scanParam();
+        scanParam(params);
         if (isCommand("STIM"))
         {  // Set the time per sample (ms)
             retVal=setTimePerSampleCommand();
@@ -265,17 +265,16 @@ ProcessStatus  DEV_INA3221::ExecuteCommand ()
         
         } else 
         { 
-            sprintf(DataPacket.value, "ERROR: Unknown command");
+            sprintf(SMACData.values, "ERROR: Unknown command");
             retVal=FAIL_DATA;
         }
     }
  
     if (retVal==SUCCESS_NODATA)
     {        
-        sprintf(DataPacket.value, "OK");
+        sprintf(SMACData.values, "OK");
         retVal=SUCCESS_DATA;
     }
-    if (DataPacket.timestamp == 0) DataPacket.timestamp = millis();
     return(retVal);
 }
 
@@ -298,7 +297,7 @@ ProcessStatus DEV_INA3221::setAveragingModeCommand()
     }
     else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments to SAVG command");
+        sprintf(SMACData.values, "ERROR: Missing (or too many) arguments to SAVG command");
         retVal = FAIL_DATA;
     }
 
@@ -309,11 +308,10 @@ ProcessStatus DEV_INA3221::setAveragingModeCommand()
 
     if (retVal == SUCCESS_DATA)
     {
-        Serial.printf(DataPacket.value, "SAVG|%d\r\n", noOfSamplesPerReading);
+        Serial.printf(SMACData.values, "SAVG|%d\r\n", noOfSamplesPerReading);
         retVal = SUCCESS_DATA;
     }
 
-    DataPacket.timestamp = millis();
     return (retVal);
 }
 
@@ -374,7 +372,7 @@ ProcessStatus DEV_INA3221::setAvgCount(int val)
     }
     else
     {     
-        sprintf(DataPacket.value, "ERROR: Count Must be one of 1,4,16,64,128,256,512,1024. arg=%d", val);
+        sprintf(SMACData.values, "ERROR: Count Must be one of 1,4,16,64,128,256,512,1024. arg=%d", val);
         #ifdef DEBUG_DEV_INA3221
         Serial.println(DataPacket.value);
         #endif
@@ -384,10 +382,9 @@ ProcessStatus DEV_INA3221::setAvgCount(int val)
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK");
+        sprintf(SMACData.values, "OK");
         retVal = SUCCESS_DATA;
     }
-    DataPacket.timestamp = millis();
     return(retVal);
 }
 
@@ -409,7 +406,7 @@ ProcessStatus DEV_INA3221::setTimePerSampleCommand()
         retVal = getInt(0, &time_val, "Code for timePerSample:");
     } else if (argCount!=0)
     {
-        sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments");
+        sprintf(SMACData.values, "ERROR: Missing (or too many) arguments");
         retVal = FAIL_DATA;
     }
 
@@ -418,11 +415,10 @@ ProcessStatus DEV_INA3221::setTimePerSampleCommand()
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "STIM|%f", sampleTimeUs);
+        sprintf(SMACData.values, "STIM|%f", sampleTimeUs);
         retVal = SUCCESS_DATA;
     }
 
-    DataPacket.timestamp = millis();
     return (retVal);
 }
 
@@ -492,7 +488,7 @@ ProcessStatus DEV_INA3221::setConvTime(int val)
     else
     {
         retVal = FAIL_DATA;
-        sprintf(DataPacket.value, "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8");
+        sprintf(SMACData.values, "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8");
         #ifdef DEBUG_DEV_INA3221
         Serial.printf( "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8. value seen = %d\r\n",val);
         #endif
@@ -502,9 +498,8 @@ ProcessStatus DEV_INA3221::setConvTime(int val)
     if (retVal == SUCCESS_NODATA)
     {
         retVal = SUCCESS_DATA;
-        sprintf(DataPacket.value, "OK");
+        sprintf(SMACData.values, "OK");
     }
-    DataPacket.timestamp = millis();
     return (retVal);
 }
 
@@ -525,7 +520,7 @@ ProcessStatus DEV_INA3221::setSampleRateCommand()
     }
     else if (argCount != 0)
     {
-        sprintf(DataPacket.value, "ERROR: Missing (or too many) arguments");
+        sprintf(SMACData.values, "ERROR: Missing (or too many) arguments");
         retVal = FAIL_DATA;
     }
 
@@ -536,7 +531,7 @@ ProcessStatus DEV_INA3221::setSampleRateCommand()
 
     if (retVal==SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "OK");
+        sprintf(SMACData.values, "OK");
         retVal=SUCCESS_DATA;
     }
 

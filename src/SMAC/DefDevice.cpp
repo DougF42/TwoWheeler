@@ -41,7 +41,6 @@
 /**
  * @brief Construct a new Def Device:: Def Device object
  * 
- * @param _node   - poitner to the node controlling this device.
  * @param inName  - Name of the device.
  */
 DefDevice::DefDevice(const char *inName) : Device(inName)
@@ -70,10 +69,10 @@ DefDevice::~DefDevice()
  * @return int number of parameters found. (This is
  *    the same as the argCount)
  */
-int DefDevice::scanParam()
+int DefDevice::scanParam(char *params)
 {
     argCount=0;
-    char *aPtr = strtok(CommandPacket.params, "|");
+    char *aPtr = strtok(params, ",");
     while ( (aPtr!=nullptr) && ( *aPtr != '\0') )
     {
         if (argCount >= DEFDEVICE_MAX_ARGS) break; // negative Ghost Rider, the pattern is full!
@@ -94,27 +93,11 @@ ProcessStatus   DefDevice::argCountCheck(int argno, const char *msg)
 {
     if ((argno >=  argCount) | (argno<0))
     {
-        sprintf(DataPacket.value, "EROR,%s,Missing argument no %d", msg, argno);
+        sprintf(SMACData.values, "EROR,%s,Missing argument no %d", msg, argno);
         return(FAIL_DATA);
     }
     return(SUCCESS_NODATA);
 }
-
-
-/**
- * @brief Determine if we have a specific command
- * This does a caseless compare between the CommandPacket.command and a candidate command string.
- * 
- * @param cmd     - the command we are looking for. Only uip to 4 chars are used.
- * @return true   - the command matches.
- * @return false  - not a match.
- *   - TBD: Should this be a macro?
- */
-bool  DefDevice::isCommand(const char *cmd)
-{
-    return(0==strncasecmp(CommandPacket.command, cmd, 4));
-}
-
 
 /**
  * @brief Get a 8bit unsigned integer
@@ -132,7 +115,7 @@ ProcessStatus DefDevice::getUInt8(int arg, uint8_t *result, const char *msg)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "EROR,%s,argument %d is not an unsigned int", msg, arg);
+            sprintf(SMACData.values, "EROR,%s,argument %d is not an unsigned int", msg, arg);
             return (FAIL_DATA);
         }
     }
@@ -141,7 +124,7 @@ ProcessStatus DefDevice::getUInt8(int arg, uint8_t *result, const char *msg)
     tmpRes = strtoll(arglist[arg], nullptr, 10);
     if (tmpRes > (1L<<16) )
     {
-        sprintf(DataPacket.value, "EROR,%s,Missing argument no %d");
+        sprintf(SMACData.values, "EROR,%s,Missing argument no %d");
         return(FAIL_DATA);
     }
 
@@ -167,7 +150,7 @@ ProcessStatus DefDevice::getLLint(int arg, long long *result, const char *msg)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "EROR,%s,argument %d is not an unsigned int", msg, arg);
+            sprintf(SMACData.values, "EROR,%s,argument %d is not an unsigned int", msg, arg);
             return (FAIL_DATA);
         }
     }
@@ -193,7 +176,7 @@ ProcessStatus   DefDevice::getUint16(int arg, uint16_t *result, const char *msg)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "EROR,%s,Argument %d is not an unsigned int", msg, arg);
+            sprintf(SMACData.values, "EROR,%s,Argument %d is not an unsigned int", msg, arg);
             return (FAIL_DATA);
         }
     }
@@ -224,7 +207,7 @@ ProcessStatus DefDevice::getUint32(int arg, uint32_t *result, const char *msg)
     {
         if (!isDigit(*ptr))
         {
-            sprintf(DataPacket.value, "EROR,%s,argument %d is not an unsigned int", msg, arg);
+            sprintf(SMACData.values, "EROR,%s,argument %d is not an unsigned int", msg, arg);
             //Serial.printf("ERR|%s|Bad integer value for argument %d: '%s'", msg, arg, arglist[arg]);
             return (FAIL_DATA);
         }
@@ -253,7 +236,7 @@ ProcessStatus  DefDevice::getInt16  (int arg,  int16_t   *result,  const char *m
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
         {
-             sprintf(DataPacket.value, "EROR,%s,argument %d is not an unsigned int", msg, arg);
+             sprintf(SMACData.values, "EROR,%s,argument %d is not an unsigned int", msg, arg);
             return (FAIL_DATA);
         }
     }
@@ -283,7 +266,7 @@ ProcessStatus DefDevice::getInt32(int arg, int32_t *result, const char *msg)
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
         {
-            sprintf(DataPacket.value, "EROR,%s,Argument %d is not a int", msg, arg);
+            sprintf(SMACData.values, "EROR,%s,Argument %d is not a int", msg, arg);
             return (FAIL_DATA);
         }
     }
@@ -309,7 +292,7 @@ ProcessStatus  DefDevice::getInt  (int arg,  int   *result,  const char *msg)
     {
         if (!isDigit(*ptr) && (*ptr != '+') && (*ptr != '-'))
         {
-           sprintf(DataPacket.value, "EROR,%s,Argument %d is not a int", msg, arg);
+           sprintf(SMACData.values, "EROR,%s,Argument %d is not a int", msg, arg);
             return (FAIL_DATA);
         }
     }
@@ -335,7 +318,7 @@ ProcessStatus DefDevice::getDouble(int arg, double *result, const char *msg)
     double tmpVal =strtod(arglist[arg], nullptr);
     if (errno!=0)
         {
-            sprintf(DataPacket.value, "EROR,%s,Invalid double for argument no %d", msg, arg);
+            sprintf(SMACData.values, "EROR,%s,Invalid double for argument no %d", msg, arg);
             return(FAIL_DATA);
         }
 
@@ -374,7 +357,7 @@ ProcessStatus DefDevice::getBool(int arg, bool *result, const char *msg)
         }
         else
         {
-            sprintf(DataPacket.value, "EROR,%s,Unknown boolean value for argument %d",
+            sprintf(SMACData.values, "EROR,%s,Unknown boolean value for argument %d",
                     arg, msg);
             retval = FAIL_DATA;
         }

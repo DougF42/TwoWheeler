@@ -22,7 +22,7 @@
 #include "DEV_MotorControl.h"
 #include "DEV_Pid.h"
 #include "DEV_Pid.h"
-#include "DefDevice.h"
+#include "SMAC/DefDevice.h"
 
 #define MAX_MOTOR_COUNT 2
 class DEV_Driver:public DefDevice
@@ -48,7 +48,7 @@ public:
     DEV_Driver(const char * name, Node *_Node);
     ~DEV_Driver();
     void setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg); // Instantiate all the subtasks...
-    ProcessStatus  ExecuteCommand () override;  // Override this method to handle custom commands
+    ProcessStatus  ExecuteCommand (char *command, char *params=NULL); // Override this method to handle custom commands
     ProcessStatus  DoPeriodic() override;       
 
     void setMotion(int speed, int _rotation);

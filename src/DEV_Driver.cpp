@@ -11,7 +11,7 @@
  * thru the PID class is used to govern the actual 
  * power applied to each wheel.
  */
-#include "Node.h"
+#include "SMAC/Node.h"
 #include "config.h"
 #include "DEV_Driver.h"
 #include "stdlib.h"
@@ -96,15 +96,15 @@ ProcessStatus DEV_Driver::DoPeriodic()
 //   stop (int stopRate); // 0..100 0 means drift, 100 means emergency stop, otherwise percentage
 //
 //
-ProcessStatus  DEV_Driver::ExecuteCommand ()
+ProcessStatus  DEV_Driver::ExecuteCommand (char *command, char *params)
 {
     ProcessStatus status;
-    status = Device::ExecuteCommand();
+    status = Device::ExecuteCommand(command, params);
     if (status != NOT_HANDLED) return(status);
 
     status=FAIL_NODATA;
-    scanParam();
-    char *cmdPtr = CommandPacket.command;
+    scanParam(params);
+    char *cmdPtr = command;
 
     if (strncmp(cmdPtr, "MOVE",4) == 0)
     {  // Move  at a given speed and rate of rotation
@@ -128,7 +128,7 @@ ProcessStatus  DEV_Driver::ExecuteCommand ()
     {
         status = cmdTANK(argCount, arglist);
     } else {
-        sprintf(DataPacket.value, "EROR|Driver|Unknown command");
+        sprintf(SMACData.values, "EROR|Driver|Unknown command");
         status = FAIL_DATA;
     } 
     // Serial.print("STATUS:  "); Serial.println(status);
@@ -221,7 +221,7 @@ ProcessStatus DEV_Driver::cmdMOV(int argcnt, char *argv[])
         if (errno != 0)
         { // bad value (overflow/underflow)
             result = FAIL_DATA;
-            sprintf(DataPacket.value, "speed parameter is not a valid value");
+            sprintf(SMACData.values, "speed parameter is not a valid value");
             retVal = FAIL_DATA;
             goto endCmdMOV;
         }
@@ -236,7 +236,7 @@ ProcessStatus DEV_Driver::cmdMOV(int argcnt, char *argv[])
         if (errno != 0)
         {
             result = FAIL_DATA;
-            sprintf(DataPacket.value, "speed parameter is not a valid value");
+            sprintf(SMACData.values, "speed parameter is not a valid value");
             retVal = FAIL_DATA;
             goto endCmdMOV;
         }
@@ -250,8 +250,7 @@ ProcessStatus DEV_Driver::cmdMOV(int argcnt, char *argv[])
     setMotion(mySpeed, myDirect);
 
     // Report current speed and rotation rate
-    DataPacket.timestamp = millis();
-    sprintf(DataPacket.value, "*** In SetMotion: Speed|%d| dir|%d| m1|%f| M2|%f",
+    sprintf(SMACData.values, "*** In SetMotion: Speed|%d| dir|%d| m1|%f| M2|%f",
              mySpeed, myDirect, leftMtr->GetRate(), rightMtr->GetRate());
 
 endCmdMOV:
@@ -299,14 +298,14 @@ ProcessStatus DEV_Driver::cmdSPEED(int argcnt, char *argv[])
     }
     else if (argcnt != 0)
     {
-        sprintf(DataPacket.value, "too many arguments");
+        sprintf(SMACData.values, "too many arguments");
         retVal=FAIL_DATA;
         goto cmdSPEEDend;
     }
 
     if (retVal == SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value, "SPED|%f", mySpeed);
+        sprintf(SMACData.values, "SPED|%f", mySpeed);
         retVal = SUCCESS_DATA;
     }
 
@@ -340,14 +339,14 @@ ProcessStatus DEV_Driver::cmdROTATION(int argcnt, char *argv[])
         if (errno != 0)
         { //to many arguments
             retVal = FAIL_DATA;
-            sprintf(DataPacket.value, "Too many arguments");
+            sprintf(SMACData.values, "Too many arguments");
             goto cmdROTATIONend;
         }
     }
 
     if (retVal==SUCCESS_NODATA)
     {
-        sprintf(DataPacket.value,"ROTA|%d", myDirect);
+        sprintf(SMACData.values,"ROTA|%d", myDirect);
         retVal=SUCCESS_DATA;
     }
 
@@ -369,7 +368,7 @@ ProcessStatus DEV_Driver::cmdDrift(int argcnt, char *argv[])
     // PID to manunal
     leftMtr ->setDrift();
     rightMtr->setDrift();
-    sprintf(DataPacket.value, "DRFT|OK");
+    sprintf(SMACData.values, "DRFT|OK");
     retVal = SUCCESS_DATA;
     return(retVal);
 }

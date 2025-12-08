@@ -10,7 +10,7 @@
  */
 #pragma once
 #include "config.h"
-#include "DefDevice.h"
+#include "SMAC/DefDevice.h"
 #include "PIDX.h"
 #include "esp_timer.h"
 #include "DEV_QuadDecoder.h"
@@ -45,7 +45,7 @@ class DEV_Pid : public DefDevice
         static void timer_callback(void *arg);
         ProcessStatus DoPeriodic() override;
         // ProcessStatus  DoImmediate    () override;
-        ProcessStatus ExecuteCommand() override;
+        ProcessStatus ExecuteCommand(char *command , char *params) override;
 
         ProcessStatus cmdSetSpeed(); // external command to directly 
                                      // set the 'setpoint' or 
