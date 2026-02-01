@@ -8,9 +8,9 @@
  * @copyright Copyright (c) 2025
  * 
  * Use the LCD PWM driver on the ESP32 to 
- * drive one motor. 
+ * drive a motor. 
  * 
- * The 'timer' is always timer0, only the channel no
+ * The 'timer' is always timer0, only the channel number
  * changes.
  * 
  */
@@ -18,10 +18,10 @@
 #include <atomic>
 #include "config.h"
 #include "driver/ledc.h"
-#include "SMAC/DefDevice.h"
+#include "SMAC/Device.h"
 
 
-class DEV_LN298 : public DefDevice
+class DEV_LN298 : public Device
 {
     private:
         volatile static uint8_t timer_is_inited;
@@ -43,11 +43,11 @@ class DEV_LN298 : public DefDevice
         bool isDisabled();    // is the motor disabled?
         ProcessStatus  ExecuteCommand (char *command, char *params) override;
         ProcessStatus  DoPeriodic()  override;
-        ProcessStatus  setPulseWidthCommand();
+        ProcessStatus  setPulseWidthCommand(char *command, char *params);
         bool setPulseWidth(int pcnt); // Set the pulse width (0..100)
         int getPulseWidth();       // What pulse width was last set?
-        ProcessStatus enable(bool isRemoteCmd=false);
-        ProcessStatus disable(bool isRemoteCmd=false);
-        ProcessStatus hardStop(bool isRemoteCmd=false);
+        ProcessStatus enable();
+        ProcessStatus disable();
+        ProcessStatus hardStop();
 
 };

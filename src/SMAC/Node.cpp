@@ -8,7 +8,7 @@
 //            Derive your custom Node from this class.
 //
 //   AUTHOR : Bill Daniels
-//            Copyright 2021-2025, D+S Tech Labs, Inc.
+//            Copyright 2021-2026, D+S Tech Labs, Inc.
 //            All Rights Reserved
 //
 //=========================================================
@@ -21,11 +21,12 @@
 #include <esp_wifi.h>
 #include "Node.h"
 #include "Device.h"
+#include "ThisNode.h"
 
 //--- Declarations ----------------------------------------
 
 void ESPNOW_Receiver (const esp_now_recv_info_t *info, const uint8_t *espnowString, int stringLength);
-// void onESPNOWSent     (const uint8_t *mac_addr, esp_now_send_status_t status);  // Not used in SMAC
+// void onESPNOWSent    (const uint8_t *mac_addr, esp_now_send_status_t status);  // Not used in SMAC
 
 extern bool  WaitingForRelayer;
 
@@ -50,7 +51,7 @@ Node::Node (const char *inName, int inNodeID)
 
   sprintf (nodeID, "%02d", inNodeID);
 
-  strcpy (version, "3.0.0");  // no more than 9 chars
+  strcpy (version, "3.2");  // no more than 9 chars
 
 
   //================================================
@@ -138,23 +139,25 @@ void Node::AddDevice (Device *device)
 
 //--- SendData --------------------------------------------
 
-IRAM_ATTR void Node::SendData (const char *sourceDeviceID, bool broadcast)
+IRAM_ATTR void Node::SendData (const char *sourceDeviceID, bool widgetData, bool broadcast)
 {
   // The global SMACData.values field should be filled.
 
   // Build an ESPNOW Data string.  It has four fields separated with the '|' char:
   //
-  //   ┌──────────── 1-char packet type ('D' for Data)
+  //   ┌──────────── 1-char packet type ('W' for Widget Data, 'S' for System Data)
   //   │ ┌────────── 2-char source nodeID (00-19)
   //   │ │  ┌─────── 2-char source deviceID (00-99)
   //   │ │  │    ┌── variable length string of values (multiple values are comma delimited)
   //   │ │  │    │
-  //   D|nn|dd|values
+  //   d|nn|dd|values
   //
   // ESPNOW strings must be NULL terminated.
   // A '|' and timestamp is appended to all Data Strings by the Relayer
 
-  memcpy (ESPNOW_String, "D|--|--|", 8);  // Start with 'D' for Data
+  memcpy (ESPNOW_String, "W|--|--|", 8);    // Default to Widget data
+  if (!widgetData) ESPNOW_String[0] = 'S';  // System data
+
   memcpy (ESPNOW_String + 2, nodeID, ID_SIZE);
   memcpy (ESPNOW_String + 5, sourceDeviceID, ID_SIZE);
   ESPNOW_String[8] = 0;
@@ -162,14 +165,11 @@ IRAM_ATTR void Node::SendData (const char *sourceDeviceID, bool broadcast)
 
   //=============================
   // Send Data String to Relayer
-  //=============================
-  if (broadcast)                                                                                   //  ┌─ include string terminator
-    ESPNOW_Result = esp_now_send (NULL      , (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
-  else
-    ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
+  //=============================                                                                                       ┌─ include string terminator
+  ESPNOW_Result = esp_now_send (broadcast ? NULL : RelayerMAC, (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
   if (ESPNOW_Result != ESP_OK)
   {
-    Serial.print   ("ERROR: esp_now_send() returned ");
+    Serial.print   ("ERROR: Unable to send SMAC Data to Relayer: ");
     Serial.println (ESPNOW_Result);
   }
 
@@ -218,13 +218,10 @@ IRAM_ATTR void Node::SendCommand (const char *targetNodeID, const char *targetDe
   //================================
   // Send Command String to Relayer
   //================================
-  if (broadcast)                                                                                   //  ┌─ include string terminator
-    ESPNOW_Result = esp_now_send (NULL      , (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
-  else
-    ESPNOW_Result = esp_now_send (RelayerMAC, (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
+  ESPNOW_Result = esp_now_send (broadcast ? NULL : RelayerMAC, (const uint8_t *) ESPNOW_String, strlen(ESPNOW_String) + 1);
   if (ESPNOW_Result != ESP_OK)
   {
-    Serial.print   ("ERROR: esp_now_send() returned ");
+    Serial.print   ("ERROR: Unable to send SMAC Command to Relayer: ");
     Serial.println (ESPNOW_Result);
   }
 
@@ -263,8 +260,8 @@ void Node::Run ()
       pStatus = devices[deviceIndex]->DoImmediate ();
 
       // Any data to send?
-      if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-        SendData (devices[deviceIndex]->GetID());
+      if (pStatus != NODATA)
+        SendData (devices[deviceIndex]->GetID(), (pStatus == WIDGET_DATA));  // Send Data to Interface
     }
 
     //--- Periodic Processing ---
@@ -274,8 +271,8 @@ void Node::Run ()
       pStatus = devices[deviceIndex]->RunPeriodic ();
 
       // Any data to send?
-      if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-        SendData (devices[deviceIndex]->GetID());
+      if (pStatus != NODATA)
+        SendData (devices[deviceIndex]->GetID(), (pStatus == WIDGET_DATA));  // Send Data to Interface
     }
   }
 
@@ -339,11 +336,8 @@ void Node::Run ()
               Serial.print (", numDevices="); Serial.println (numDevices);
             }
 
-            Serial.print ("ERROR: Command targeted for unknown device: "); Serial.println (deviceIndex);
-            pStatus = FAIL_NODATA;
-
-            // sprintf (SMACData.values, "ERROR: Command targeted for unknown device '%02d'", deviceIndex);
-            // pStatus = FAIL_DATA;
+            sprintf (SMACData.values, "ERROR: Command targeted for unknown device '%02d'", deviceIndex);
+            pStatus = SYSTEM_DATA;
           }
           else
           {
@@ -360,14 +354,14 @@ void Node::Run ()
           // Check if still not handled
           if (pStatus == NOT_HANDLED)
           {
-            sprintf (SMACData.values, "ERROR: Unknown command '%s'", commandString + CommandOffset);
-            pStatus = FAIL_DATA;
+            sprintf (SMACData.values, "ERROR: Unknown command: %s", commandString + CommandOffset);
+            pStatus = SYSTEM_DATA;
           }
         }
 
         // Any data to send?
-        if (pStatus == SUCCESS_DATA || pStatus == FAIL_DATA)
-          SendData ((deviceIndex < 0 || deviceIndex >= numDevices) ? "--" : devices[deviceIndex]->GetID());
+        if (pStatus != NODATA)
+          SendData ((deviceIndex < 0 || deviceIndex >= numDevices) ? "--" : devices[deviceIndex]->GetID(), (pStatus == WIDGET_DATA));
       }
 
       //====================================
@@ -382,7 +376,7 @@ void Node::Run ()
   if (millis() - lastPacketTime > MAX_SILENT_DURATION)
   {
     strcpy (SMACData.values, "PONG");
-    SendData ("--");
+    SendData ("--", false);
   }
 }
 
@@ -421,7 +415,7 @@ ProcessStatus Node::ExecuteCommand (char *command, char *params)
     strcpy (SMACData.values, "NONAME=");
     strcat (SMACData.values, name);
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Get Node Info (GNOI) ----------------------------
@@ -430,7 +424,7 @@ ProcessStatus Node::ExecuteCommand (char *command, char *params)
     // Send Node info with fields delimited with commas
     sprintf (SMACData.values, "NOINFO=%s,%s,%s,%d", name, version, macAddressString, numDevices);
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Get Device Info (GDEI) ----------------------------
@@ -440,11 +434,11 @@ ProcessStatus Node::ExecuteCommand (char *command, char *params)
     for (int i=0; i<numDevices; i++)
     {
       sprintf (SMACData.values, "DEINFO=%s,%s,%c,%c,%lu", devices[i]->GetName(), devices[i]->GetVersion(), devices[i]->IsIPEnabled() ? 'Y':'N', devices[i]->IsPPEnabled() ? 'Y':'N', devices[i]->GetRate());
-      SendData (devices[i]->GetID());
+      SendData (devices[i]->GetID(), false);
     }
 
     // All Device data has been sent, no need to send anything else
-    pStatus = SUCCESS_NODATA;
+    pStatus = NODATA;
   }
 
   //--- Ping (PING) ---------------------------------------
@@ -453,7 +447,7 @@ ProcessStatus Node::ExecuteCommand (char *command, char *params)
     // Got PINGed from Interface, Respond with PONG
     strcpy (SMACData.values, "PONG");
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Change WiFi Channel (WFCH) ------------------------
@@ -472,18 +466,13 @@ ProcessStatus Node::ExecuteCommand (char *command, char *params)
         // Change ESP-NOW WiFi Channel to new channel
         esp_wifi_set_channel (newChannel, WIFI_SECOND_CHAN_NONE);
 
-        pStatus = SUCCESS_DATA;
+        pStatus = SYSTEM_DATA;
       }
-    }
-
-    // Check for invalid channel
-    if (pStatus == NOT_HANDLED)
-    {
-      Serial.println ("ERROR: Invalid WiFi Channel");
-      pStatus = FAIL_NODATA;
-
-      // strcpy (SMACData.values, "ERROR: Invalid WiFi Channel");
-      // pStatus = FAIL_DATA;
+      else
+      {
+        strcpy (SMACData.values, "ERROR: Invalid WiFi Channel");
+        pStatus = SYSTEM_DATA;
+      }
     }
   }
 
@@ -500,14 +489,14 @@ ProcessStatus Node::ExecuteCommand (char *command, char *params)
       delay (20);
     }
 
-    pStatus = SUCCESS_NODATA;
+    pStatus = NODATA;
   }
 
   //--- Get Version (GNVR) --------------------------------
   else if (strncmp (command, "GNVR", COMMAND_SIZE) == 0)
   {
     sprintf (SMACData.values, "NVER=%s", version);
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Reset (RSET) --------------------------------------

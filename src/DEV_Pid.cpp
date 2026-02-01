@@ -18,7 +18,7 @@
 
 #include "DEV_Pid.h"
 
-DEV_Pid::DEV_Pid( const char *_name)  : DefDevice( _name)
+DEV_Pid::DEV_Pid( const char *_name)  : Device( _name)
 {
     name = strdup(_name);
     pid = nullptr;

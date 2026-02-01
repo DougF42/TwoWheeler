@@ -36,7 +36,7 @@
 //                Use the SRAT command in ExecuteCommand() to set the periodic rate.
 //
 //              ∙ If either process has data to return, it should populate the global <SMACData.values>
-//                field, then return one of the <ProcessStatus> enums, usually SUCCESS_DATA.
+//                field, then return one of the <ProcessStatus> enums, usually WIDGET_DATA.
 //
 //                The global <SMACData> holds outgoing node/device data and has the following four fields:
 //
@@ -57,7 +57,7 @@
 //                A command string holds the incoming command data and has the following four or five fields
 //                separated with the '|' char:
 //
-//                  ┌───────────────── 1-char message type ('C' for Command)
+//                  ┌───────────────── 1-char packet type ('C' for Command)
 //                  │ ┌─────────────── 2-char nodeID (00-19)
 //                  │ │  ┌──────────── 2-char deviceID (00-99)
 //                  │ │  │   ┌──────── 4-char command (usually capital letters)
@@ -88,7 +88,7 @@
 //                If the command is not handled by this base class, you can handle the command in your derived class.
 //
 //   AUTHOR : Bill Daniels
-//            Copyright 2021-2025, D+S Tech Labs, Inc.
+//            Copyright 2021-2026, D+S Tech Labs, Inc.
 //            All Rights Reserved
 //
 //=========================================================

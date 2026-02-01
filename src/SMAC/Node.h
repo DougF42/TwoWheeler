@@ -30,8 +30,8 @@
 //              ∙ This Node base class handles the following built-in (reserved) Node commands:
 //
 //                SNNA = Set Node Name
-//                GNOI = Get Node Info   : SMACData.values = name|version|macAddress|numDevices
-//                GDEI = Get Device Info : SMACData.values = name|version|ipEnabled|ppEnabled|rate
+//                GNOI = Get Node Info   : SMACData.values = NOINFO=name|version|macAddress|numDevices
+//                GDEI = Get Device Info : SMACData.values = DEINFO=name|version|ipEnabled|ppEnabled|rate
 //                PING = Check if still alive and connected; responds with "PONG"
 //                WFCH = Set New ESP-NOW WiFi Channel
 //                BLIN = Quickly blink the Node's status LED to indicate communication or location
@@ -43,7 +43,7 @@
 //                Node::ExecuteCommand()
 //
 //            █ Data can be returned from ExecuteCommand() by filling the 'values' field of the
-//              global <SMACData> structure and returning SUCCESS_DATA.
+//              global <SMACData> structure and returning a ProcessStatus with data to send.
 //
 //  WARNING : Some Espressif ESP32 boards do not allow the use of Analog Channel 2 (ADC2) with Wifi.
 //            Since Nodes use WiFi, do not use ADC2 pins as analog inputs.
@@ -53,7 +53,7 @@
 //            and trouble uploading new firmware.
 //
 //   AUTHOR : Bill Daniels
-//            Copyright 2021-2025, D+S Tech Labs, Inc.
+//            Copyright 2021-2026, D+S Tech Labs, Inc.
 //            All Rights Reserved
 //
 //==========================================================
@@ -94,7 +94,7 @@ class Node
 
     void   AddDevice   (Device *device);  // Call this method to add Devices
     void   Run         ();                // Run this Node; called from the loop() method of main.cpp
-    void   SendData    (const char *sourceDeviceID, bool broadcast=false);
+    void   SendData    (const char *sourceDeviceID, bool widgetData=true, bool broadcast=false);
     void   SendCommand (const char *targetNodeID, const char *targetDeviceID, const char *command, const char *params=NULL, bool broadcast=false);
     char * GetVersion  ();  // Return the current version of this Node
 

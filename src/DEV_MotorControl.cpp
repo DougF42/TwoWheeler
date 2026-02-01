@@ -11,7 +11,7 @@
 #include "SMAC/Node.h"
 #include "DEV_MotorControl.h"
 
-DEV_MotorControl::DEV_MotorControl(const char * InName) : DefDevice(InName)
+DEV_MotorControl::DEV_MotorControl(const char * InName) : Device(InName)
 {
     piddev = nullptr;
  }

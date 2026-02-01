@@ -6,23 +6,34 @@
  * @date 2025-07-15
  * 
  * @copyright Copyright (c) 2025
+ *   The ESP32Encoder library is set to have the encoder generate an
+ * interrupt on any pulse. Our handler is ****TBD***
  * 
+ *   To get speed, We use a high-res timer that calles 'update_speed_cb'
+ * at a regular, timed intervals. At that time, we read the number of pulses
+ * that went by since the last call, and update our speed accordingly.
+ * 
+ * TODO: Do we need to control access in the timer ISR callback?
  */
 #include "DEV_QuadDecoder.h"
 #include <math.h>
+#include <string.h>
+#include <stdlib.h>
+#include "Util.h"
 #include "esp_err.h"
 #include "esp_log_buffer.h"
 
 static const char *TAG="DEV_QuadDecoder";
+
 /**
  * @brief Construct a new Quad Decoder object
  * 
  * @param _node 
  * @param InName 
  */
-DEV_QuadDecoder::DEV_QuadDecoder(const char *InName): DefDevice(InName)
+DEV_QuadDecoder::DEV_QuadDecoder(const char *InName): Device(InName)
 {
-    myEncoder      = new ESP32Encoder;
+    myEncoder      = new ESP32Encoder;  //create a default encoder
     spdUpdateTimerhandle=nullptr;
     last_position  = 0;
     last_timecheck = 0;
@@ -49,7 +60,7 @@ DEV_QuadDecoder::~DEV_QuadDecoder()
  */
 void DEV_QuadDecoder::setup(MotorControl_config_t *cfg)
 {
-    // deocder setup
+    // deocder setup.
     ESP32Encoder::useInternalWeakPullResistors = puType::none;
     myEncoder->attachFullQuad(cfg->quad_pin_a, cfg->quad_pin_b);
     resetPosition();
@@ -97,8 +108,6 @@ void DEV_QuadDecoder::update_speed_cb(void *arg)
 
     // Calc speed
     me->last_speed = ( ((double)pos_diff) * me->pulsesToDist) / ((double)elapsed);
-   //Serial.printf(" position pulsesRoDist %lf  diff %ld elapsed= %lld speed=%lf\r\n", 
-   //     me->pulsesToDist, pos_diff, elapsed, me->last_speed);
     me->last_position = me->myEncoder->getCount();
     me->last_timecheck = now;
 
@@ -107,7 +116,11 @@ void DEV_QuadDecoder::update_speed_cb(void *arg)
 
 
 /**
- * @brief
+ * @brief Execute commands for this device
+ * Commands:
+ *   QSET  <pulsesPerRev>,<Diameter>
+ *   QRST
+ *   QSCK  // set speed check interval
  *
  * @return ProcessStatus
  */
@@ -116,55 +129,72 @@ ProcessStatus DEV_QuadDecoder::ExecuteCommand(char *command, char *params)
     ProcessStatus retVal = NOT_HANDLED;
     dist_t wheelDia;
     uint32_t pulseCnt;
+
     retVal = Device::ExecuteCommand(command, params);
-    if (retVal != NOT_HANDLED )  return(retVal);
+    if (retVal != NOT_HANDLED)
+        return (retVal);
 
-    scanParam(params);
-   if (isCommand("QSET")) 
-    {   // set wheel dia and pulses. 
-        retVal = qsetCommand();
-
-    } else if (isCommand("QRST"))
-    {  // Reset position
+    if (0 == strcmp(command, "QSET"))
+    { // set wheel dia and pulses.
+        retVal = qsetCommand(command, params);
+    }
+    
+    else if (0 == strcmp(command, "QRST"))
+    { // Reset position
         resetPosition();
-        retVal=SUCCESS_NODATA;
-
-    } else if (isCommand("QSCK"))
-    {  // Set the speed Check Interval
-        retVal = qsckCommand();        
-    } else 
+        retVal = NODATA;
+    }
+    
+    else if (0 == strcmp(command, "QSCK"))
+    { // Set the speed Check Interval
+        retVal = qsckCommand(command, params);
+    }
+    
+    else if (0 == strcmp(command, "STAT"))
+    {
+        retVal = statusCommand(command, params);
+    }
+    
+    else
     {
         sprintf(SMACData.values, "EROR|Quad|Unknown command:%s", command);
-        retVal=FAIL_DATA;
+        retVal = SYSTEM_DATA;
     }
 
-    if (retVal == SUCCESS_NODATA)
-    {
-        sprintf(SMACData.values, "OK");
-        retVal = SUCCESS_DATA;
-    }
-    return(retVal);
+    return (retVal);
 }
 
 
 /**
  * @brief Report current speed and position
  *
- * @return ProcessStatus
+ * @return ProcessStatus. SMACData.values is 
+ *    loaded with a '1' (record type),<position>, <last_speed>
  */
 ProcessStatus DEV_QuadDecoder::DoPeriodic()
 {
-    ProcessStatus retVal = SUCCESS_DATA;
-    sprintf(SMACData.values, "%f,%f,%s", getPosition(), last_speed, name);
+    sprintf(SMACData.values, "1, %d, %f,%f", getPosition(), last_speed);
+    return(WIDGET_DATA);
+}
 
-    return(retVal);
+
+/** 
+ * @brief Report configuration  parameters
+ * @return WIDGET_DATA (record type 2)
+ *   SMACData.values is loaded with parameters as follows:
+ * '1' (record Identifier), <pulsesPerRev-int32>,<diameter-double>, <update_rate-long long>, <pulsesToDist>
+ */
+ProcessStatus DEV_QuadDecoder::statusCommand(char *command, char *params)
+{
+    sprintf(SMACData.values, "2, %d,%f,%lld,%f", pulsesPerRev,  wheelDiam, currentSpdCheckRate, pulsesToDist);
+    return(WIDGET_DATA);
 }
 
 
 /**
  * @brief Set the pulses/routation and wheel diam
  *   Format: QSET
- *          return the current pulses-per-rev  and diameter
+ *
  *   Format: QSET|<pulses>|<diam>
  *     <pulses is number of positive pulses per rev.
  *          (we configure as quad encoder, so we store
@@ -173,91 +203,85 @@ ProcessStatus DEV_QuadDecoder::DoPeriodic()
  *          was measured in will define the units used
  *          for speed.
  *
- * @return ProcessStatus
+ * @return ProcessStatus - NODATA normally SYSTEM_DATA if an error
  */
-ProcessStatus DEV_QuadDecoder::qsetCommand()
+ProcessStatus DEV_QuadDecoder::qsetCommand(char *command, char *params)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal = NODATA;
     double wheel;   // temporary wheel diameter
     pulse_t pulses; // temporary number of pulses
-    if (argCount == 2)
+    char *tmp=nullptr;
+    char *endptr=nullptr;
+    errno=0;
+
+    // Get the first arg (pulses per rev)
+    tmp = strtok(params, ",\r\n");
+    if ((tmp == nullptr) || (strlen(params) == 0))
     {
-        if (SUCCESS_NODATA != getInt32(1, &pulses, "Pulse Count: "))
+        sprintf(SMACData.values, "EROR - Missing arguments to qset command");
+        retVal = SYSTEM_DATA;
+    }
+    else
+    {
+        // Get the second argument
+        retVal = Util::getint32_t(tmp, &pulses, "Number of pulses");
+        if (retVal == NODATA)
         {
-            retVal = FAIL_DATA;
-        }
-        else if (0 != getDouble(0, &wheel, "Wheel Diameter: "))
-        {
-            retVal = FAIL_DATA;
-        }
-        else
-        {
-            if (pulses < 0)
+            tmp = strtok(nullptr, ",\r\n");
+            if (tmp == nullptr)
             {
-                sprintf(SMACData.values, "EROR,Pulse count must be >0");
-                retVal = FAIL_DATA;
-            }
-            else if (wheel < 0)
-            {
-                sprintf(SMACData.values, "EROR,WheelDiam must be >0");
-                retVal = FAIL_DATA;
+                sprintf(SMACData.values, "ERROR - Missing 2nd argument to QSET command");
+                retVal = SYSTEM_DATA;
             }
             else
             {
-                setPhysParams(pulses, wheel);
-                retVal = SUCCESS_NODATA;
+                errno = 0;
+                wheel = strtod(tmp, &endptr);
+                if ( (errno != 0) || (*endptr != '\0') )
+                    {
+                        sprintf(SMACData.values, "ERROR - 2nd Argument is invalid ");
+                        retVal = SYSTEM_DATA;
+                    }
+                else
+                {
+                    setPhysParams(pulses, wheel);
+                    retVal = NODATA;
+                }
             }
+
         }
-
-    } else if (argCount !=0 )
-    {
-        sprintf(SMACData.values, "EROR, wrong number of arguments");
-        retVal = FAIL_DATA;
     }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        // Show the current parameters
-        sprintf(SMACData.values, "QSET,%f,%lld,%8.5f", wheelDiam, pulsesPerRev, pulsesToDist);
-        retVal = SUCCESS_DATA;
-    }
-
     return (retVal);
+
 }
 
+
 /**
- * @brief Set (or return) the speed check clock
- *    Format:  QSCK     - get the current clock rate (millisecs)
+ * @brief Set the speed check clock
  *    Format:  QSCK|<period>
  *             <period> is the time period between speed
  *                      checks, in milliseconds
- * @return ProcessStatus
+ * @return ProcessStatus - NODATA normally, SYSTEM_DATA if error
  */
-ProcessStatus DEV_QuadDecoder::qsckCommand()
+ProcessStatus DEV_QuadDecoder::qsckCommand(char *command, char *param)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal = NODATA;
     time_t newclkRate = 0;
-    if (argCount == 1)
+
+    char *periodString=strtok(param, ",\r\n");
+
+    if (periodString==nullptr)
     {
-        if (SUCCESS_NODATA != getLLint(0, &newclkRate, "Speed check rate "))
+        sprintf(SMACData.values, "EROR - missing argument to qsck command");
+        retVal=SYSTEM_DATA;
+
+    } else {
+        retVal = Util::getLL_t(periodString, &newclkRate, "Period");
+        if (retVal == NODATA)
         {
-            retVal = FAIL_DATA;
-        } else {
             setSpeedCheckInterval(newclkRate);
-            retVal = SUCCESS_NODATA;
+            retVal = NODATA;
         }
-
-    } else if (argCount != 0)
-    {
-        sprintf(SMACData.values, "EROR,wrong number of arguments");
-        retVal = FAIL_DATA;
-
-    }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        sprintf(SMACData.values, "OK,SCLK,%lld", currentSpdCheckRate);
-        retVal=SUCCESS_DATA;
     }
     return (retVal);
 }
@@ -277,7 +301,6 @@ void DEV_QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
     pulsesPerRev = pulseCnt;
     wheelDiam    = diam;
     pulsesToDist = (pulsesPerRev*4) / (diam* M_PI);
-   // Serial.print("Convert pulsesToDist "); Serial.println(pulsesToDist);
     return;
 }
 

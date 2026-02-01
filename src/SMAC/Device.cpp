@@ -8,7 +8,7 @@
 //            Derive custom Devices from this class.
 //
 //   AUTHOR : Bill Daniels
-//            Copyright 2021-2025, D+S Tech Labs, Inc.
+//            Copyright 2021-2026, D+S Tech Labs, Inc.
 //            All Rights Reserved
 //
 //=========================================================
@@ -30,7 +30,7 @@ Device::Device (const char *inName)
     if (name[i] == ',') name[i] = '.';
 
   // Set version
-  strcpy (version, "3.0.0");  // no more than 9 chars
+  strcpy (version, "3.1");  // no more than 9 chars
 }
 
 //--- SetID -----------------------------------------------
@@ -120,7 +120,7 @@ ProcessStatus Device::RunPeriodic ()
     return DoPeriodic ();
   }
 
-  return SUCCESS_NODATA;
+  return NODATA;
 }
 
 //--- DoImmediate -----------------------------------------
@@ -131,9 +131,9 @@ IRAM_ATTR ProcessStatus Device::DoImmediate ()
   // a continuous (as fast as possible) process.
   //
   // If there is data to return, then this method should populate this Device's
-  // values string of the global <SMACData> structure and return SUCCESS_DATA or FAIL_DATA.
+  // values string of the global <SMACData> structure and return a ProcessStatus.
 
-  return SUCCESS_NODATA;
+  return NODATA;
 }
 
 //--- DoPeriodic ------------------------------------------
@@ -144,9 +144,9 @@ IRAM_ATTR ProcessStatus Device::DoPeriodic ()
   // a timed periodic process.
   //
   // If there is data to return, then this method should populate this Device's
-  // values string of the global <SMACData> structure and return SUCCESS_DATA or FAIL_DATA.
+  // values string of the global <SMACData> structure and return a ProcessStatus.
 
-  return SUCCESS_NODATA;
+  return NODATA;
 }
 
 //--- ExecuteCommand --------------------------------------
@@ -179,7 +179,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     strcpy (SMACData.values, "DENAME=");
     strcat (SMACData.values, name);
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Set Device Name (SDNA) ------------------
@@ -193,7 +193,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     strcpy (SMACData.values, "DENAME=");
     strcat (SMACData.values, name);
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Enable Immediate Processing (ENIP) ------
@@ -204,7 +204,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     // Acknowledge
     strcpy (SMACData.values, "IP Enabled");
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Disable Immediate Processing (DIIP) -----
@@ -215,7 +215,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     // Acknowledge
     strcpy (SMACData.values, "IP Disabled");
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Do Immediate Process one time (DOIP) ----
@@ -231,7 +231,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     // Acknowledge
     strcpy (SMACData.values, "PP Enabled");
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Disable Periodic Processing (DIPP) ------
@@ -242,7 +242,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     // Acknowledge
     strcpy (SMACData.values, "PP Disabled");
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Do Periodic Process one time (DOPP) -----
@@ -256,7 +256,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     strcpy (SMACData.values, "RATE=");
     ltoa (GetRate(), SMACData.values + 5, 10);
 
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Set Rate (SRAT) -------------------------
@@ -271,7 +271,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
     ltoa (GetRate(), SMACData.values + 5, 10);
 
     nextPeriodicTime = millis();  // start new rate now
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   //--- Get Version (GDVR) ----------------------
@@ -279,7 +279,7 @@ ProcessStatus Device::ExecuteCommand (char *command, char *params)
   {
     strcpy (SMACData.values, "DVER=");
     strcat (SMACData.values, version);
-    pStatus = SUCCESS_DATA;
+    pStatus = SYSTEM_DATA;
   }
 
   // Return the resulting ProcessStatus

@@ -86,6 +86,7 @@
  *            The second 3 are Voltage (Volt0...Volt3).
  *            The last is the 'power' controler. This is what actually
  *            reads all 6 values.
+ *       2/1/2026 - no logner create multiple devices - ignore this!
  * 
  *  7/25/2025 DEF Ver 3.1.0
  *         (1) Add functions to set the sample time and number of samples.
@@ -106,22 +107,28 @@
  * 
  *              WRITER:   set taskIsWriting.  If readerCount>0, then unset taskIsWriting and wait.
  *                 (when write is done, unset taskIsWriting).
+ * 
+ * 2/1/2025 DEF Ver 4.0.0
+ *      (1) Reduce to 1 device (undo change 7/24/2025), all channels use same config values. 
+ *          DoPeriodic outpus 7 values: 0(record no), volt(1), volt(2), volt(3), current(1), current(2),current(3)
+ *          Voltage is Volts*10.   Current is milliams*10.
+ *          Add 'stat' command to get config values
  */
 
 #pragma once
 #include <atomic>
-#include "SMAC/DefDevice.h"
 #include "Adafruit_INA3221.h"
 #include <Wire.h>
+#include "SMAC/Device.h"
 #include "FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-#define INA3221Version "3.1.0"
+#define INA3221Version "4.0.0"
 
 
 
-class DEV_INA3221: public Adafruit_INA3221, public DefDevice
+class DEV_INA3221: public Adafruit_INA3221, public Device
 {
 private:
     int i2cAddr;
@@ -141,22 +148,6 @@ private:
     TaskHandle_t readtask;            // Points to the task struct
     static void readDataTask(void *arg);  // The actual task
     
-    // = = = = = = = = = = = = = = = = = = = = = = = = = 
-    // This subclass is used to instantiate separate classes
-    //  for reporting voltages/currents in separate messages.
-    //
-    class INA3221DeviceChannel : public DefDevice
-    {
-    private:
-        int dataPointNo;
-        DEV_INA3221 *me;
-        
-    public:
-        INA3221DeviceChannel(const char *inName, DEV_INA3221 *_me, int dataPtNo);
-        ~INA3221DeviceChannel();
-        ProcessStatus DoPeriodic() override; // Override this method for processing your device periodically
-    };
-     // = = = = = = = = = = = = = = = = = = = = = = = = = 
 
 public:
     DEV_INA3221(const char *inName, int _i2CAddr,  TwoWire *theWire);
@@ -166,9 +157,9 @@ public:
     // ProcessStatus DoImmediate()    override;
     ProcessStatus ExecuteCommand(char *command, char *params=NULL) override;
     ProcessStatus gpowerCommand();
-    ProcessStatus setAveragingModeCommand();
-    ProcessStatus setTimePerSampleCommand();
-    ProcessStatus setSampleRateCommand();
+    ProcessStatus setAveragingModeCommand(char *command, char *params);
+    ProcessStatus setTimePerSampleCommand(char *command, char *params);
+    ProcessStatus setSampleRateCommand   (char *command, char *params);
 
     ProcessStatus setAvgCount(int noOfSamples);
     ProcessStatus setConvTime(int _time);

@@ -9,9 +9,11 @@
  * 
  */
 #include <Arduino.h>
+#include "Util.h"
 #include "DEV_ln298.h"
 #include "esp_check.h"
 #include "driver/gpio.h"
+#include "stdlib.h"
 
 volatile uint8_t DEV_LN298::timer_is_inited=0;
 
@@ -22,7 +24,7 @@ volatile uint8_t DEV_LN298::timer_is_inited=0;
 #define LEDC_DUTY               (4096) // Set duty to 50%. (2 ** 13) * 50% = 4096
 #define LEDC_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
-DEV_LN298::DEV_LN298(const char * Name) : DefDevice(Name)
+DEV_LN298::DEV_LN298(const char * Name) : Device(Name)
 {
     lastPcnt = 0;
     motorStatus=MOTOR_DIS;
@@ -120,40 +122,33 @@ bool DEV_LN298::isDisabled()
  * 
  * @return ProcessStatus 
  */
+
+
 ProcessStatus DEV_LN298::ExecuteCommand(char *command, char *params)
 {
 
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal;
     retVal = Device::ExecuteCommand(command, params);
     if (retVal == NOT_HANDLED)
     {
-
-        scanParam(params);
-
-        if (isCommand("SPWM"))
+        if (0 == strcasecmp("SPWM", command))
         { 
-            retVal=setPulseWidthCommand();
+            retVal=setPulseWidthCommand(command, params);
         }
-        else if (isCommand("ENAB"))
+        else if (0 == strcasecmp("ENAB", command))
         { // Enable
-            retVal =enable(true);
+            retVal =enable();
         }
 
-        else if (isCommand("DISA"))
+        else if (0 == strcasecmp("DISA", command))
         { // Disable
-            retVal =disable(true);
+            retVal =disable();
         }
         else
         {
-            sprintf(SMACData.values, "EROR|LN298|Unknown command");
-            retVal = FAIL_DATA;
+            sprintf(SMACData.values, "EROR|LN298,Unknown command");
+            retVal = SYSTEM_DATA;
         }
-    }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        sprintf(SMACData.values, "%d,%s", ledc_get_duty(LEDC_MODE, led_channel), (motorStatus = MOTOR_DIS) ? "DIS" : "ENA");
-        retVal = SUCCESS_DATA;
     }
 
     return (retVal);
@@ -166,8 +161,8 @@ ProcessStatus DEV_LN298::ExecuteCommand(char *command, char *params)
  */
  ProcessStatus DEV_LN298::DoPeriodic()
  {
-        sprintf(SMACData.values, "%d,%s", lastPcnt, (motorStatus == MOTOR_DIS)?"DIS":"ENA");
-        return (SUCCESS_DATA);
+        sprintf(SMACData.values, "%d,%d", lastPcnt, (motorStatus == MOTOR_DIS)?0:1);
+        return (WIDGET_DATA);
  }
 
 /**
@@ -176,35 +171,33 @@ ProcessStatus DEV_LN298::ExecuteCommand(char *command, char *params)
  *      <pulseWidth> is percentage -
  *                   positive for forward, negative is reverse
  */
-ProcessStatus DEV_LN298::setPulseWidthCommand()
+ProcessStatus DEV_LN298::setPulseWidthCommand(char *command, char *params)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal = NODATA;
+    char *nxt; // pts to next after scan - used to check for errors
     int32_t val = 0;
     // set pulse width (autmatically enables driver)
-    if (SUCCESS_NODATA == getInt32(0, &val, GetName()))
+    retVal = Util::getint32_t(params, &val, GetName());
+    if (retVal == WIDGET_DATA)
     {
         if ((val < -100) || (val > 100))
         {
             sprintf(SMACData.values, "EROR|SPWM|%s|Value must be 0 +/- 100", GetName());
-            retVal = FAIL_DATA;
+            retVal = SYSTEM_DATA;
         }
 
         else if (motorStatus == MOTOR_DIS)
         {
             sprintf(SMACData.values, "EROR|SPWM|%s is not enabled", GetName());
-            retVal = FAIL_DATA;
+            retVal = SYSTEM_DATA;
         }
     }
-
-    if (retVal==SUCCESS_NODATA)
+    else
     {
-        if (argCount == 1)
         {
             setPulseWidth((int)val);
+            retVal = DoPeriodic();
         }
- 
-        sprintf(SMACData.values, "OK|SPWM|Pulse width is %d", lastPcnt);
-        retVal = SUCCESS_DATA;
     }
     return (retVal);
 }
@@ -254,7 +247,7 @@ bool DEV_LN298::setPulseWidth(int pcnt)
  */
 void DEV_LN298::setDirection(int pcnt)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
+    ProcessStatus retVal=NODATA;
 
     if (motorStatus == MOTOR_DIS) return;
     if (pcnt>=0)
@@ -276,24 +269,17 @@ void DEV_LN298::setDirection(int pcnt)
  *     This is shared as a SMAC command and (optionally) a
  * method call from an external function.
  * 
- * @param isRemoteCmd - if true, then we send an 'ok' message via SMAC.
- * @return ProcessStatus - SUCCESS_DATA if this is a remote command,
- *                         SUCCESS_NODATA if this is not a remote command
+ * @return always returns NODATA.
  */
-ProcessStatus DEV_LN298::disable(bool isRemoteCmd)
+ProcessStatus DEV_LN298::disable()
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal = NODATA;
     setPulseWidth(0);
     gpio_set_level(dir_pin_a, false);
     gpio_set_level(dir_pin_b, false);
     gpio_set_level(ena_pin, false);
     motorStatus=MOTOR_DIS;
     ledc_stop(LEDC_MODE, led_channel, 0 );
-    if (isRemoteCmd)
-    {
-        retVal = SUCCESS_DATA;
-        sprintf(SMACData.values, "OK|DISA|%s Disabled", GetName());    
-    }
     return(retVal);
 }
 
@@ -304,22 +290,15 @@ ProcessStatus DEV_LN298::disable(bool isRemoteCmd)
  * method call from an external function.
  * 
  * @param isRemoteCmd  if true, then a response message is sent via SMAC.
- * @return ProcessStatus - SUCCESS_DATA if this is a remote command,
- *                         SUCCESS_NODATA if this is not a remote command
+ * @return ProcessStatus - Always returns NODATA.
  */
-ProcessStatus DEV_LN298::enable(bool isRemoteCmd)
+ProcessStatus DEV_LN298::enable()
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal = NODATA;
 
     gpio_set_level(ena_pin, true);
     setPulseWidth(0);
     motorStatus = MOTOR_IDLE;
-
-    if (isRemoteCmd)
-    {
-        sprintf(SMACData.values, "OK|ENAB|%s enabled", GetName());
-        retVal = SUCCESS_DATA;
-    }
     
     return (retVal);
 }

@@ -7,7 +7,7 @@
 //    NOTES : Implements a LIFO or Circular FIFO Stack.
 //
 //   AUTHOR : Bill Daniels
-//            Copyright 1992-2025, D+S Tech Labs, Inc.
+//            Copyright 1992-2026, D+S Tech Labs, Inc.
 //            All Rights Reserved
 //
 //=========================================================

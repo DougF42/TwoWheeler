@@ -10,14 +10,14 @@
  */
 #pragma once
 #include "config.h"
-#include "SMAC/DefDevice.h"
+#include "SMAC/Device.h"
 #include "PIDX.h"
 #include "esp_timer.h"
 #include "DEV_QuadDecoder.h"
 #include "DEV_ln298.h"
 
 
-class DEV_Pid : public DefDevice
+class DEV_Pid : public Device
 {
     private:
                                   // Commands (setpoint) are 

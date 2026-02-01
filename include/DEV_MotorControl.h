@@ -21,7 +21,7 @@
  * TODO: Should we vary the K-factors depending on current power level?
  */
 #pragma once
-#include "SMAC/DefDevice.h"
+#include "SMAC/Device.h"
 #include "DEV_Pid.h"
 #include "DEV_ln298.h"
 #include "DEV_QuadDecoder.h"
@@ -32,7 +32,7 @@
 //    and the PID motor adjustment/feedback
 //    for one motor.
 // - - - - - - - - - - - - - - - - - - - - - - - - - -
-class DEV_MotorControl: public DefDevice
+class DEV_MotorControl: public Device
 {
     private:
         
