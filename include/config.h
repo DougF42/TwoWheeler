@@ -70,6 +70,7 @@ typedef double  dist_t;
 // Motor 1 Encoder
 #define MOTOR_1_QUAD_A  GPIO_NUM_4
 #define MOTOR_1_QUAD_B  GPIO_NUM_5
+
 // Motor 2 Encoder
 #define MOTOR_2_QUAD_A  GPIO_NUM_6
 #define MOTOR_2_QUAD_B  GPIO_NUM_7

@@ -1,19 +1,20 @@
 /**
  * @file DEV_QuadDecoder.cpp 
  * @author Doug F (doug@fajaardo.hm)
- * @brief  device driver for the quadrature encoders.
+ * @brief  Device driver for the quadrature encoders.
  * @version 0.1
  * @date 2025-07-15
  * 
  * @copyright Copyright (c) 2025
  *   The ESP32Encoder library is set to have the encoder generate an
- * interrupt on any pulse. Our handler is ****TBD***
+ * interrupt on any pulse, and record the change in position.
  * 
- *   To get speed, We use a high-res timer that calles 'update_speed_cb'
- * at a regular, timed intervals. At that time, we read the number of pulses
- * that went by since the last call, and update our speed accordingly.
- * 
- * TODO: Do we need to control access in the timer ISR callback?
+ *   To get speed, We run in a separate task. 
+ *   Each time thru the loop we wait for an external request for a known period
+ *   We read the current count then read the current count, and calculate the 
+ *   current speed.
+ *
+ *
  */
 #include "DEV_QuadDecoder.h"
 #include <math.h>
@@ -38,8 +39,10 @@ DEV_QuadDecoder::DEV_QuadDecoder(const char *InName): Device(InName)
     last_position  = 0;
     last_timecheck = 0;
     last_speed = 0;
+    pulsesPerRev = QUAD_PULSES_PER_REV;
     setPhysParams(QUAD_PULSES_PER_REV, WHEEL_DIAM_MM);
     currentSpdCheckRate = SPEED_CHECK_INTERVAL_mSec;
+    
 }
 
 
@@ -100,7 +103,7 @@ void DEV_QuadDecoder::update_speed_cb(void *arg)
     pulse_t pos_diff;
     time_t  now  = esp_timer_get_time();
     time_t  elapsed;
-    pulse_t pos_now = me->myEncoder->getCount();
+    uint64_t pos_now = me->myEncoder->getCount();
 
     // Deltas
     pos_diff = (pos_now - me->last_position);
@@ -108,7 +111,7 @@ void DEV_QuadDecoder::update_speed_cb(void *arg)
 
     // Calc speed
     me->last_speed = ( ((double)pos_diff) * me->pulsesToDist) / ((double)elapsed);
-    me->last_position = me->myEncoder->getCount();
+    me->last_position = pos_now;
     me->last_timecheck = now;
 
     return;

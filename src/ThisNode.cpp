@@ -35,6 +35,8 @@
 //--- Includes --------------------------------------------
 
 #include "ThisNode.h"
+#define USE_RIGHT_WHEEL_DRIVERS false
+#define USE_POWER_MONITOR       false
 
 // Place your Device includes here
 #include "SMAC/Device.h"
@@ -92,6 +94,7 @@ MotorControl_config_t left_mtr_cfg =
         .kd = 0,
 };
 
+#if USE_RIGHT_WHEEL_DRIVERS
 MotorControl_config_t right_mtr_cfg =
     {
         .chnlNo = LEDC_CHANNEL_2,
@@ -104,6 +107,7 @@ MotorControl_config_t right_mtr_cfg =
         .ki = 0,
         .kd = 0,
 };
+#endif
 
 //=======================================================
 // Add all Devices to your Node
@@ -126,7 +130,7 @@ DEV_Pid   l_pid("LeftPID");
 l_pid     .setup(&left_mtr_cfg, &l_quad, &l_ln298);
 thisNode  ->AddDevice(&l_pid);        // Device 2
 
-
+#if USE_RIGHT_WHEEL_DRIVERS
 // RIGHT side
 // Dev 3 is the right quad decoder
 DEV_QuadDecoder r_quad("rightQUAD");
@@ -147,13 +151,15 @@ thisNode->AddDevice(&r_pid); // Device 6
 DEV_Driver driver("Driver");
 driver   .setup(&l_pid, &r_pid);
 thisNode->AddDevice(&driver); // Device 8
+#endif
 
+#if USE_POWER_MONITOR
 // Dev 7 is the power monitor
 //Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 // DEV_INA3221  power("power", I2C_INA3221_ADDR, &Wire);
 // myIna3221Device = new DEV_INA3221("Power", I2C_INA3221_ADDR, &Wire);
 // ThisNode->AddDevice(myIna3221Device);
-
+#endif
 
 // Startup is good
   goodToGo = true;
