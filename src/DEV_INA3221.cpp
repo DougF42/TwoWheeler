@@ -99,7 +99,7 @@ time_t DEV_INA3221::updateSampleReadInterval( time_t timeInMsecs)
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
 
-    Serial.printf ("***In updateSampleReadInterval - new update interval is %d Msecs\r\n", sampleReadIntervalMs);
+    // Serial.printf ("***In updateSampleReadInterval - new update interval is %d Msecs\r\n", sampleReadIntervalMs);
 
     xTaskAbortDelay(readtask);  // tell our subtask to use the new time period
 
@@ -149,13 +149,13 @@ void DEV_INA3221::readDataTask(void *arg)
 
         // we are ready to read - do it!
         TAKE_I2C;  // Using I2C - this can take a while...
-        for (idx = 0; idx < 3; idx++)
+        for (int chnl = 0; chnl < 3; chnl++)
         {           
-            tmpValues[idx]   = me->getBusVoltage(idx);  // In volts
-            tmpValues[idx+3] = me->getCurrentAmps(idx); // In amps
+            tmpValues[chnl*2]   = me->getBusVoltage(chnl);  // In volts
+            tmpValues[chnl*2+1] = me->getCurrentAmps(chnl); // In amps
         }
         GIVE_I2C;
-
+        
         // Now update our internal memory with the new values
         taskENTER_CRITICAL(&INA3221_Data_Access_Spinlock);
         for (idx=0; idx<6; idx++)
@@ -173,8 +173,8 @@ void DEV_INA3221::readDataTask(void *arg)
 
 /**
  * @brief show all the current data values, and the count of samples
- * 
- *  FORMAT:   <readCount>|volt[0], volt[1], volt[2], current[0], current[1], current[2]
+ *   All values are float,  Volts or Amps as appropriate
+ *  FORMAT:  0,<readCount>|volt[0], current[0], volt[1], current[1], volt[2],   current[2]
  */
 ProcessStatus DEV_INA3221::DoPeriodic()
 {
@@ -190,7 +190,7 @@ ProcessStatus DEV_INA3221::DoPeriodic()
     timeStamp = dts_msec;
     taskEXIT_CRITICAL(&INA3221_Data_Access_Spinlock);
 
-    sprintf(SMACData.values, "%llu|%f|%f|%f|%f|%f|%f",tmpCount,
+    sprintf(SMACData.values, "0,%llu,%f,%f,%f,%f,%f,%f",tmpCount,
          tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
     return(WIDGET_DATA);
 }
@@ -218,10 +218,30 @@ ProcessStatus  DEV_INA3221::ExecuteCommand (char *command, char *params)
         else if (0 == strcasecmp(command, "RATE"))
         {
             retVal = setSampleRateCommand(command, params);
+        } 
+        else if (0== strcasecmp(command,"STAT"))
+        {
+            retVal = statusCommand(command, params);
         }
     }
     return (retVal);
 }
+
+/**
+ * @brief Report current settings on demand
+ *   Format: STAT
+ *   Result record 1,<Sample Read Interval>, <samples-per-reading>, <sampleTimeUs>
+ * @param command 
+ * @param params 
+ * @return always returns WIDGIT_DATA
+ */
+ProcessStatus DEV_INA3221::statusCommand          (char *command, char *params)
+{
+    sprintf( SMACData.values,"1,%lld, %d, %lld", sampleReadIntervalMs,noOfSamplesPerReading,sampleTimeUs);
+    return(WIDGET_DATA);
+
+}
+
 
 /**
  * @brief Set the Averaging Mode (how many to average?)
@@ -249,10 +269,10 @@ ProcessStatus DEV_INA3221::setAveragingModeCommand(char *command, char *params)
 
 /*
  * @brief how many samples to average?
-
+ *
  *     Value MUST be is one of the following:
  *         1, 4, 16, 64, 128, 256, 512, 1024
- *  return: The update interval is re-calculated.
+ *  return: NODATA is normal, SYSTEM_DATA if error in value
  */
 ProcessStatus DEV_INA3221::setAvgCount(int val)
 {
@@ -405,9 +425,6 @@ ProcessStatus DEV_INA3221::setConvTime(int val)
     {
         retVal = SYSTEM_DATA;
         sprintf(SMACData.values, "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8");
-        #ifdef DEBUG_DEV_INA3221
-        Serial.printf( "ERROR: Convert time must be 140, 204, 332, 588, 1, 2, 4, 8. value seen = %d\r\n",val);
-        #endif
     }
     GIVE_I2C;
     

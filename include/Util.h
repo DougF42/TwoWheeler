@@ -18,7 +18,7 @@
 class Util
 {
 private:
-    static ProcessStatus sanityCheck(char *arg, char *refName,const char **tmpPtr);
+    static ProcessStatus sanityCheck(char *arg, const char *refName, char **tmpPtr);
 
 public:
     static ProcessStatus getbool    (char *arg, bool *res,         const char *refName);
@@ -34,5 +34,6 @@ public:
     static ProcessStatus getUint32_t(char *arg, uint32_t *res,     const char *refName);
     static ProcessStatus getint32_t (char *arg, int32_t *res,      const char *refName);
 
-    static ProcessStatus getLL_t(char *arg, long long *res, const char *refName);
+    static ProcessStatus getLL_t    (char *arg, long long *res,    const char *refName);
+    static ProcessStatus getDouble_t(char *arg, double *res,       const char *refName);
 };

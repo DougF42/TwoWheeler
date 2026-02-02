@@ -173,7 +173,7 @@ ProcessStatus DEV_QuadDecoder::ExecuteCommand(char *command, char *params)
  */
 ProcessStatus DEV_QuadDecoder::DoPeriodic()
 {
-    sprintf(SMACData.values, "1, %d, %f,%f", getPosition(), last_speed);
+    sprintf(SMACData.values, "0, %d, %f,%f", getPosition(), last_speed);
     return(WIDGET_DATA);
 }
 
@@ -186,7 +186,7 @@ ProcessStatus DEV_QuadDecoder::DoPeriodic()
  */
 ProcessStatus DEV_QuadDecoder::statusCommand(char *command, char *params)
 {
-    sprintf(SMACData.values, "2, %d,%f,%lld,%f", pulsesPerRev,  wheelDiam, currentSpdCheckRate, pulsesToDist);
+    sprintf(SMACData.values, "1, %d,%f,%lld,%f", pulsesPerRev,  wheelDiam, currentSpdCheckRate, pulsesToDist);
     return(WIDGET_DATA);
 }
 

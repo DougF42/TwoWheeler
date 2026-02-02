@@ -14,7 +14,8 @@
 #include "SMAC/Node.h"
 #include "config.h"
 #include "DEV_Driver.h"
-#include "stdlib.h"
+#include <stdlib.h>
+#include "Util.h"
 
 // What we consider delimiters for commands 
 #define COMMAND_WHITE_SPACE " |\r\n"
@@ -22,7 +23,7 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
 // We have a new driver
 // - - - - - - - - - - - - - - - - - - - - - - - - - - 
-DEV_Driver::DEV_Driver( const char *_name) : DefDevice(_name)
+DEV_Driver::DEV_Driver( const char *_name) : Device(_name)
 {
     nextMotorIdx=0;   
     mySpeed=0;
@@ -47,10 +48,10 @@ DEV_Driver::~DEV_Driver()
  * @param left_cfg 
  * @param right_cfg 
  */
-void DEV_Driver::setup(DEV_MotorControl *_left, DEV_MotorControl *_right)
+void DEV_Driver::setup(DEV_Pid *_left, DEV_Pid *_right)
 {
-    leftMtr  = _left;
-    rightMtr = _right;
+    leftPid  = _left;
+    rightPid = _right;
 }
 
 
@@ -63,7 +64,7 @@ void DEV_Driver::setup(DEV_MotorControl *_left, DEV_MotorControl *_right)
 ProcessStatus DEV_Driver::DoPeriodic()
 {
     // TODO:
-    return(SUCCESS_NODATA);
+    return(NODATA);
 }
 
 // If your child Device class needs to handle custom commands, then override this method:
@@ -95,34 +96,31 @@ ProcessStatus  DEV_Driver::ExecuteCommand (char *command, char *params)
     status = Device::ExecuteCommand(command, params);
     if (status != NOT_HANDLED) return(status);
 
-    status=FAIL_NODATA;
-    scanParam(params);
+    status=NODATA;
     char *cmdPtr = command;
 
-    if (strncmp(cmdPtr, "MOVE",4) == 0)
-    {  // Move  at a given speed and rate of rotation
-        status=cmdMOV(argCount, arglist);
+    if (strcasecmp(cmdPtr, "MOVE") == 0)
+    {  // Move  at a given speed AND rate of rotation
+        status=cmdMOV(command, params);
         
-    }  else if (strncmp(cmdPtr, "STOP",4) == 0)
+    }  else if (strcasecmp(cmdPtr, "STOP") == 0)
     { // Stop all motion
-        status=cmdSTOP(argCount ,arglist);
+        status=cmdSTOP(command, params);
 
-    } else if (strncmp(cmdPtr,"SPED",4) == 0)
+    } else if (strcasecmp(cmdPtr,"SPED") == 0)
     {  // Set speed
-        status = cmdSPEED(argCount ,arglist);
+        status = cmdSPEED(command, params);
 
-    } else if (strncmp(cmdPtr,"ROTA",4 ) == 0)
+    } else if (strcasecmp(cmdPtr,"ROTA" ) == 0)
     {  // Set rotation rate
-        status = cmdROTATION(argCount ,arglist);
-    } else if (strncmp(cmdPtr, "DRFT", 4) == 0)
+        status = cmdROTATION(command, params);
+
+    }  else if ( strcasecmp(cmdPtr, "TANK") )
+    {   // set speed of each tread independently
+        status = cmdTANK(command, params);
+    } else       
     {
-        status = cmdDrift(argCount, arglist);
-    }  else if ( isCommand("TANK") == 0)
-    {
-        status = cmdTANK(argCount, arglist);
-    } else {
-        sprintf(SMACData.values, "EROR|Driver|Unknown command");
-        status = FAIL_DATA;
+        status = NOT_HANDLED;
     } 
     // Serial.print("STATUS:  "); Serial.println(status);
     return(status);
@@ -130,33 +128,47 @@ ProcessStatus  DEV_Driver::ExecuteCommand (char *command, char *params)
 
 /**
  * set the speed of both wheels in a tank-like fashion.
- * 
+ *
  * Format:   TANK|<left-speed>|<right-speed>
  */
-ProcessStatus DEV_Driver::cmdTANK(int argc, char **argv)
+ProcessStatus DEV_Driver::cmdTANK(char *command, char *param)
 {
-    uint8_t leftSpd, rightSpd = 0;
-    ProcessStatus status = SUCCESS_NODATA;
-    if (!getUInt8(1, &leftSpd, "Left "))
-        return (FAIL_DATA);
+    int8_t leftSpd, rightSpd = 0;
+    ProcessStatus retVal = NODATA;
 
-    if (!getUInt8(2, &rightSpd, "Right "))
-        return (FAIL_DATA);
+    char *firstArg = strtok(param, ",\r\n");
+    char *secondArg = nullptr;
 
-    // TODO: SET THE LEFT AND RIGHT SPEED
-
-    leftMtr->setSpeed(leftSpd);
-    rightMtr->setSpeed(rightSpd);
-    return (SUCCESS_NODATA);
+    if (firstArg == nullptr)
+    {
+        sprintf(SMACData.values, "EROR - Missing arguments");
+        retVal = SYSTEM_DATA;
+    }
+    else
+    {
+        leftSpd = Util::getint8(firstArg, &leftSpd, "Left Speed ");
+        if (leftSpd == WIDGET_DATA)
+        {
+            secondArg = strtok(nullptr, ",\r\n");
+            retVal = Util::getint8(secondArg, &rightSpd, "Right Speed ");
+            if (retVal == WIDGET_DATA)
+            { // SET THE LEFT AND RIGHT SPEED
+                leftPid->setSpeed(leftSpd);
+                rightPid->setSpeed(rightSpd);
+            }
+            return (retVal);
+        }
+    }
+    return(retVal);
 }
 
 /**
  * @brief Internal - Set the speed for the two motors.
  *   speed is +/- 2048,  rotation is +/- 2048.
  * This handles all normalization and limits.
- * (Note: If the speed and rotation haven't changed, then 
+ * (Note: If the speed and rotation haven't changed, then
  *  the motor speeds are not changed. )
- * 
+ *
  * It also puts the current speed/rotation response in the Datapacket.
  * @param speed     - the desired speed (0 +/-2048).
  * @param rotation  - the desired rotation (0 +/- 2048)
@@ -164,8 +176,8 @@ ProcessStatus DEV_Driver::cmdTANK(int argc, char **argv)
 void DEV_Driver::setMotion(int speed, int rotation)
 {
     Serial.printf("** In setMotion: Speed=%d  rotation=%d\n", speed, rotation);
-    int tmpSpeed, tmpRotate = 0;   // these are the raw joystick readings, 0 to +/-2048
-    dist_t m1, m2 = 0.0;           // These are in mm/sec.
+    int tmpSpeed, tmpRotate = 0; // these are the raw joystick readings, 0 to +/-2048
+    dist_t m1, m2 = 0.0;         // These are in mm/sec.
 
     tmpSpeed = constrain(speed, -2048, 2048);
     tmpRotate = constrain(rotation, -2048, 2048);
@@ -180,188 +192,103 @@ void DEV_Driver::setMotion(int speed, int rotation)
 
     if ((tmpSpeed != mySpeed) || (tmpRotate != myDirect))
     {
-        //Serial.println("*** In SetMotion: Setting new motor speeds");
-        mySpeed = tmpSpeed;  // TODO: Convert +/-2048 to mm/second
-        myDirect = tmpRotate;  // TODO: Convert +/-2048 to mm/second
-        leftMtr  -> setSpeed(m1);
-        rightMtr -> setSpeed(m2);
+        // Serial.println("*** In SetMotion: Setting new motor speeds");
+        mySpeed = tmpSpeed;   // TODO: Convert +/-2048 to mm/second
+        myDirect = tmpRotate; // TODO: Convert +/-2048 to mm/second
+        leftPid->setSpeed(m1);
+        rightPid->setSpeed(m2);
     }
-
 }
 
 /**
  * @brief Set the forward motion to a given speed
  *  Format:  "FWD|speed|turnRate"
  *      The speed is 0 +/-2048,  dir is 0 +/-2048
- *  If no arguments, then just report the current motion. 
+ *  If no arguments, then just report the current motion.
  *  If no turnRate, assume straight ahead
- * @return ProcessStatus 
+ * @return ProcessStatus
  */
-ProcessStatus DEV_Driver::cmdMOV(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdMOV(char *command, char *param)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
-    int tmpval = 0;
-    char *pSpd = nullptr;
+    ProcessStatus retVal = NODATA;
+
+    char *pSpd = strtok(param, ",\r\n");
     char *pRot = nullptr;
-
+    int tmpSpd = 0;
+    int tmpRot = 0;
     Serial.println("See cmdMOV");
-    ProcessStatus result = SUCCESS_NODATA;
 
-   if (argcnt==2)
-    {   // We have two args - speed and turnrate
-        errno = 0;
-        tmpval = strtol(argv[0], nullptr, 10);  // speed
-        if (errno != 0)
-        { // bad value (overflow/underflow)
-            result = FAIL_DATA;
-            sprintf(SMACData.values, "speed parameter is not a valid value");
-            retVal = FAIL_DATA;
-            goto endCmdMOV;
-        }
-        else
-        {
-            mySpeed = tmpval;
-        }
-
-
-        errno = 0;
-        tmpval = strtol(argv[1], nullptr, 10); // rotation rate
-        if (errno != 0)
-        {
-            result = FAIL_DATA;
-            sprintf(SMACData.values, "speed parameter is not a valid value");
-            retVal = FAIL_DATA;
-            goto endCmdMOV;
-        }
-        else
-        {
-            myDirect = tmpval;
-        }
+    if (pSpd == nullptr)
+    {
+        sprintf(SMACData.values, "EROR - missing arguments");
+        retVal = SYSTEM_DATA;
     }
-
-    // Using actual values, set the motors and report settings
-    setMotion(mySpeed, myDirect);
-
-    // Report current speed and rotation rate
-    sprintf(SMACData.values, "*** In SetMotion: Speed|%d| dir|%d| m1|%f| M2|%f",
-             mySpeed, myDirect, leftMtr->GetRate(), rightMtr->GetRate());
-
-endCmdMOV:
-    return (result);
+    else
+    {
+        pRot = strtok(nullptr, ",\r\n");
+        if (pRot = nullptr)
+        {
+            tmpRot = 0;
+        }
+        else
+        {
+            retVal = Util::getint_t(param, &tmpRot, "Speed ");
+        }
+        setMotion(tmpSpd, tmpRot);
+    }
+    return (retVal);
 }
 
 
 /**
  * @brief Stop driving the motors
- *  Format: STOP|stoprate
- *     Stoprate is 0 (drift, motors not engaged) to 100 (panic stop)
+ *  Format: STOP
  *
  * @return ProcessStatus
  */
-ProcessStatus DEV_Driver::cmdSTOP(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdSTOP(char *command, char *param)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
-    Serial.println("See cmdSTOP");
-    setMotion(0,0);
-    return (retVal);
+    setMotion(0, 0);
+    return (NODATA);
 }
 
 
 /**
  * @brief SMAC command handler - set speed
- * @return ProcessStatus 
+ * @return ProcessStatus
  */
-ProcessStatus DEV_Driver::cmdSPEED(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdSPEED(char *command, char *param)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;   
+    ProcessStatus retVal = NODATA;
     errno = 0;
-    double tmpSpd;
+    int tmpSpd;
 
-    if (argcnt == 1)
+    retVal = Util::getint_t(param, &tmpSpd, "Speed ");
+    if (retVal == WIDGET_DATA)
     {
-        if (0 != getDouble(0, &tmpSpd, "Speed value:"))
-        {
-            retVal = FAIL_DATA;
-            goto cmdSPEEDend;
-        }
-        else
-        {
-            setMotion(tmpSpd, myDirect);
-        }
+        setMotion(tmpSpd, myDirect);
     }
-    else if (argcnt != 0)
-    {
-        sprintf(SMACData.values, "too many arguments");
-        retVal=FAIL_DATA;
-        goto cmdSPEEDend;
-    }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        sprintf(SMACData.values, "SPED|%f", mySpeed);
-        retVal = SUCCESS_DATA;
-    }
-
-cmdSPEEDend:
+ 
     return (retVal);
 }
 
+
 /**
  * @brief SMAC command handler - set rotation rate
- * 
- * @return ProcessStatus 
+ *
+ * @return ProcessStatus
  */
-ProcessStatus DEV_Driver::cmdROTATION(int argcnt, char *argv[])
+ProcessStatus DEV_Driver::cmdROTATION(char *command, char *param)
 {
-    ProcessStatus retVal = SUCCESS_DATA;
-
-    char *pRot;
-    double tmpRot;
+    ProcessStatus retVal = NODATA;
+   
+    int tmpRot;
     errno = 0;
+    retVal = Util::getint_t(param, &tmpRot, "Rotation rate");
 
-    if (argcnt == 1)
+    if (retVal == WIDGET_DATA)
     {
-        if (0 != getDouble( 0, &tmpRot, "Rotation:"))
-        {
-            retVal - FAIL_DATA;
-            goto cmdROTATIONend;
-
-        } else {
-            setMotion(mySpeed, tmpRot);
-        }
-        if (errno != 0)
-        { //to many arguments
-            retVal = FAIL_DATA;
-            sprintf(SMACData.values, "Too many arguments");
-            goto cmdROTATIONend;
-        }
+        setMotion(mySpeed, tmpRot);
     }
-
-    if (retVal==SUCCESS_NODATA)
-    {
-        sprintf(SMACData.values,"ROTA|%d", myDirect);
-        retVal=SUCCESS_DATA;
-    }
-
-cmdROTATIONend:
     return(retVal);
-}
-
-
-/**
- * @brief disable PID and LN298 drivers
- *   FORMAT:    DRFT   (no arguments)
- * @param argcnt
- * @param argv 
- * @return ProcessStatus 
- */
-ProcessStatus DEV_Driver::cmdDrift(int argcnt, char *argv[])
-{
-    ProcessStatus retVal = SUCCESS_NODATA;
-    // PID to manunal
-    leftMtr ->setDrift();
-    rightMtr->setDrift();
-    sprintf(SMACData.values, "DRFT|OK");
-    retVal = SUCCESS_DATA;
-    return(retVal);
-}
+  }

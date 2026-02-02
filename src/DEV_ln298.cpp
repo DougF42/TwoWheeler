@@ -161,7 +161,7 @@ ProcessStatus DEV_LN298::ExecuteCommand(char *command, char *params)
  */
  ProcessStatus DEV_LN298::DoPeriodic()
  {
-        sprintf(SMACData.values, "%d,%d", lastPcnt, (motorStatus == MOTOR_DIS)?0:1);
+        sprintf(SMACData.values, "0,%d,%d", lastPcnt, (motorStatus == MOTOR_DIS)?0:1);
         return (WIDGET_DATA);
  }
 

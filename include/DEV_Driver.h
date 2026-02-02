@@ -19,36 +19,33 @@
  */
 #pragma once
 
-#include "DEV_MotorControl.h"
 #include "DEV_Pid.h"
-#include "DEV_Pid.h"
-#include "SMAC/DefDevice.h"
 
 #define MAX_MOTOR_COUNT 2
-class DEV_Driver:public DefDevice
+class DEV_Driver:public Device
 {
 private:
     int nextMotorIdx;
     int mySpeed;
     int myDirect;
         
-    DEV_MotorControl  *leftMtr;
-    DEV_MotorControl  *rightMtr;
+    DEV_Pid *leftPid;
+    DEV_Pid *rightPid;
     
     // COMMAND SET: 
-    ProcessStatus cmdMOV(int argcnt, char *argv[]);   // FWD  <speed> <dir> (if no dir, then straight ahead)
-    ProcessStatus cmdSTOP(int argcnt, char *argv[]);  // Stop - setting stop rate.
-    ProcessStatus cmdSPEED(int argcnt, char *argv[]); // Set speed (used by joystick)
-    ProcessStatus cmdROTATION(int argcnt, char *argv[]);  // Set rotation rate (used by joystick)
-    ProcessStatus cmdDrift(int argcnt, char *argv[]);   // disable drivers
-    ProcessStatus cmdTANK(int argcnt, char *argv[]);   // move like a tank
+    ProcessStatus cmdMOV     (char *command, char *param);   // FWD  <speed> <dir> (if no dir, then straight ahead)
+    ProcessStatus cmdSTOP    (char *command, char *param);  // Stop - setting stop rate.
+    ProcessStatus cmdSPEED   (char *command, char *param); // Set speed (used by joystick)
+    ProcessStatus cmdROTATION(char *command, char *param);  // Set rotation rate (used by joystick)
+    ProcessStatus cmdDrift   (char *command, char *param);   // disable drivers
+    ProcessStatus cmdTANK    (char *command, char *param);   // move like a tank
 
 public:
     DEV_Driver(const char * name);
     ~DEV_Driver();
-    void setup(DEV_MotorControl *_left, DEV_MotorControl *_right);
+    void setup(DEV_Pid *_left, DEV_Pid *_right);
     ProcessStatus  ExecuteCommand (char *command, char *params=NULL); // Override this method to handle custom commands
-    ProcessStatus  DoPeriodic() override;       
+    ProcessStatus  DoPeriodic() override;
 
     void setMotion(int speed, int _rotation);
 };

@@ -7,6 +7,14 @@
  * 
  * @copyright Copyright (c) 2025
  * 
+ * The PID :
+ *    * accepts a desired speed (setPoint), 
+ *    * reads current speed(actual) from the Quad device,
+ *    * Sets the ln298 pulse width (output).
+ * There is a 'smode' command - 
+ *      manual - all setPoint is sent directly to the output.
+ *               No adjustments are made; the 'actual' is ignored
+ *     auto    - The PID logic controls the output.
  */
 #pragma once
 #include "config.h"
@@ -49,7 +57,8 @@ class DEV_Pid : public Device
         // ProcessStatus  DoImmediate    () override;
         ProcessStatus ExecuteCommand(char *command , char *params) override;
 
-        ProcessStatus cmdSetSpeed(); // external command to directly 
+        ProcessStatus cmdSetSpeed(char *command, char *params);
+                                     // external command to directly 
                                      // set the 'setpoint' or 
                                      // desired speed. Same units as
                                      // used by QUAD.
@@ -58,18 +67,18 @@ class DEV_Pid : public Device
                                      // or desired speed. Same units as
                                      // used by QUAD.
 
-        ProcessStatus cmdSetP();     // set the P Parameter
+        ProcessStatus cmdSetP(char *command, char *params);     // set the P Parameter
         void setP(double _kp);
 
-        ProcessStatus cmdSetI();
+        ProcessStatus cmdSetI(char *command, char *params);
         void setI(double _kp);
 
-        ProcessStatus cmdSetD();
+        ProcessStatus cmdSetD(char *command, char *params);
         void setD(double _kp);
 
-        ProcessStatus cmdSetMode();
+        ProcessStatus cmdSetMode(char *command, char *params);
         void setMode(bool modeIsAuto);
 
-        ProcessStatus cmdSetSTime();
+        ProcessStatus cmdSetSTime(char *command, char *params);
         void setSampleClock(time_t intervalMs);
 };

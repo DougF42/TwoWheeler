@@ -28,6 +28,8 @@
 //              Copyright 2025-2026, D+S Tech Labs, Inc.
 //              All Rights Reserved
 //
+//   2/1/2026 DEF Drop 'motor' device, resequence devices.
+//
 //=============================================================================
 
 //--- Includes --------------------------------------------
@@ -35,8 +37,11 @@
 #include "ThisNode.h"
 
 // Place your Device includes here
-#include "DEV_MotorControl.h"
+#include "SMAC/Device.h"
 #include "DEV_Driver.h"
+#include "DEV_Pid.h"
+#include "DEV_ln298.h"
+#include "DEV_QuadDecoder.h"
 #include "DEV_INA3221.h"
 
 //--- Debugging -------------------------------------------
@@ -100,70 +105,60 @@ MotorControl_config_t right_mtr_cfg =
         .kd = 0,
 };
 
+//=======================================================
+// Add all Devices to your Node
+//=======================================================
 // LEFT SIDE
-// Dev 0 is the left QUAD device.
-DEV_QuadDecoder l_quad("LeftQuad");
-l_quad    .setup(&left_mtr_cfg);
-thisNode->AddDevice(&l_quad);       // device 0
 
-// Dev 1 is the left L298 device.
+// Dev 0 is the left L298 device.
 DEV_LN298  l_ln298("Left298");
 l_ln298   .setup(&left_mtr_cfg);
 thisNode->AddDevice(&l_ln298);      // Device 1
+
+
+// Dev 1 is the left QUAD device.
+DEV_QuadDecoder l_quad("LeftQuad");
+l_quad    .setup(&left_mtr_cfg);
+thisNode->AddDevice(&l_quad);       // device 0
 
 // Dev 2 is the left PID device.
 DEV_Pid   l_pid("LeftPID");
 l_pid     .setup(&left_mtr_cfg, &l_quad, &l_ln298);
 thisNode  ->AddDevice(&l_pid);        // Device 2
 
-// Dev 3 is the left MOTOR device.
-DEV_MotorControl l_motor("LeftMotor");
-l_motor   .setup(&left_mtr_cfg, &l_quad, &l_ln298, &l_pid);
-thisNode  ->AddDevice(&l_motor);      // Device 3
-
 
 // RIGHT side
-// Dev 4 is the right quad decoder
+// Dev 3 is the right quad decoder
 DEV_QuadDecoder r_quad("rightQUAD");
 r_quad    .setup(&right_mtr_cfg);
 thisNode->AddDevice(&r_quad); // Device 4
 
-// Dev 5 is the right ln298 driver
+// Dev 4 is the right ln298 driver
 DEV_LN298  r_ln298("RightLN298");
 r_ln298   .setup(&right_mtr_cfg);
 thisNode->AddDevice(&r_ln298); // Device 5
 
-// Dev 6 is the right PID controller
+// Dev 5 is the right PID controller
 DEV_Pid  r_pid("RightPID");
 r_pid     .setup(&right_mtr_cfg, &r_quad, &r_ln298);
-thisNode->AddDevice(r_pid); // Device 6
+thisNode->AddDevice(&r_pid); // Device 6
 
-// Dev 7 is the right motor controler
-DEV_MotorControl r_motor("RightMOTOR");
-r_motor   .setup(&right_mtr_cfg, &r_quad, &r_ln298, &r_pid);
-thisNode->AddDevice(&r_motor); // Device 7
-
-// void setup(MotorControl_config_t *left_cfg, MotorControl_config_t *right_cfg); // Instantiate all the subtasks...
+// Dev 6 is the right PID controller
 DEV_Driver driver("Driver");
-driver   .setup(&l_motor, &r_motor);
+driver   .setup(&l_pid, &r_pid);
 thisNode->AddDevice(&driver); // Device 8
 
-// CREATE Power Monitor (device 9)
+// Dev 7 is the power monitor
 //Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 // DEV_INA3221  power("power", I2C_INA3221_ADDR, &Wire);
 // myIna3221Device = new DEV_INA3221("Power", I2C_INA3221_ADDR, &Wire);
 // ThisNode->AddDevice(myIna3221Device);
-	       
-
-  //=======================================================
-  // Add all Devices to your Node
-  //=======================================================
 
 
-
-  // Startup is good
+// Startup is good
   goodToGo = true;
 }
+
 
 //--- GetNode ---------------------------------------------
 

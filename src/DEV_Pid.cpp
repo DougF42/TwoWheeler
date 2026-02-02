@@ -17,6 +17,8 @@
  */
 
 #include "DEV_Pid.h"
+#include <strings.h>
+#include "Util.h"
 
 DEV_Pid::DEV_Pid( const char *_name)  : Device( _name)
 {
@@ -69,14 +71,10 @@ DEV_Pid::~DEV_Pid()
  * @param arg
  */
 ProcessStatus DEV_Pid::DoPeriodic()
-{
-    ProcessStatus retVal = SUCCESS_NODATA;  
+{  
     sprintf(SMACData.values, "%d,%lf,%lf,%lf",  pid->GetMode(), setPoint, actual, output);
-    retVal = SUCCESS_DATA;
-
-    return (retVal);
+    return (WIDGET_DATA);
 }
-
 
 
 /**
@@ -91,49 +89,39 @@ ProcessStatus DEV_Pid::DoPeriodic()
  */
 ProcessStatus DEV_Pid::ExecuteCommand(char *command, char *params)
 {
-    ProcessStatus retVal = SUCCESS_DATA;
-    retVal = Device::ExecuteCommand(command,params);
-    if (retVal != NOT_HANDLED)
-        return (retVal);
-    retVal = NOT_HANDLED;
-
-    scanParam(params);
-    if (isCommand("SPED"))
-    {   // Set speed
-        retVal = cmdSetSpeed();
-
-    } else if (isCommand("SETP"))
-    {   // Set parameter        
-        retVal = cmdSetP();
-
-    } else if (isCommand("SETI"))
-    {  // Set i parameter
-        retVal = cmdSetI();
-
-    } else if (isCommand("SETD"))
-    {   // Set D
-        retVal = cmdSetD();
-    }
-
-    else if (isCommand("SMOD"))
-    {    // Set mode (auto or manual)
-        retVal = cmdSetMode();
-    }
-
-    else if (isCommand("STIM"))
-    {    // Set pid update time (millisecs)
-        retVal = cmdSetSTime();
-    }
-
-    else 
+    ProcessStatus retVal = NODATA;
+    retVal = Device::ExecuteCommand(command, params);
+    if (retVal == NOT_HANDLED)
     {
-        sprintf(SMACData.values, "EROR,PID-Unknown command");
-        retVal = FAIL_DATA;
-    }
+        if (0 == strcasecmp(command, "SPED"))
+        { // Set speed (setpoint)
+            retVal = cmdSetSpeed(command,params);
+        }
+        else if (0 == strcasecmp(command, "SETP"))
+        { // Set 'p' parameter
+            retVal = cmdSetP(command,params);
+        }
+        else if (0 == strcasecmp(command, "SETI"))
+        { // Set i parameter
+            retVal = cmdSetI(command,params);
+        }
+        else if (0 == strcasecmp(command, "SETD"))
+        { // Set D
+            retVal = cmdSetD(command,params);
+        }
 
+        else if (0 == strcasecmp(command, "SMOD"))
+        { // Set mode (auto or manual)
+            retVal = cmdSetMode(command,params);
+        }
+
+        else if (0 == strcasecmp(command, "STIM"))
+        { // Set pid update time (millisecs)
+            retVal = cmdSetSTime(command,params);
+        }
+    }
     return (retVal); // for now...
 }
-
 
 /**
  * @brief: Set the desired speed.
@@ -143,24 +131,16 @@ ProcessStatus DEV_Pid::ExecuteCommand(char *command, char *params)
  *    Note: This works wether we are
  * in MANUAL or AUTOMATIC modes
  */
-ProcessStatus DEV_Pid::cmdSetSpeed()
+ProcessStatus DEV_Pid::cmdSetSpeed(char *command, char *params)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
-
-    if (argCount == 1)
-    {
-        retVal=getDouble(0, &setPoint, "Speed ");
-    } else if (argCount != 0)
-    {
-        sprintf(SMACData.values, "EROR,Wrong number of arguments in SPED command");
-        retVal=FAIL_DATA;
-    }
-
-    if (retVal==SUCCESS_NODATA)
-    {
-        sprintf(SMACData.values, "OK,%ld", setPoint);
-        retVal = SUCCESS_DATA;
-    }
+    ProcessStatus retVal=NODATA;
+    double newSetPoint;
+    retVal=Util::getDouble_t(params, &newSetPoint, "Speed ");
+    if ( retVal == WIDGET_DATA)
+        {
+            setSpeed(newSetPoint);
+            retVal = NODATA;
+        }
     return(retVal);
 }
 
@@ -187,24 +167,20 @@ void DEV_Pid::setSpeed(double speed)
  * 
  * @return ProcessStatus 
  */
-ProcessStatus DEV_Pid::cmdSetP()
+ProcessStatus DEV_Pid::cmdSetP(char *command, char *params)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
-    if (argCount == 1)
+    ProcessStatus retVal=NODATA;
+    double tmpVal=0;
+    
+    retVal=Util::getDouble_t(params, &tmpVal, "Kp ");
+    
+    if (retVal == WIDGET_DATA)
     {
-        retVal=getDouble(0, &kp, "Kp ");
-    } else if (argCount != 0)
-    {
-        sprintf(SMACData.values, "EROR,Wrong number of arguments in SETP command");
-        retVal=FAIL_DATA;
+        kp=tmpVal;
+        pid->SetTunings(kp, ki, kd);
+        retVal=NODATA;
     }
 
-    if (retVal==SUCCESS_NODATA)
-    {
-        if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(SMACData.values, "OK,%ld", kp);
-        retVal = SUCCESS_DATA;
-    }
     return(retVal);
 }
 
@@ -215,51 +191,38 @@ ProcessStatus DEV_Pid::cmdSetP()
  * 
  * @return ProcessStatus 
  */
-ProcessStatus DEV_Pid::cmdSetI()
+ProcessStatus DEV_Pid::cmdSetI(char *command, char *params)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
-    if (argCount == 1)
+    ProcessStatus retVal=NODATA;
+    double tmpVal=0;
+    retVal = Util::getDouble_t(params, &tmpVal, "Ki ");
+    if (retVal == WIDGET_DATA)
     {
-        retVal=getDouble(0, &ki, "Ki ");
-    } else if (argCount != 0)
-    {
-        sprintf(SMACData.values, "EROR,Wrong number of arguments in SETI command");
-        retVal=FAIL_DATA;
+        ki = tmpVal;
+        pid->SetTunings(kp, ki, kd);
     }
 
-    if (retVal==SUCCESS_NODATA)
-    {
-        if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(SMACData.values, "OK,%ld", ki);
-        retVal = SUCCESS_DATA;
-    }
     return(retVal);
 }
 
 
 /**
  * @brief Get or Set the PID parameters
- * Format:   SETD|<ki>
+ * Format:   SETD|<kd>
  * 
  * @return ProcessStatus 
  */
-ProcessStatus DEV_Pid::cmdSetD()
+ProcessStatus DEV_Pid::cmdSetD(char *command, char *params)
 {
-    ProcessStatus retVal=SUCCESS_NODATA;
-    if (argCount == 1)
-    {
-        retVal=getDouble(0, &kd, "Kd ");
-    } else if (argCount != 0)
-    {
-        sprintf(SMACData.values, "EROR,Wrong number of arguments in SETD command");
-        retVal=FAIL_DATA;
-    }
+    ProcessStatus retVal=NODATA;
+    double tmpVal;
 
-    if (retVal==SUCCESS_NODATA)
+    retVal = Util::getDouble_t(params, &tmpVal, "Kd");
+    if (retVal == WIDGET_DATA)
     {
-        if (argCount==1) pid->SetTunings(kp, ki, kd);
-        sprintf(SMACData.values, "OK|%ld", kd);
-        retVal = SUCCESS_DATA;
+        kd = tmpVal;
+        pid->SetTunings(kp, ki, kd);
+        retVal = NODATA;
     }
     return(retVal);
 }
@@ -272,36 +235,17 @@ ProcessStatus DEV_Pid::cmdSetD()
  *    FORMAT: SMODE|<bool>
  * @return ProcessStatus 
  */
-ProcessStatus DEV_Pid::cmdSetMode()
+ProcessStatus DEV_Pid::cmdSetMode(char *command, char *params)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
-    bool val=false;
-    if (argCount == 1)
+    ProcessStatus retVal = NODATA;
+    bool val = false;
+    retVal == Util::getbool(params, &val, "Bad mode ");
+    if (retVal == WIDGET_DATA)
     {
- 
-        if (retVal == getBool(1, &val, "Bad mode ") )
-        {
-            retVal=FAIL_NODATA;
-        }
+        pid->SetMode(val);
+        retVal = NODATA;
     }
-    else if (argCount != 0)
-    {
-        // Error - wrong arg count
-        sprintf(SMACData.values,"EROR,Wrong number of arguments");
-        retVal = FAIL_DATA;
-    }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        if (argCount == 1)
-        {
-            pid->SetMode(val) ;
-        }
-        sprintf(SMACData.values, "SMOD,%s",  (pid->GetMode()==AUTOMATIC) ? "Automatic": "Manual" );
-        retVal=SUCCESS_DATA;
-    }
-
-    return(retVal);
+    return (retVal);
 }
 
 /**
@@ -319,34 +263,18 @@ ProcessStatus DEV_Pid::cmdSetMode()
  * 
  * @return ProcessStatus 
  */
-ProcessStatus DEV_Pid::cmdSetSTime()
+ProcessStatus DEV_Pid::cmdSetSTime(char *command, char *params)
 {
-    ProcessStatus retVal = SUCCESS_NODATA;
+    ProcessStatus retVal = NODATA;
     int32_t stime=mySampleTime;
-    if (argCount == 1)
-    {
-        if ( 0 != getInt32(1, &stime, "Bad mode "))
-        {
-            retVal=FAIL_DATA;
-        }
+    retVal = Util::getint32_t(params, &stime, "Compute time ");
 
-    } else if (argCount != 0) 
-    {
-        // Error - wrong arg count
-        sprintf(SMACData.values,"EROR,wrong number of arguments");
-        retVal = FAIL_DATA;
-    }
-
-    if (retVal == SUCCESS_NODATA)
-    {
-        if (argCount == 1)
+    if (retVal == WIDGET_DATA)
         {
-            setSampleClock(mySampleTime);
             mySampleTime=stime;
+            setSampleClock(mySampleTime);
+            retVal = NODATA;
         }
-        sprintf(SMACData.values,"STIM|%d",mySampleTime);
-        retVal=SUCCESS_DATA;
-    }
 
     return(retVal);
 }

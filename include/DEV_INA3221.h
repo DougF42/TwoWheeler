@@ -160,6 +160,7 @@ public:
     ProcessStatus setAveragingModeCommand(char *command, char *params);
     ProcessStatus setTimePerSampleCommand(char *command, char *params);
     ProcessStatus setSampleRateCommand   (char *command, char *params);
+    ProcessStatus statusCommand          (char *command, char *params);
 
     ProcessStatus setAvgCount(int noOfSamples);
     ProcessStatus setConvTime(int _time);
