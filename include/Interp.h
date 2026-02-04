@@ -20,6 +20,7 @@
 //                   either increasing or decreasing in value.
 //    
 // - - - - - - - The Interpolation class - - - - - - - 
+#pragma once
 class Interp
 {
 private:

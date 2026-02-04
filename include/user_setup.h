@@ -1,6 +1,7 @@
 //
 //
 #ifndef user_setup_once
+#define user_setup_once
 Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
 //=======================================================

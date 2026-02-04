@@ -9,10 +9,8 @@
  *   The ESP32Encoder library is set to have the encoder generate an
  * interrupt on any pulse, and record the change in position.
  * 
- *   To get speed, We run in a separate task. 
- *   Each time thru the loop we wait for an external request for a known period
- *   We read the current count then read the current count, and calculate the 
- *   current speed.
+ *   To get speed, We run in a separate task, and periodically read the position,
+ * and update the speed.
  *
  *
  */
@@ -35,14 +33,8 @@ static const char *TAG="DEV_QuadDecoder";
 DEV_QuadDecoder::DEV_QuadDecoder(const char *InName): Device(InName)
 {
     myEncoder      = new ESP32Encoder;  //create a default encoder
-    spdUpdateTimerhandle=nullptr;
-    last_position  = 0;
-    last_timecheck = 0;
-    last_speed = 0;
     pulsesPerRev = QUAD_PULSES_PER_REV;
     setPhysParams(QUAD_PULSES_PER_REV, WHEEL_DIAM_MM);
-    currentSpdCheckRate = SPEED_CHECK_INTERVAL_mSec;
-    
 }
 
 
@@ -64,57 +56,52 @@ DEV_QuadDecoder::~DEV_QuadDecoder()
 void DEV_QuadDecoder::setup(MotorControl_config_t *cfg)
 {
     // deocder setup.
+    mememme="DECODER 1";
     ESP32Encoder::useInternalWeakPullResistors = puType::none;
     myEncoder->attachFullQuad(cfg->quad_pin_a, cfg->quad_pin_b);
-    resetPosition();
-
-    // Set up the speed update clock
-     // speed check timer
-    esp_timer_create_args_t speed_timer_args =
-        {
-            .callback = &update_speed_cb,      //!< Callback function to execute when timer expires
-            .arg = this,                       //!< Argument to pass to callback
-            .dispatch_method = ESP_TIMER_TASK, //!< Dispatch callback from task or ISR; if not specified, esp_timer task
-                                               //!< is used; for ISR to work, also set Kconfig option
-                                               //!< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
-            .name = "SpeedTimer",              //!< Timer name, used in esp_timer_dump() function
-            .skip_unhandled_events = true      //!< Setting to skip unhandled events in light sleep for periodic timers
-        };
-
-    ESP_ERROR_CHECK(esp_timer_create(&speed_timer_args, &spdUpdateTimerhandle));
-    Serial.print("... Speed timer created");
+    resetPosition();   
 
     setSpeedCheckInterval(SPEED_CHECK_INTERVAL_mSec);
-    Serial.printf("... Interval is %d (mseconds)\n\r", SPEED_CHECK_INTERVAL_mSec);
 
     periodicEnabled = false; // Default is no report.
+	myEncoder->clearCount();
+
     return;
 }
 
 
 /**
- * @brief Called by High res timer to update the speed
- * 
+ * @brief Subtaask to update the speed
+ *   Note: xTaskAbortDelay is used to interrupt this 
+ * when the time changes.
  * @param arg - pointer to the appropriate DEV_QuadDecoder instance
  */
-void DEV_QuadDecoder::update_speed_cb(void *arg)
+//void DEV_QuadDecoder::updateSpeedTask(void *arg)
+ProcessStatus DEV_QuadDecoder::DoImmediate()
 {
-    DEV_QuadDecoder *me = (DEV_QuadDecoder *)arg;
+    int64_t now = esp_timer_get_time(); 
+
+    // note: Static initializer - only happens ONCE!
+    static int64_t last_timeCheck=esp_timer_get_time(); // in uSecs
+
     pulse_t pos_diff;
-    time_t  now  = esp_timer_get_time();
-    time_t  elapsed;
-    uint64_t pos_now = me->myEncoder->getCount();
+    time_t elapsed;
+    elapsed = now-last_timeCheck;
+    if ( elapsed > currentSpdCheckms*1000) 
+    {
+        Serial.println("IM Back!");
 
-    // Deltas
-    pos_diff = (pos_now - me->last_position);
-    elapsed  = (now - me->last_timecheck)/1000;
+        uint64_t pos_now = myEncoder->getCount();
 
-    // Calc speed
-    me->last_speed = ( ((double)pos_diff) * me->pulsesToDist) / ((double)elapsed);
-    me->last_position = pos_now;
-    me->last_timecheck = now;
+        // Deltas
+        pos_diff = (pos_now - last_position);       
 
-    return;
+        // Calc speed
+        last_speed = (((double)pos_diff) * pulsesToDist) / ((double)elapsed);
+        last_position = pos_now;
+        last_timeCheck = now;
+    }
+    return(NODATA); // NEVER HAPPENS
 }
 
 
@@ -189,7 +176,7 @@ ProcessStatus DEV_QuadDecoder::DoPeriodic()
  */
 ProcessStatus DEV_QuadDecoder::statusCommand(char *command, char *params)
 {
-    sprintf(SMACData.values, "1, %d,%f,%lld,%f", pulsesPerRev,  wheelDiam, currentSpdCheckRate, pulsesToDist);
+    sprintf(SMACData.values, "1, %d,%f,%lld,%f", pulsesPerRev,  wheelDiam, currentSpdCheckms, pulsesToDist);
     return(WIDGET_DATA);
 }
 
@@ -311,24 +298,20 @@ void DEV_QuadDecoder::setPhysParams(pulse_t pulseCnt, double diam)
 /**
  * @brief set the speed update interval
  *
- * @param interval - desired interval, in milliseconds
+ * @param interval - desired interval, in milliseconds.
+ *         NOTE: Must be greater than portTick_PERIOD_MS
  * @return true  - normal return
  * @return false  - error detected - failed
  */
-void DEV_QuadDecoder::setSpeedCheckInterval(time_t interval)
+void DEV_QuadDecoder::setSpeedCheckInterval(time_t intervalMs)
 {
-    currentSpdCheckRate = interval * 1000;
-    if (esp_timer_is_active(spdUpdateTimerhandle))
-    {
-        ESP_ERROR_CHECK(esp_timer_restart(spdUpdateTimerhandle, interval*1000));
-    } else {
-        ESP_ERROR_CHECK(esp_timer_start_periodic(spdUpdateTimerhandle, interval * 1000));
-    }
+    currentSpdCheckms= intervalMs * portTICK_PERIOD_MS;
+    Serial.print("Set speed iterval to "); Serial.println( currentSpdCheckms);
     return;
 }
 
 /**
- * @brief Return the last calculated position.
+ * @brief Return the last position.
  *   (this is in engineering units)
  * @return pulse_t
  */
@@ -344,16 +327,18 @@ double DEV_QuadDecoder::DEV_QuadDecoder::getPosition()
  */
 void DEV_QuadDecoder::resetPosition()
 {
+    // TODO: SET THIS IN THE ESP DRIVER!
     myEncoder->clearCount();
     last_position = 0;
-    last_timecheck = millis();
     last_speed = 0;
 }
 
 /**
  * Retrieve the last calculated speed
+ *   (this takes care of race issues)
  */
 double DEV_QuadDecoder::getSpeed()
 {
+    // TODO: 
     return(last_speed);
 }

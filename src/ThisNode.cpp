@@ -37,7 +37,7 @@
 #include "ThisNode.h"
 #define USE_RIGHT_WHEEL_DRIVERS false
 #define USE_POWER_MONITOR       false
-
+#define NOTESTING               false
 // Place your Device includes here
 #include "SMAC/Device.h"
 #include "DEV_Driver.h"
@@ -113,22 +113,25 @@ MotorControl_config_t right_mtr_cfg =
 // Add all Devices to your Node
 //=======================================================
 // LEFT SIDE
-
+#if NOTESTING
 // Dev 0 is the left L298 device.
 DEV_LN298  l_ln298("Left298");
 l_ln298   .setup(&left_mtr_cfg);
 thisNode->AddDevice(&l_ln298);      // Device 1
-
+#endif
 
 // Dev 1 is the left QUAD device.
 DEV_QuadDecoder l_quad("LeftQuad");
 l_quad    .setup(&left_mtr_cfg);
 thisNode->AddDevice(&l_quad);       // device 0
 
+#if NOTESTING
+
 // Dev 2 is the left PID device.
 DEV_Pid   l_pid("LeftPID");
 l_pid     .setup(&left_mtr_cfg, &l_quad, &l_ln298);
 thisNode  ->AddDevice(&l_pid);        // Device 2
+#endif
 
 #if USE_RIGHT_WHEEL_DRIVERS
 // RIGHT side

@@ -11,7 +11,9 @@
 #pragma once
 #include <Arduino.h>
 #include "config.h"
-#include "config.h"
+#include <FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "SMAC/Device.h"
 #include "ESP32Encoder.h"
 #include "esp_timer.h"
@@ -19,21 +21,26 @@
 class DEV_QuadDecoder : public Device
 {
 private:
+    const char *mememme;
     ESP32Encoder *myEncoder;
     pulse_t pulsesPerRev;
     double wheelDiam;        // diameter in mm
     pulse_t last_position;
-    time_t last_timecheck;
+
     double last_speed;
-    time_t currentSpdCheckRate;
+    time_t currentSpdCheckms; // in ticks.   ticks =  msecs/ portTICK_PERIOD_MS
+
     double pulsesToDist; // converts pulse count to engineering units
-    static void update_speed_cb(void *arg);
-    esp_timer_handle_t spdUpdateTimerhandle;
+
+    // static void updateSpeedTask(void *arg);
+    // TaskHandle_t speedTaskHandle; // poitns to task that reads/updates 'last_speed'.
+    // bool speedTaskRunning;
 
 public:
     DEV_QuadDecoder(const char *InName);
     ~DEV_QuadDecoder();
     void setup(MotorControl_config_t *cfg);
+    ProcessStatus DoImmediate() override;
     ProcessStatus ExecuteCommand(char *command, char *params = NULL) override; // Override this method to handle custom commands
     ProcessStatus DoPeriodic() override;                                       // Override this method to periodically send reports
 
@@ -42,7 +49,7 @@ public:
     ProcessStatus statusCommand(char *command, char *params);
     
     void          setPhysParams(pulse_t pulseCnt, double diam);
-    void          setSpeedCheckInterval(time_t interval);
+    void          setSpeedCheckInterval(time_t intervalMs);
     double        getPosition();
     double        getSpeed();
     void          resetPosition();
