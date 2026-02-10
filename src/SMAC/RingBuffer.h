@@ -1,6 +1,6 @@
 //=========================================================
 //
-//     FILE : RingBuffer.cpp
+//     FILE : RingBuffer.h
 //
 //  PROJECT : Any
 //
@@ -12,87 +12,43 @@
 //
 //=========================================================
 
-//--- Includes --------------------------------------------
+#ifndef RINGBUFFER_H
+#define RINGBUFFER_H
 
-#include "RingBuffer.h"
-#include <Arduino.h>
-#include <string.h>
+//--- Defines ---------------------------------------------
 
-//--- Constructor -----------------------------------------
+#define MAX_ELEMENTS  20
 
-RingBuffer::RingBuffer (BufferType inBufferType)
+//--- Types -----------------------------------------------
+
+enum BufferType
 {
-  bufferType  = inBufferType;
-  numElements = headIndex = tailIndex = 0;
-}
+  FIFO,
+  LIFO
+};
 
-//--- Destructor ------------------------------------------
 
-RingBuffer::~RingBuffer ()
+//=========================================================
+//  class RingBuffer
+//=========================================================
+
+class RingBuffer
 {
-  // Free all elements
-  for (int i=numElements-1; i>=0; i--)
-    free (elements[i]);
-}
+  protected:
+    BufferType  bufferType;
+    int         numElements;
+    int         headIndex;
+    int         tailIndex;
+    char        *elements[MAX_ELEMENTS];
 
-//--- GetNumElements --------------------------------------
+  public:
+    RingBuffer (BufferType inBufferType);
+   ~RingBuffer ();
 
-int RingBuffer::GetNumElements ()
-{
-  return numElements;
-}
+    int    GetNumElements ();
+    void   PushString     (const char *newElement);
+    char  *PopString      ();
+};
 
-//--- PushString ------------------------------------------
 
-void RingBuffer::PushString (const char *element)
-{
-  // Push a new string into the ring
-  if (numElements < MAX_ELEMENTS)
-  {
-    // Allocate space and copy data
-    int  elementSize = strlen (element) + 1;  // include NULL terminator
-    char *newElement = (char *) malloc (elementSize);
-    memcpy (newElement, element, elementSize);
-
-    if (bufferType == FIFO)
-    {
-      // FIFO
-      elements[tailIndex] = newElement;
-      tailIndex = (tailIndex + 1) % MAX_ELEMENTS;
-    }
-    else
-    {
-      // LIFO
-      elements[numElements] = newElement;
-    }
-
-    ++numElements;
-  }
-}
-
-//--- PopString -------------------------------------------
-
-char *RingBuffer::PopString ()
-{
-  char *element = NULL;
-
-  // Pop a string out of the Ring
-  if (numElements > 0)
-  {
-    if (bufferType == FIFO)
-    {
-      // FIFO
-      element = elements[headIndex];
-      headIndex = (headIndex + 1) % MAX_ELEMENTS;
-    }
-    else
-    {
-      // LIFO
-      element = elements[numElements-1];
-    }
-
-    --numElements;
-  }
-
-  return element;  // User must free this memory when done !!!  free (element);
-}
+#endif

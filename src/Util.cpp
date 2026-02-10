@@ -100,26 +100,28 @@ ProcessStatus Util::getuint8(char *arg, uint8_t *res, const char *refName)
     {
         char *endptr;
         errno = 0;
-        long val = strtol(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<uint8_t>::min()) | (val > std::numeric_limits<uint8_t>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+        long val = strtol(astring, &endptr, 0);    // allow 0x (hex), O888 (octal) or nnn (decimal)
+
+
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<uint8_t>::min()) | (val > std::numeric_limits<uint8_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            Serial.printf("----  getuint8_t says value is %ld, result is %d\r\nn", val, res); // DEBUG
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
-    return(retStatus);
+    return (retStatus);
 }
 
 
@@ -135,22 +137,22 @@ ProcessStatus Util::getint8(char *arg, int8_t *res, const char *refName)
         char *endptr;
         errno = 0;
         long val = strtol(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<int8_t>::min()) | (val > std::numeric_limits<int8_t>::max()))
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<int8_t>::min()) | (val > std::numeric_limits<int8_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
     return (retStatus);
@@ -169,22 +171,23 @@ ProcessStatus Util::getuint16_t(char *arg, uint16_t *res, const char *refName)
         char *endptr;
         errno = 0;
         long val = strtol(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<uint16_t>::min()) | (val > std::numeric_limits<uint16_t>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint16_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<uint16_t>::min()) | (val > std::numeric_limits<uint16_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint16_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
+        free(astring);
+        return (retStatus);
     }
     free(astring);
     return(retStatus);
@@ -202,27 +205,25 @@ ProcessStatus Util::getint16_t(char *arg, int16_t *res, const char *refName)
         char *endptr;
         errno = 0;
         long val = strtol(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-    else if ((val < std::numeric_limits<int16_t>::min()) | (val > std::numeric_limits<int16_t>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a int16_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<int16_t>::min()) | (val > std::numeric_limits<int16_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a int16_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
-    return(retStatus);
+    return (retStatus);
 }
-
 
 ProcessStatus Util::getint_t(char *arg, int *res, const char *refName)
 {
@@ -236,27 +237,26 @@ ProcessStatus Util::getint_t(char *arg, int *res, const char *refName)
         char *endptr;
         errno = 0;
         long val = strtol(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<int>::min()) | (val > std::numeric_limits<int>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<int>::min()) | (val > std::numeric_limits<int>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
-    return(retStatus);
+    return (retStatus);
 }
-
 
 ProcessStatus Util::getUint_t(char *arg, unsigned int *res, const char *refName)
 {
@@ -270,25 +270,24 @@ ProcessStatus Util::getUint_t(char *arg, unsigned int *res, const char *refName)
         char *endptr;
         errno = 0;
         long val = strtol(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<unsigned int>::min()) | (val > std::numeric_limits<unsigned int>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<unsigned int>::min()) | (val > std::numeric_limits<unsigned int>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
-    return(retStatus);
+    return (retStatus);
 }
 
 
@@ -304,25 +303,26 @@ ProcessStatus Util::getUint32_t(char *arg, uint32_t *res, const char *refName)
         char *endptr;
         errno = 0;
         long long val = strtoll(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<uint32_t>::min()) | (val > std::numeric_limits<uint32_t>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<uint32_t>::min()) | (val > std::numeric_limits<uint32_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
-    return(retStatus);
+    return (retStatus);
 }
 
 ProcessStatus Util::getint32_t(char *arg, int32_t *res, const char *refName)
@@ -337,26 +337,26 @@ ProcessStatus Util::getint32_t(char *arg, int32_t *res, const char *refName)
         char *endptr;
         errno = 0;
         long long val = strtoll(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<int32_t>::min()) | (val > std::numeric_limits<int32_t>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<int32_t>::min()) | (val > std::numeric_limits<int32_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
-    return(retStatus);
+    return (retStatus);
 }
+
 
 ProcessStatus Util::getLL_t(char *arg, long long *res, const char *refName)
 {
@@ -370,28 +370,28 @@ ProcessStatus Util::getLL_t(char *arg, long long *res, const char *refName)
         char *endptr;
         errno = 0;
         long long val = strtoll(astring, &endptr, 0); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ((val < std::numeric_limits<int64_t>::min()) | (val > std::numeric_limits<int64_t>::max()))
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<int64_t>::min()) | (val > std::numeric_limits<int64_t>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
     return (retStatus);
 }
 
-ProcessStatus Util::getDouble_t(char *arg, double *res,  const char *refName)
+ProcessStatus Util::getDouble_t(char *arg, double *res, const char *refName)
 {
     ProcessStatus retStatus = NOT_HANDLED;
     char *astring = nullptr;
@@ -403,22 +403,22 @@ ProcessStatus Util::getDouble_t(char *arg, double *res,  const char *refName)
         char *endptr;
         errno = 0;
         double val = strtod(astring, &endptr); // allow 0x (hex), O888 (octal) or nnn (decimal)
-        if (errno != 0)
-            if (*endptr != '\0')
-            {
-                sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else if ( (val < std::numeric_limits<double>::min()) | (val > std::numeric_limits<double>::max()) )
-            {
-                sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
-                retStatus = SYSTEM_DATA;
-            }
-            else
-            { // valid !!!
-                *res = val;
-                retStatus = WIDGET_DATA;
-            }
+
+        if ((errno != 0) || (*endptr != '\0'))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - bad value", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else if ((val < std::numeric_limits<double>::min()) | (val > std::numeric_limits<double>::max()))
+        {
+            sprintf(SMACData.values, "EROR decoding %s - out of range for a uint8_t ", refName);
+            retStatus = SYSTEM_DATA;
+        }
+        else
+        { // valid !!!
+            *res = val;
+            retStatus = WIDGET_DATA;
+        }
     }
     free(astring);
     return (retStatus);
